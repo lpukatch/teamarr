@@ -8,13 +8,13 @@ docs_version: "2.3.1"
 
 # Template Engine
 
-The template engine resolves `{variable}` placeholders in EPG titles, descriptions, and filler content. It supports 197 variables across 17 categories, 20 condition evaluators, and suffix rules for multi-game context.
+The template engine resolves `{variable}` placeholders in EPG titles, descriptions, and filler content. It supports 205 variables across 17 categories, 20 condition evaluators, and suffix rules for multi-game context.
 
 ## Architecture
 
 ```
 TemplateResolver
-  ├── VariableRegistry (197 variables, 17 categories)
+  ├── VariableRegistry (205 variables, 17 categories)
   ├── ConditionEvaluator (20 evaluators)
   └── ContextBuilder (Event + Team → TemplateContext)
 ```

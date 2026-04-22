@@ -8,7 +8,7 @@ docs_version: "2.3.0"
 
 # Template Variables
 
-Templates use variables enclosed in curly braces that get replaced with real data when EPG is generated. Teamarr provides 192 variables across 17 categories.
+Templates use variables enclosed in curly braces that get replaced with real data when EPG is generated. Teamarr provides 205 variables across 17 categories.
 
 ## Suffix Support
 
@@ -113,6 +113,25 @@ Positional team references and home/away context.
 | `{home_away_text}` | 'at home' or 'on the road' | base, .next, .last | `at home` |
 | `{vs_at}` | 'vs' if home, 'at' if away | base, .next, .last | `vs` |
 | `{vs_@}` | 'vs' if home, '@' if away | base, .next, .last | `vs` |
+
+### Feed Team
+
+When a channel is configured for a specific home or away broadcast feed (via the Feed Separation setting), these variables resolve to the team whose feed this channel carries — independent of which team is home or away on any given day. If the channel has no feed assignment, all Feed Team variables return empty strings (they disappear gracefully from templates).
+
+These are most useful for Event EPG templates on stream-separated channels (e.g., an MLB "Home feed" channel that always shows the home broadcaster's perspective regardless of which team is home today).
+
+| Variable | Description | Suffixes | Sample |
+|----------|-------------|----------|--------|
+| `{feed_team}` | Feed team full name | base | `Baltimore Orioles` |
+| `{feed_team_short}` | Feed team short name | base | `Orioles` |
+| `{feed_team_abbrev}` | Feed team abbreviation uppercase | base | `BAL` |
+| `{feed_team_abbrev_lower}` | Feed team abbreviation lowercase | base | `bal` |
+| `{feed_team_logo}` | Feed team logo URL | base | ESPN logo URL |
+| `{is_home_feed}` | `'true'` if this channel is the home team's feed, `'false'` if away, `''` if no feed | base | `true` |
+| `{is_away_feed}` | `'true'` if this channel is the away team's feed, `'false'` if home, `''` if no feed | base | `false` |
+| `{feed_home_away}` | `'Home'` if home feed, `'Away'` if away feed, `''` if no feed | base | `Home` |
+
+Feed Team variables do **not** support `.next` / `.last` suffixes — they describe the channel's configuration, not a specific game's schedule. For per-game home/away references, use the `{home_team}` / `{away_team}` variables above.
 
 ---
 

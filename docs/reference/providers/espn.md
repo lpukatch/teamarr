@@ -8,7 +8,7 @@ docs_version: "2.3.1"
 
 # ESPN Provider
 
-ESPN is the primary data provider (priority 0), serving 52 pre-configured leagues plus 240+ dynamically discovered soccer leagues. The API is free, public, and requires no authentication.
+ESPN is the primary data provider (priority 0), serving 68 pre-configured leagues plus ~250 dynamically discovered soccer leagues. The API is free, public, and requires no authentication.
 
 ## API Details
 
@@ -59,14 +59,14 @@ baseball/mlb
 | Basketball | NBA, WNBA, G League, NCAAM, NCAAW | |
 | Hockey | NHL, NCAA M/W, Olympics M/W | |
 | Baseball | MLB | MiLB handled by MLB Stats provider |
-| Soccer | 40+ pre-configured, 240+ discovered | Dot notation: `eng.1`, `ger.2` |
+| Soccer | 44 pre-configured, ~250 discovered | Dot notation: `eng.1`, `ger.2` |
 | Combat Sports | UFC | Event Card matching |
 | Lacrosse | NLL, PLL, NCAA M/W | |
 | Volleyball | NCAA M/W | |
 
 ## Soccer League Discovery
 
-ESPN's API exposes 240+ soccer leagues dynamically. During cache refresh, Teamarr discovers available leagues and makes them selectable in the league picker under the Soccer sport. These discovered leagues support event matching in event groups but don't have pre-configured team import.
+ESPN's API exposes ~250 soccer leagues through its `/v2/sports/soccer/leagues` discovery endpoint (hard-capped at 250 by ESPN; we've seen ~247–248 after filtering). During cache refresh, Teamarr discovers available leagues and makes them selectable in the league picker under the Soccer sport. These discovered leagues support event matching in event groups but don't have pre-configured team import. A small number of real soccer leagues (e.g. Swiss Super League, Israeli Premier League) are omitted from ESPN's discovery index despite being fully served by the data endpoints — these are registered as primary leagues in `schema.sql` as a workaround.
 
 Soccer leagues use ESPN's dot notation: `{country}.{tier}` (e.g., `eng.1` for Premier League, `ger.2` for 2. Bundesliga).
 
