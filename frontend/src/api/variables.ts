@@ -13,6 +13,7 @@ export interface VariableCategory {
 
 export interface VariablesResponse {
   total: number
+  template_type: string | null
   categories: VariableCategory[]
   available_sports: string[]
 }
@@ -35,8 +36,11 @@ export interface ConditionsResponse {
   conditions: Condition[]
 }
 
-export async function fetchVariables(): Promise<VariablesResponse> {
-  return api.get("/variables")
+export async function fetchVariables(
+  templateType?: "team" | "event",
+): Promise<VariablesResponse> {
+  const qs = templateType ? `?template_type=${encodeURIComponent(templateType)}` : ""
+  return api.get(`/variables${qs}`)
 }
 
 export async function fetchConditions(templateType: string = "team"): Promise<ConditionsResponse> {

@@ -46,19 +46,27 @@ def _suffix_rules_display(rules: SuffixRules) -> list[str]:
 
 
 @router.get("/variables")
-def get_variables():
-    """Get all template variables grouped by category.
+def get_variables(template_type: str | None = None):
+    """Get template variables grouped by category, optionally scoped to a template type.
 
-    Returns variables organized for the template variable picker UI.
-    Each variable includes name, description, category, and supported suffixes.
+    Args:
+        template_type: Optional filter — 'team' or 'event'. When set, only
+            variables valid for that template type are returned (per each
+            variable's registered TemplateScope). Unknown values and None
+            return all variables (matches the conditions endpoint's behavior).
+
+    Team templates render from an "our team" perspective (variables like
+    {team}, {opponent}, {is_home}). Event templates are positional
+    (matchup-level) and additionally expose the feed_team family on
+    feed-separated channels.
     """
     registry = get_registry()
-    all_vars = registry.all_variables()
+    scoped_vars = registry.filter_by_template_type(template_type)
 
     # Group by category
     by_category: dict[str, list[dict]] = {}
 
-    for var in sorted(all_vars, key=lambda v: (v.category.value, v.name)):
+    for var in sorted(scoped_vars, key=lambda v: (v.category.value, v.name)):
         cat_name = _category_display_name(var.category)
 
         if cat_name not in by_category:
@@ -83,7 +91,8 @@ def get_variables():
         )
 
     return {
-        "total": registry.count(),
+        "total": len(scoped_vars),
+        "template_type": template_type,
         "categories": categories,
         "available_sports": AVAILABLE_SPORTS,
     }

@@ -8,7 +8,7 @@ docs_version: "2.3.1"
 
 # Template Engine
 
-The template engine resolves `{variable}` placeholders in EPG titles, descriptions, and filler content. It supports 205 variables across 17 categories, 20 condition evaluators, and suffix rules for multi-game context.
+The template engine resolves `{variable}` placeholders in EPG titles, descriptions, and filler content. It supports 205 variables across 17 categories, 20 condition evaluators, suffix rules for multi-game context, and template-type scoping for the variable picker.
 
 ## Architecture
 
@@ -43,6 +43,30 @@ Each variable declares which game contexts it supports:
 | `ALL` | Yes | Yes | Yes | Most variables (opponent, game_date, scores) |
 | `BASE_ONLY` | Yes | No | No | Team constants (team_name, league, sport) |
 | `BASE_NEXT_ONLY` | Yes | Yes | No | Odds (no odds for past games) |
+
+## Template Scope
+
+Orthogonal to suffix rules. Each variable also declares which template type(s) it is valid in, mirroring the existing `template_type` concept (`'team'` / `'event'`) used on the templates table and the conditions endpoint. This gates variable picker availability per template.
+
+| Scope | Team picker | Event picker | Used By |
+|-------|-------------|--------------|---------|
+| `ALL` (default) | Yes | Yes | Positional and game-level variables (home_team, venue, odds_spread, is_playoff, etc.) |
+| `TEAM_ONLY` | Yes | No | "Our team" perspective (team_name, opponent, is_home, team_record, win_streak, result, odds_moneyline, etc.) |
+| `EVENT_ONLY` | No | Yes | Feed separation (feed_team, feed_team_short, is_home_feed, feed_home_away, etc.) |
+
+The registry exposes `filter_by_template_type(template_type)` which returns the valid subset. Unknown values and `None` return all variables (fail-open, matches the conditions endpoint's behavior). Today the filter only applies to the picker via `GET /variables?template_type=…`; hand-typed out-of-scope variables still resolve at render time (backward compatibility).
+
+Declare scope on the decorator:
+
+```python
+@register_variable(
+    name="opponent",
+    category=Category.IDENTITY,
+    suffix_rules=SuffixRules.ALL,
+    description="Opponent team name",
+    scope=TemplateScope.TEAM_ONLY,
+)
+```
 
 ## Variable Categories
 
@@ -144,6 +168,6 @@ When adding new template variables, all three paths must be updated.
 | `templates/conditions.py` | 20 condition evaluators |
 | `templates/context.py` | Context dataclasses (Odds, GameContext, TemplateContext) |
 | `templates/context_builder.py` | Build TemplateContext from Event + Team |
-| `templates/variables/` | 17 category modules with 197 variable definitions |
+| `templates/variables/` | 17 category modules with 205 variable definitions |
 | `templates/variables/registry.py` | VariableRegistry singleton |
 | `templates/sample_data.py` | Test fixtures for UI preview |

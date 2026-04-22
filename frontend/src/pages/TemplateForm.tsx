@@ -136,10 +136,13 @@ export function TemplateForm() {
     enabled: isEdit,
   })
 
-  // Fetch variables for picker
+  // Fetch variables for picker, scoped to the current template type so the
+  // picker only surfaces variables valid for this template (team/event).
+  const pickerTemplateType: "team" | "event" =
+    formData.template_type === "event" ? "event" : "team"
   const { data: variablesData } = useQuery({
-    queryKey: ["variables"],
-    queryFn: fetchVariables,
+    queryKey: ["variables", pickerTemplateType],
+    queryFn: () => fetchVariables(pickerTemplateType),
     staleTime: Infinity,
   })
 

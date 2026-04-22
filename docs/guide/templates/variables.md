@@ -10,6 +10,16 @@ docs_version: "2.3.0"
 
 Templates use variables enclosed in curly braces that get replaced with real data when EPG is generated. Teamarr provides 205 variables across 17 categories.
 
+## Team vs Event Templates
+
+Variables are scoped to the template type they make sense in. The template editor's variable picker only surfaces variables that apply to the template you're editing.
+
+- **Team templates** have an "our team" perspective — the subscribed team is the anchor. These templates expose team-perspective variables like `{team}`, `{opponent}`, `{is_home}`, `{team_record}`, `{win_streak}`, `{result}`, `{odds_moneyline}`, and similar "my team vs the other team" variables.
+- **Event templates** are positional — they describe a matchup without a reference team. These templates expose positional variables like `{home_team}`, `{away_team}`, `{home_team_record}`, and game-level data. Event templates additionally expose the feed-team family (`{feed_team}`, `{feed_team_short}`, `{is_home_feed}`, etc.) for feed-separated channels.
+- **Shared variables** (most of the list) are available in both — positional teams, venue, date/time, playoffs, odds (excluding the team-perspective `{odds_moneyline}` pair), soccer, combat sports, and league/sport identifiers.
+
+If you hand-type a scope-restricted variable into a template where it doesn't belong (e.g., `{team}` in an event template), it will still resolve (backward compatibility), but the picker won't offer it. Use the picker to stay within the intended scope.
+
 ## Suffix Support
 
 **Team templates** support suffixes to reference different games:

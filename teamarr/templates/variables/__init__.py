@@ -26,6 +26,7 @@ from teamarr.templates.variables import datetime as datetime_vars  # noqa: F401
 from teamarr.templates.variables.registry import (
     Category,
     SuffixRules,
+    TemplateScope,
     VariableDefinition,
     VariableRegistry,
     get_registry,
@@ -35,6 +36,7 @@ from teamarr.templates.variables.registry import (
 __all__ = [
     "Category",
     "SuffixRules",
+    "TemplateScope",
     "VariableDefinition",
     "VariableRegistry",
     "get_registry",

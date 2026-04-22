@@ -8,6 +8,7 @@ from teamarr.templates.context import GameContext, TemplateContext
 from teamarr.templates.variables.registry import (
     Category,
     SuffixRules,
+    TemplateScope,
     register_variable,
 )
 
@@ -46,6 +47,7 @@ def _get_opponent(ctx: TemplateContext, game_ctx: GameContext | None):
     category=Category.IDENTITY,
     suffix_rules=SuffixRules.BASE_ONLY,
     description="Team display name (e.g., 'Detroit Lions')",
+    scope=TemplateScope.TEAM_ONLY,
 )
 def extract_team_name(ctx: TemplateContext, game_ctx: GameContext | None) -> str:
     return ctx.team_config.team_name or ""
@@ -56,6 +58,7 @@ def extract_team_name(ctx: TemplateContext, game_ctx: GameContext | None) -> str
     category=Category.IDENTITY,
     suffix_rules=SuffixRules.BASE_ONLY,
     description="Team abbreviation uppercase (e.g., 'DET')",
+    scope=TemplateScope.TEAM_ONLY,
 )
 def extract_team_abbrev(ctx: TemplateContext, game_ctx: GameContext | None) -> str:
     abbrev = ctx.team_config.team_abbrev or ""
@@ -67,6 +70,7 @@ def extract_team_abbrev(ctx: TemplateContext, game_ctx: GameContext | None) -> s
     category=Category.IDENTITY,
     suffix_rules=SuffixRules.BASE_ONLY,
     description="Team abbreviation lowercase (e.g., 'det')",
+    scope=TemplateScope.TEAM_ONLY,
 )
 def extract_team_abbrev_lower(ctx: TemplateContext, game_ctx: GameContext | None) -> str:
     abbrev = ctx.team_config.team_abbrev or ""
@@ -78,6 +82,7 @@ def extract_team_abbrev_lower(ctx: TemplateContext, game_ctx: GameContext | None
     category=Category.IDENTITY,
     suffix_rules=SuffixRules.BASE_ONLY,
     description="Team short name (e.g., 'Lions', 'Liverpool')",
+    scope=TemplateScope.TEAM_ONLY,
 )
 def extract_team_short(ctx: TemplateContext, game_ctx: GameContext | None) -> str:
     return ctx.team_config.team_short_name or ""
@@ -88,6 +93,7 @@ def extract_team_short(ctx: TemplateContext, game_ctx: GameContext | None) -> st
     category=Category.IDENTITY,
     suffix_rules=SuffixRules.BASE_ONLY,
     description="Team name in PascalCase for channel IDs (e.g., 'DetroitLions')",
+    scope=TemplateScope.TEAM_ONLY,
 )
 def extract_team_name_pascal(ctx: TemplateContext, game_ctx: GameContext | None) -> str:
     return _to_pascal_case(ctx.team_config.team_name or "")
@@ -98,6 +104,7 @@ def extract_team_name_pascal(ctx: TemplateContext, game_ctx: GameContext | None)
     category=Category.IDENTITY,
     suffix_rules=SuffixRules.ALL,
     description="Opponent team name",
+    scope=TemplateScope.TEAM_ONLY,
 )
 def extract_opponent(ctx: TemplateContext, game_ctx: GameContext | None) -> str:
     opponent = _get_opponent(ctx, game_ctx)
@@ -109,6 +116,7 @@ def extract_opponent(ctx: TemplateContext, game_ctx: GameContext | None) -> str:
     category=Category.IDENTITY,
     suffix_rules=SuffixRules.ALL,
     description="Opponent team abbreviation uppercase",
+    scope=TemplateScope.TEAM_ONLY,
 )
 def extract_opponent_abbrev(ctx: TemplateContext, game_ctx: GameContext | None) -> str:
     opponent = _get_opponent(ctx, game_ctx)
@@ -120,6 +128,7 @@ def extract_opponent_abbrev(ctx: TemplateContext, game_ctx: GameContext | None) 
     category=Category.IDENTITY,
     suffix_rules=SuffixRules.ALL,
     description="Opponent abbreviation lowercase",
+    scope=TemplateScope.TEAM_ONLY,
 )
 def extract_opponent_abbrev_lower(ctx: TemplateContext, game_ctx: GameContext | None) -> str:
     opponent = _get_opponent(ctx, game_ctx)
@@ -131,6 +140,7 @@ def extract_opponent_abbrev_lower(ctx: TemplateContext, game_ctx: GameContext | 
     category=Category.IDENTITY,
     suffix_rules=SuffixRules.ALL,
     description="Opponent short name (e.g., 'Bears', 'Arsenal')",
+    scope=TemplateScope.TEAM_ONLY,
 )
 def extract_opponent_short(ctx: TemplateContext, game_ctx: GameContext | None) -> str:
     opponent = _get_opponent(ctx, game_ctx)
