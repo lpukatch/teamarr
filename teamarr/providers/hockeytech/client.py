@@ -26,6 +26,7 @@ HOCKEYTECH_BASE_URL = "https://lscluster.hockeytech.com/feed/"
 # Cache TTLs (seconds) - match TSDB pattern
 CACHE_TTL_SCHEDULE = 30 * 60  # 30 minutes - full season schedule
 CACHE_TTL_TEAMS = 24 * 60 * 60  # 24 hours - teams rarely change
+CACHE_TTL_SEASONS = 24 * 60 * 60  # 24 hours - season metadata rarely changes
 
 
 def get_cache_ttl_for_date(target_date: date) -> int:
@@ -253,6 +254,42 @@ class HockeyTechClient:
         date_str = target_date.strftime("%Y-%m-%d")
 
         return [game for game in schedule if game.get("date_played") == date_str]
+
+    def get_seasons_info(self, league: str) -> dict[str, dict]:
+        """Get season metadata keyed by season_id.
+
+        HockeyTech's schedule feed tags each game with a `season_id` but doesn't
+        expose a playoff/regular flag on the game itself (`game_type` is always
+        empty). The separate `seasons` view maps season_id → {season_name,
+        playoff flag, start_date, end_date}. We use this to canonicalize
+        season_type on each game.
+
+        Returns a dict of {season_id: season_dict} or {} if the call fails.
+        """
+        config = self.get_league_config(league)
+        if not config:
+            return {}
+
+        client_code, api_key = config
+        cache_key = make_cache_key("hockeytech", "seasons", league)
+        cached = self._cache.get(cache_key)
+        if cached is not None:
+            return cached
+
+        data = self._request(client_code, api_key, "seasons")
+        if not data:
+            return {}
+
+        seasons = data.get("SiteKit", {}).get("Seasons", [])
+        info = {
+            str(s.get("season_id")): s
+            for s in seasons
+            if s.get("season_id") is not None
+        }
+        if info:
+            self._cache.set(cache_key, info, CACHE_TTL_SEASONS)
+
+        return info
 
     # Days to look back for .last variable resolution
     DAYS_BACK = 7

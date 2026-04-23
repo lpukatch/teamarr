@@ -2,6 +2,10 @@
 
 from teamarr.core.interfaces import LeagueMapping, LeagueMappingSource, SportsProvider
 from teamarr.core.types import (
+    SEASON_OFFSEASON,
+    SEASON_POSTSEASON,
+    SEASON_PRESEASON,
+    SEASON_REGULAR,
     Bout,
     Event,
     EventStatus,
@@ -19,6 +23,10 @@ __all__ = [
     "LeagueMapping",
     "LeagueMappingSource",
     "Programme",
+    "SEASON_OFFSEASON",
+    "SEASON_POSTSEASON",
+    "SEASON_PRESEASON",
+    "SEASON_REGULAR",
     "SportsProvider",
     "Team",
     "TeamStats",

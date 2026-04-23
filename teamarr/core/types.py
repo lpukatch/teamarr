@@ -7,6 +7,16 @@ Provider-scoped IDs: every entity carries its `id` and `provider`.
 from dataclasses import dataclass, field
 from datetime import datetime
 
+# --- Canonical season_type values ---
+# Every provider normalizes its native season-type representation (ESPN
+# integers/slugs, MLB StatsAPI gameType codes, etc.) to one of these strings
+# before populating Event.season_type. Consumers and template variables
+# compare against these constants — never against provider-native values.
+SEASON_PRESEASON = "preseason"
+SEASON_REGULAR = "regular"
+SEASON_POSTSEASON = "postseason"
+SEASON_OFFSEASON = "offseason"
+
 
 @dataclass(frozen=True)
 class Venue:

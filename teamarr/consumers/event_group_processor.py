@@ -39,7 +39,7 @@ from teamarr.consumers.filler.event_filler import (
     template_to_event_filler_config,
 )
 from teamarr.consumers.matching import BatchMatchResult, StreamMatcher
-from teamarr.core import Event
+from teamarr.core import SEASON_POSTSEASON, Event
 from teamarr.database.groups import (
     EventEPGGroup,
     get_all_group_xmltv,
@@ -1660,7 +1660,7 @@ class EventGroupProcessor:
                 continue
 
             # Bypass filter for playoff games if setting is enabled
-            if bypass_playoffs and event.season_type == "postseason":
+            if bypass_playoffs and event.season_type == SEASON_POSTSEASON:
                 filtered.append(match)
                 playoff_bypass_count += 1
                 continue

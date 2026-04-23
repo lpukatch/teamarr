@@ -9,6 +9,7 @@ from collections.abc import Callable
 from datetime import UTC, date, datetime, timedelta
 
 from teamarr.core import (
+    SEASON_POSTSEASON,
     Event,
     EventStatus,
     LeagueMappingSource,
@@ -34,6 +35,22 @@ class TSDBProvider(SportsProvider):
 
     # Days to scan backwards for .last variable resolution
     DAYS_BACK = 7
+
+    # TSDB event `intRound` values that indicate postseason across leagues.
+    # Per TheSportsDB documentation (and verified on 2026-04-22 against NBA
+    # 2024 Playoffs + NHL 2024 Stanley Cup Final + IPL 2024 playoffs):
+    #   125 = Quarter-Final
+    #   150 = Semi-Final / Conference Finals
+    #   160 = First Round / Play-in
+    #   170 = Playoff Semi-Final (e.g. NBA Conference Semis)
+    #   180 = Playoff Final (e.g. NBA Conference Finals)
+    #   200 = Final / Championship
+    # Not every TSDB league uses these codes (AFL and NRL continue their normal
+    # round numbering through finals, e.g. NRL Grand Final shows intRound=24).
+    # For those leagues intRound stays in the low-integer range and maps to
+    # None — we can't distinguish playoffs from regular season without extra
+    # league-specific heuristics we don't want to maintain.
+    _POSTSEASON_ROUND_CODES = frozenset({"125", "150", "160", "170", "180", "200"})
 
     def __init__(
         self,
@@ -432,6 +449,8 @@ class TSDBProvider(SportsProvider):
             else:
                 short_name = event_name
 
+            season_type = self._parse_season_type(data)
+
             return Event(
                 id=str(event_id),
                 provider=self.name,
@@ -447,6 +466,7 @@ class TSDBProvider(SportsProvider):
                 away_score=away_score,
                 venue=venue,
                 broadcasts=[],  # TSDB doesn't provide broadcast info
+                season_type=season_type,
             )
 
         except Exception as e:
@@ -557,6 +577,24 @@ class TSDBProvider(SportsProvider):
             except ValueError:
                 pass
 
+        return None
+
+    def _parse_season_type(self, data: dict) -> str | None:
+        """Map an event's intRound to canonical season_type.
+
+        TSDB tags playoff/championship games with special three-digit intRound
+        values (see `_POSTSEASON_ROUND_CODES`). Regular-season games use low
+        integers (1, 2, 3, ... representing round/week). Leagues that don't
+        opt into the special codes (AFL, NRL, boxing) keep their low-integer
+        round numbering throughout finals, so we can't distinguish their
+        postseason from regular season — those return None.
+
+        Returns None (not `regular`) for non-postseason events to avoid
+        misreporting regular-season for leagues where we genuinely don't know.
+        """
+        round_str = str(data.get("intRound") or "").strip()
+        if round_str in self._POSTSEASON_ROUND_CODES:
+            return SEASON_POSTSEASON
         return None
 
     def _parse_status(self, data: dict) -> EventStatus:

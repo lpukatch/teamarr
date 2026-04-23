@@ -267,14 +267,23 @@ Team scoring averages.
 
 ## Playoffs
 
-Season type indicators.
+Season type indicators. All providers normalize their native season codes to a canonical value so these variables behave consistently regardless of the underlying data source.
 
 | Variable | Description | Suffixes | Sample |
 |----------|-------------|----------|--------|
-| `{season_type}` | Season type (e.g., 'Regular Season', 'Playoffs', 'Preseason') | base, .next, .last | `Regular Season` |
-| `{is_playoff}` | 'true' if playoff/postseason game | base, .next, .last | `` |
-| `{is_preseason}` | 'true' if preseason/exhibition game | base, .next, .last | `` |
-| `{is_regular_season}` | 'true' if regular season game | base, .next, .last | `true` |
+| `{season_type}` | Canonical season type — one of `preseason`, `regular`, `postseason`, `offseason`, or empty if unknown | base, .next, .last | `postseason` |
+| `{is_playoff}` | `'true'` if postseason game | base, .next, .last | `` |
+| `{is_preseason}` | `'true'` if preseason/exhibition game | base, .next, .last | `` |
+| `{is_regular_season}` | `'true'` if regular season game | base, .next, .last | `true` |
+
+**Provider coverage:**
+
+| Provider | Playoff detection |
+|----------|-------------------|
+| ESPN | Full — derived from season slug (`post-season`, `semifinals`, etc.) with numeric-type fallback |
+| MLB Stats | Full — `gameType` codes (`F`/`D`/`L`/`W`/`P` → postseason, `S`/`E` → preseason) |
+| HockeyTech | Full — via per-season `playoff` flag (CHL, AHL, PWHL, USHL) |
+| TSDB | Partial — postseason detected via special `intRound` codes (125/150/160/170/180/200) used by some leagues (NBA, NHL, IPL, European knockouts). Leagues that keep normal round numbering through finals (AFL, NRL, boxing) can't be detected and return empty. Preseason is never detected for TSDB. |
 
 ---
 

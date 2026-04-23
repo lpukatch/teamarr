@@ -106,6 +106,27 @@ These must match TSDB's internal data exactly. Use `search_all_leagues.php` to d
 | 3-7 days out | 8 hours |
 | 8+ days out | 24 hours |
 
+## Season Type Normalization
+
+TSDB has no dedicated playoff/season-type field, but TheSportsDB's API convention assigns special `intRound` values to knockout stages. The provider maps these to canonical `postseason`:
+
+| `intRound` | Canonical | Stage |
+|------------|-----------|-------|
+| `125` | `postseason` | Quarter-Final (also used for NBA Conference Semi-Finals in some leagues) |
+| `150` | `postseason` | Semi-Final / Conference Finals |
+| `160` | `postseason` | First Round / Play-in |
+| `170` | `postseason` | Playoff Semi-Final (e.g. NBA Conference Semis) |
+| `180` | `postseason` | Playoff Final (e.g. NBA Conference Finals) |
+| `200` | `postseason` | Final / Championship |
+
+Verified on 2026-04-22 against NBA 2024 Playoffs, NHL 2024 Stanley Cup Final, and IPL 2024 playoffs — all use these codes. UCL knockouts, international tournaments, and other cup competitions also use them.
+
+**Known gap:** Not every TSDB league opts into the special codes. AFL and NRL keep simple round numbering through finals (AFL Grand Final → `intRound=19`; NRL Grand Final → `intRound=24`), so we can't distinguish their postseason from regular season. For those leagues `{season_type}` returns empty. Adding per-league heuristics (e.g. "NRL round 27+ is finals") would be fragile and unmaintainable — the provider deliberately returns `None` rather than `regular` for non-postseason events so the gap is detectable.
+
+Preseason is not detected for any TSDB league — there's no corresponding convention.
+
+Other season-adjacent fields (`strSeason` year string, `strGroup`) don't help. Premium tier doesn't expose additional playoff signals — it only unlocks higher rate limits, livescores, highlights, and full team schedules (verified across `lookupevent.php`, `eventsseason.php`, `eventsnextleague.php`, `search_all_seasons.php`, `lookupleague.php`).
+
 ## File Locations
 
 | File | Purpose |

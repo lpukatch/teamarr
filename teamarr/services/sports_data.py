@@ -279,6 +279,13 @@ class SportsDataService:
                 fresh_event.segment_times = event.segment_times
             if event.main_card_start and not fresh_event.main_card_start:
                 fresh_event.main_card_start = event.main_card_start
+            # Preserve season_type when the refresh couldn't resolve it.
+            # ESPN's summary endpoint often omits the 'slug' field on
+            # header.season, so soccer knockouts (semifinals/final/etc.) and
+            # any opaque-type-number league would otherwise lose their
+            # season_type on refresh — silently breaking playoff bypass.
+            if event.season_type and not fresh_event.season_type:
+                fresh_event.season_type = event.season_type
             return fresh_event
 
         # Return original if refresh fails

@@ -73,6 +73,7 @@ Soccer leagues use ESPN's dot notation: `{country}.{tier}` (e.g., `eng.1` for Pr
 ## Special Behaviors
 
 - **Status mapping**: ESPN event statuses are normalized to Teamarr's internal `scheduled`, `in_progress`, `final`, `postponed`, `cancelled`
+- **Season type normalization**: ESPN's `season.slug` field is parsed to canonical `preseason` / `regular` / `postseason` / `offseason` values. The slug is the primary source (handles soccer knockouts: `semifinals`, `round-of-16`, `final`, etc.), falling back to the numeric `season.type` (1–4) for leagues where slug is absent. The summary endpoint (`/summary?event=`) nests `season` under `header.season`, so `get_event` passes it through explicitly — otherwise a refresh would wipe the season_type set during the initial scoreboard fetch.
 - **Team ID corrections**: Hardcoded mapping for known ESPN data mismatches (e.g., some women's hockey teams)
 - **Tournament sports**: Golf, tennis, and racing events have no home/away teams — parsed via `TournamentParserMixin`
 - **UFC**: Parsed via `UFCParserMixin` with fighter name extraction from the core API

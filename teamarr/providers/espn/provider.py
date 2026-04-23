@@ -8,6 +8,10 @@ import logging
 from datetime import UTC, date, datetime, timedelta
 
 from teamarr.core import (
+    SEASON_OFFSEASON,
+    SEASON_POSTSEASON,
+    SEASON_PRESEASON,
+    SEASON_REGULAR,
     Event,
     EventStatus,
     LeagueMappingSource,
@@ -426,12 +430,19 @@ class ESPNProvider(UFCParserMixin, TournamentParserMixin, SportsProvider):
             # Convert pickcenter format to scoreboard odds format
             competition["odds"] = pickcenter
 
+        # Summary endpoint nests season under header (vs scoreboard's top level).
+        # Pass it through so _parse_event sees the same shape either way.
+        # Note: summary's header.season typically lacks the 'slug' field, so
+        # soccer leagues fall back to type-number mapping (int 13xxx → None).
+        # refresh_event_status preserves season_type from the cached event when
+        # the refresh returns None, so soccer postseason still survives.
         event_data = {
             "id": event_id,
             "name": header.get("gameNote", ""),
             "shortName": self._build_short_name(competition),
             "date": competition.get("date"),
             "competitions": [competition],
+            "season": header.get("season"),
         }
 
         return self._parse_event(event_data, league)
@@ -499,11 +510,9 @@ class ESPNProvider(UFCParserMixin, TournamentParserMixin, SportsProvider):
             home_score = self._parse_score(home_data.get("score"))
             away_score = self._parse_score(away_data.get("score"))
 
-            # Parse season type from ESPN data
-            # ESPN uses: 1=preseason, 2=regular, 3=postseason/playoffs
-            season_data = data.get("season", {})
-            season_type_num = season_data.get("type")
-            season_type = self._parse_season_type(season_type_num)
+            # Parse season type from ESPN data (slug-first, type-number fallback)
+            season_data = data.get("season") or {}
+            season_type = self._parse_season_type(season_data)
             season_year = season_data.get("year")
 
             return Event(
@@ -614,27 +623,53 @@ class ESPNProvider(UFCParserMixin, TournamentParserMixin, SportsProvider):
         except (ValueError, TypeError):
             return None
 
-    def _parse_season_type(self, type_num: int | None) -> str | None:
-        """Parse ESPN season type number to string.
+    # ESPN league-agnostic season slug → canonical value.
+    # Slugs come from scoreboard per-event season dicts. Soccer knockout
+    # rounds also expose slugs like semifinals/final/group-stage.
+    _SEASON_SLUG_MAP = {
+        "pre-season": SEASON_PRESEASON,
+        "preseason": SEASON_PRESEASON,
+        "regular-season": SEASON_REGULAR,
+        "regular": SEASON_REGULAR,
+        "post-season": SEASON_POSTSEASON,
+        "postseason": SEASON_POSTSEASON,
+        "off-season": SEASON_OFFSEASON,
+        "offseason": SEASON_OFFSEASON,
+        # Soccer knockouts
+        "round-of-16": SEASON_POSTSEASON,
+        "quarterfinals": SEASON_POSTSEASON,
+        "semifinals": SEASON_POSTSEASON,
+        "final": SEASON_POSTSEASON,
+        "group-stage": SEASON_REGULAR,
+    }
 
-        ESPN uses:
-            1 = preseason
-            2 = regular
-            3 = postseason (playoffs)
-            4 = offseason (rare)
+    # ESPN integer season_type values (US sports only; soccer uses opaque IDs).
+    _SEASON_TYPE_NUM_MAP = {
+        1: SEASON_PRESEASON,
+        2: SEASON_REGULAR,
+        3: SEASON_POSTSEASON,
+        4: SEASON_OFFSEASON,
+    }
 
-        Returns:
-            String season type or None if unknown
+    def _parse_season_type(self, season_data: dict | None) -> str | None:
+        """Parse ESPN season data to a canonical season_type string.
+
+        ESPN emits two signals — a slug (strings like 'post-season' or
+        'semifinals') and a type number (1–4 for US sports, opaque IDs for
+        soccer). Slug is preferred because it's meaningful across all leagues
+        including soccer. Type number is the fallback — works for US sports
+        but not for soccer (summary endpoint often omits slug, so soccer
+        summary-path refresh returns None; refresh_event_status preserves
+        the cached season_type in that case).
+
+        Returns one of the SEASON_* canonical constants or None.
         """
-        if type_num is None:
+        if not season_data:
             return None
-        season_map = {
-            1: "preseason",
-            2: "regular",
-            3: "postseason",
-            4: "offseason",
-        }
-        return season_map.get(type_num)
+        slug = (season_data.get("slug") or "").lower()
+        if slug in self._SEASON_SLUG_MAP:
+            return self._SEASON_SLUG_MAP[slug]
+        return self._SEASON_TYPE_NUM_MAP.get(season_data.get("type"))
 
     def _parse_odds(self, odds_list: list) -> dict | None:
         """Parse ESPN odds data into structured dict.
