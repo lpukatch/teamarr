@@ -553,3 +553,167 @@ class TestFeedSeparationSettings:
         assert settings.away_terms == ["VISITOR"]
         assert settings.detect_team_names is False
         assert settings.label_style == "short_name"
+
+
+# ===========================================================================
+# Cross-cutting invariant: every consumer caller of generate_event_tvg_id
+# must read feed_team from the matched_stream and pass its id, so live EPG
+# programmes and filler programmes land on the same per-feed XMLTV channel.
+# Regressed in v2.4.4 (filler path missed the new feed_team_id arg) — bead
+# teamarrv2-eg9.
+# ===========================================================================
+
+
+class TestFillerChannelIdMatchesLiveProgramme:
+    """Filler must emit to the same channel_id as live programmes for the
+    same matched_stream — including the -feed-{id} suffix when feed
+    separation resolved a feed_team."""
+
+    def _make_processor(self):
+        from unittest.mock import MagicMock, patch
+
+        from teamarr.consumers.event_group_processor import EventGroupProcessor
+
+        with patch(
+            "teamarr.consumers.event_group_processor.create_default_service"
+        ):
+            return EventGroupProcessor(db_factory=MagicMock())
+
+    def _make_event(self, event_id="401815159", provider="espn"):
+        from datetime import UTC, datetime
+
+        from teamarr.core import Event, EventStatus, Team
+
+        team = Team(
+            id="t1",
+            provider=provider,
+            name="Pittsburgh Pirates",
+            short_name="Pirates",
+            abbreviation="PIT",
+            league="mlb",
+            sport="baseball",
+        )
+        return Event(
+            id=event_id,
+            provider=provider,
+            name="CIN @ PIT",
+            short_name="CIN @ PIT",
+            start_time=datetime(2026, 5, 1, 23, 0, tzinfo=UTC),
+            home_team=team,
+            away_team=team,
+            status=EventStatus(state="scheduled"),
+            league="mlb",
+            sport="baseball",
+        )
+
+    def test_filler_channel_id_includes_feed_team_id(self):
+        """Pre-fix this test fails: filler emits to teamarr-event-401815159
+        while live emits to teamarr-event-401815159-feed-18."""
+        from unittest.mock import MagicMock, patch
+
+        from teamarr.consumers.filler.event_filler import (
+            EventFillerConfig,
+            EventFillerResult,
+        )
+
+        processor = self._make_processor()
+        event = self._make_event()
+        feed_team = MagicMock()
+        feed_team.id = "18"
+
+        matched_streams = [
+            {
+                "event": event,
+                "feed_team": feed_team,
+                "_exception_keyword": None,
+                "segment": None,
+                "segment_start": None,
+                "segment_end": None,
+            }
+        ]
+
+        captured_channel_ids: list[str] = []
+
+        def fake_generate_with_counts(**kwargs):
+            captured_channel_ids.append(kwargs.get("channel_id"))
+            return EventFillerResult(programmes=[], pregame_count=0, postgame_count=0)
+
+        with patch(
+            "teamarr.consumers.event_group_processor.EventFillerGenerator"
+        ) as MockGen:
+            MockGen.return_value.generate_with_counts = fake_generate_with_counts
+            processor._generate_filler_for_streams(
+                matched_streams=matched_streams,
+                filler_config=EventFillerConfig(),
+                sport_durations={"baseball": 3.0},
+            )
+
+        assert captured_channel_ids == ["teamarr-event-401815159-feed-18"]
+
+    def test_filler_channel_id_no_feed_team(self):
+        """Without feed separation (national broadcast), filler still emits
+        to the base channel — matches live programme path."""
+        from unittest.mock import MagicMock, patch
+
+        from teamarr.consumers.filler.event_filler import (
+            EventFillerConfig,
+            EventFillerResult,
+        )
+
+        processor = self._make_processor()
+        event = self._make_event(event_id="401815158")
+
+        matched_streams = [
+            {
+                "event": event,
+                "feed_team": None,
+                "_exception_keyword": None,
+                "segment": None,
+                "segment_start": None,
+                "segment_end": None,
+            }
+        ]
+
+        captured_channel_ids: list[str] = []
+
+        def fake_generate_with_counts(**kwargs):
+            captured_channel_ids.append(kwargs.get("channel_id"))
+            return EventFillerResult(programmes=[], pregame_count=0, postgame_count=0)
+
+        with patch(
+            "teamarr.consumers.event_group_processor.EventFillerGenerator"
+        ) as MockGen:
+            MockGen.return_value.generate_with_counts = fake_generate_with_counts
+            processor._generate_filler_for_streams(
+                matched_streams=matched_streams,
+                filler_config=EventFillerConfig(),
+                sport_durations={"baseball": 3.0},
+            )
+
+        assert captured_channel_ids == ["teamarr-event-401815158"]
+
+    def test_filler_channel_id_matches_live_epg_path(self):
+        """Cross-caller invariant: the channel_id the filler path computes
+        for a matched_stream must equal what the live-EPG path computes for
+        the same stream. This is the actual user-facing invariant and the
+        one that broke in v2.4.4."""
+        from teamarr.consumers.lifecycle import generate_event_tvg_id
+
+        # Same stream, computed from both call sites' input shapes.
+        feed_team_id = "18"
+        live_channel_id = generate_event_tvg_id(
+            "401815159", "espn", None, None, feed_team_id
+        )
+
+        # Filler path: same args, must produce same id.
+        filler_feed_team = type("FT", (), {"id": "18"})()
+        filler_channel_id = generate_event_tvg_id(
+            "401815159",
+            "espn",
+            None,
+            None,
+            filler_feed_team.id if filler_feed_team else None,
+        )
+
+        assert filler_channel_id == live_channel_id
+        assert filler_channel_id == "teamarr-event-401815159-feed-18"

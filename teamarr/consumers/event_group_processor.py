@@ -2498,12 +2498,17 @@ class EventGroupProcessor:
             segment_start = stream_match.get("segment_start")
             segment_end = stream_match.get("segment_end")
 
-            # Use consistent tvg_id matching EventEPGGenerator and ChannelLifecycleService
-            # Include exception_keyword for keyword-unique EPG channels
+            # Use consistent tvg_id matching EventEPGGenerator and ChannelLifecycleService.
+            # Must include feed_team_id when feed separation is active so filler lands
+            # on the same per-feed channel as the live programme.
             from teamarr.consumers.lifecycle import generate_event_tvg_id
 
             exception_keyword = stream_match.get("_exception_keyword")
-            channel_id = generate_event_tvg_id(event.id, event.provider, segment, exception_keyword)
+            feed_team = stream_match.get("feed_team")
+            feed_team_id = feed_team.id if feed_team else None
+            channel_id = generate_event_tvg_id(
+                event.id, event.provider, segment, exception_keyword, feed_team_id
+            )
 
             # For UFC segments, override event times with segment-specific times
             if segment_start and segment_end:

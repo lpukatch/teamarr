@@ -134,10 +134,10 @@ def slugify_keyword(keyword: str) -> str:
 
 def generate_event_tvg_id(
     event_id: str,
-    provider: str = "espn",
-    segment: str | None = None,
-    exception_keyword: str | None = None,
-    feed_team_id: str | None = None,
+    provider: str,
+    segment: str | None,
+    exception_keyword: str | None,
+    feed_team_id: str | None,
 ) -> str:
     """Generate consistent tvg_id for an event.
 
@@ -155,12 +155,20 @@ def generate_event_tvg_id(
     entries — without this, all feed-separated channels for one event would share
     a tvg_id and Dispatcharr would display the same EPG across all of them.
 
+    Discriminator parameters (segment, exception_keyword, feed_team_id) have no
+    defaults: every caller must explicitly pass either the value or None. This
+    is intentional — the v2.4.4 regression where filler programmes emitted to
+    the base channel instead of the feed-separated channel happened because
+    a new caller silently inherited a None default for feed_team_id. Forcing
+    explicit choice makes the missing-discriminator class of bugs a TypeError
+    instead of a silent runtime mismatch.
+
     Args:
         event_id: Provider event ID (e.g., "401547679")
         provider: Provider name (default: espn)
-        segment: Optional card segment for UFC/MMA (e.g., "prelims", "main_card")
-        exception_keyword: Optional exception keyword label (e.g., "Spanish", "4K")
-        feed_team_id: Optional provider team ID for feed separation
+        segment: Card segment for UFC/MMA (e.g., "prelims") or None
+        exception_keyword: Exception keyword label (e.g., "Spanish", "4K") or None
+        feed_team_id: Provider team ID for feed separation, or None
 
     Returns:
         Formatted tvg_id. Examples:
