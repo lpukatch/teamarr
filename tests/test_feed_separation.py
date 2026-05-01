@@ -290,6 +290,85 @@ class TestBuildFeedLabel:
 
 
 # ===========================================================================
+# Auto-append gating (Bug 2: don't double up when template uses feed vars)
+# ===========================================================================
+
+
+class TestTemplateUsesFeedVar:
+    """_template_uses_feed_var() detects feed variables to suppress auto-append."""
+
+    def test_no_feed_var_returns_false(self):
+        from teamarr.consumers.lifecycle.service import ChannelLifecycleService
+
+        assert ChannelLifecycleService._template_uses_feed_var(
+            "{away_team} @ {home_team}"
+        ) is False
+
+    def test_feed_team_detected(self):
+        from teamarr.consumers.lifecycle.service import ChannelLifecycleService
+
+        assert ChannelLifecycleService._template_uses_feed_var(
+            "{away_team} @ {home_team} - {feed_team}"
+        ) is True
+
+    def test_feed_team_short_detected(self):
+        from teamarr.consumers.lifecycle.service import ChannelLifecycleService
+
+        assert ChannelLifecycleService._template_uses_feed_var(
+            "{home_team_abbrev} | {feed_team_short}"
+        ) is True
+
+    def test_feed_team_abbrev_detected(self):
+        from teamarr.consumers.lifecycle.service import ChannelLifecycleService
+
+        assert ChannelLifecycleService._template_uses_feed_var(
+            "{home_team} ({feed_team_abbrev})"
+        ) is True
+
+    def test_feed_home_away_detected(self):
+        from teamarr.consumers.lifecycle.service import ChannelLifecycleService
+
+        assert ChannelLifecycleService._template_uses_feed_var(
+            "{home_team} - {feed_home_away}"
+        ) is True
+
+    def test_feed_team_logo_not_a_naming_var(self):
+        # logo URLs aren't naming output — auto-append should still fire so
+        # a template that only uses {feed_team_logo} for icons still gets
+        # the suffix in the channel name.
+        from teamarr.consumers.lifecycle.service import ChannelLifecycleService
+
+        assert ChannelLifecycleService._template_uses_feed_var(
+            "{away_team} @ {home_team}"  # no feed naming var
+        ) is False
+
+    def test_substring_does_not_match(self):
+        # "{feed_teamish}" should not trigger — exact-token match only.
+        from teamarr.consumers.lifecycle.service import ChannelLifecycleService
+
+        assert ChannelLifecycleService._template_uses_feed_var(
+            "{feed_teamish}"
+        ) is False
+
+
+class TestFeedTemplateVarsConstant:
+    """FEED_TEMPLATE_VARS is the source of truth for the gating list."""
+
+    def test_constant_contents(self):
+        from teamarr.consumers.lifecycle.service import FEED_TEMPLATE_VARS
+
+        # Naming-relevant feed vars only — logo URL and directional booleans
+        # are deliberately excluded.
+        assert FEED_TEMPLATE_VARS == frozenset({
+            "feed_team",
+            "feed_team_short",
+            "feed_team_abbrev",
+            "feed_team_abbrev_lower",
+            "feed_home_away",
+        })
+
+
+# ===========================================================================
 # Channel discrimination
 # ===========================================================================
 

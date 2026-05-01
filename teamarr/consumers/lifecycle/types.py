@@ -137,6 +137,7 @@ def generate_event_tvg_id(
     provider: str = "espn",
     segment: str | None = None,
     exception_keyword: str | None = None,
+    feed_team_id: str | None = None,
 ) -> str:
     """Generate consistent tvg_id for an event.
 
@@ -149,11 +150,17 @@ def generate_event_tvg_id(
     so each variant gets its own XMLTV channel and programme entries, allowing
     {exception_keyword} to resolve correctly in all template fields.
 
+    When a feed_team_id is provided, the tvg_id is made unique per feed so each
+    feed-separated channel (HOME/AWAY) gets its own XMLTV channel and programme
+    entries — without this, all feed-separated channels for one event would share
+    a tvg_id and Dispatcharr would display the same EPG across all of them.
+
     Args:
         event_id: Provider event ID (e.g., "401547679")
         provider: Provider name (default: espn)
         segment: Optional card segment for UFC/MMA (e.g., "prelims", "main_card")
         exception_keyword: Optional exception keyword label (e.g., "Spanish", "4K")
+        feed_team_id: Optional provider team ID for feed separation
 
     Returns:
         Formatted tvg_id. Examples:
@@ -161,10 +168,14 @@ def generate_event_tvg_id(
         - "teamarr-event-401547679-prelims"
         - "teamarr-event-401547679-spanish"
         - "teamarr-event-401547679-prelims-spanish"
+        - "teamarr-event-401547679-feed-23"
+        - "teamarr-event-401547679-spanish-feed-23"
     """
     parts = [f"teamarr-event-{event_id}"]
     if segment:
         parts.append(segment)
     if exception_keyword:
         parts.append(slugify_keyword(exception_keyword))
+    if feed_team_id:
+        parts.append(f"feed-{slugify_keyword(str(feed_team_id))}")
     return "-".join(parts)

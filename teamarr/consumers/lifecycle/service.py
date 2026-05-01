@@ -27,6 +27,19 @@ from .types import (
 
 logger = logging.getLogger(__name__)
 
+# Template variables that, when present in a channel-name template, mean the
+# user wants explicit control over feed labeling — so the canned auto-append
+# suffix should be skipped to avoid duplication like "Pirates Feed (Pirates)".
+# Excludes feed_team_logo (URL field, not visible in channel name) and the
+# directional booleans which are typically used in conditions, not naming.
+FEED_TEMPLATE_VARS = frozenset({
+    "feed_team",
+    "feed_team_short",
+    "feed_team_abbrev",
+    "feed_team_abbrev_lower",
+    "feed_home_away",
+})
+
 
 class ChannelLifecycleService:
     """Full channel lifecycle management with Dispatcharr integration.
@@ -1047,8 +1060,12 @@ class ChannelLifecycleService:
         # For segments, use segment-aware event_id for DB storage
         effective_event_id = f"{event_id}-{segment}" if segment else event_id
 
-        # Generate tvg_id with segment and exception keyword suffixes
-        tvg_id = generate_event_tvg_id(event_id, event_provider, segment, matched_keyword)
+        # Generate tvg_id with segment, exception keyword, and feed-team suffixes.
+        # feed_team_id is required to prevent tvg_id collisions across feed-separated
+        # channels for the same event (HOME/AWAY/National all need distinct EPG channels).
+        tvg_id = generate_event_tvg_id(
+            event_id, event_provider, segment, matched_keyword, feed_team_id
+        )
 
         # Generate channel name (segment resolved via {card_segment_display} template variable)
         channel_name = self._generate_channel_name(
@@ -1274,6 +1291,11 @@ class ChannelLifecycleService:
         # Check if template uses {exception_keyword} - if so, don't auto-append
         template_uses_keyword = "{exception_keyword}" in name_format
 
+        # Same gate for feed label: if the template already references any feed-team
+        # variable, the user is taking control of where it appears in the channel name
+        # — don't double up via the canned auto-append suffix.
+        template_uses_feed_var = self._template_uses_feed_var(name_format)
+
         # Resolve using full template engine with extra variables
         # Unknown variables stay literal (e.g., {bad_var}) so user can identify issues
         base_name = self._resolve_template(
@@ -1289,8 +1311,9 @@ class ChannelLifecycleService:
         if exception_keyword and not template_uses_keyword:
             base_name = f"{base_name} ({exception_keyword})"
 
-        # Auto-append feed label when feed_team is present
-        if feed_team and feed_label_style:
+        # Auto-append feed label when feed_team is present and the template
+        # didn't already place a feed variable
+        if feed_team and feed_label_style and not template_uses_feed_var:
             feed_label = self._build_feed_label(
                 feed_team, event, feed_label_style
             )
@@ -1336,6 +1359,16 @@ class ChannelLifecycleService:
         text = re.sub(r"\s{2,}", " ", text)
 
         return text.strip()
+
+    @staticmethod
+    def _template_uses_feed_var(name_format: str) -> bool:
+        """True if the channel-name template references any feed-team variable.
+
+        Used to suppress the canned feed-label auto-append so users who place
+        {feed_team}/{feed_team_short}/etc. in their template don't get a
+        duplicated suffix like "Pirates Feed (Pirates)".
+        """
+        return any(f"{{{var}}}" in name_format for var in FEED_TEMPLATE_VARS)
 
     @staticmethod
     def _build_feed_label(feed_team, event: Event, style: str) -> str:
@@ -1626,11 +1659,14 @@ class ChannelLifecycleService:
             # See generation.py Step 3b - this ensures all streams from all groups
             # are considered together when computing final order
 
-            # 5. Check tvg_id (regenerate with keyword to migrate old-format tvg_ids)
+            # 5. Check tvg_id (regenerate with keyword + feed_team_id to migrate
+            # old-format tvg_ids; feed_team_id keeps feed-separated channels distinct)
             event_id = getattr(event, "id", None)
             event_provider = getattr(event, "provider", "espn")
+            stored_feed_team_id_for_tvg = getattr(existing, "feed_team_id", None)
             expected_tvg_id = generate_event_tvg_id(
-                event_id, event_provider, segment, matched_keyword
+                event_id, event_provider, segment, matched_keyword,
+                stored_feed_team_id_for_tvg,
             )
             if expected_tvg_id != existing.tvg_id:
                 db_updates["tvg_id"] = expected_tvg_id

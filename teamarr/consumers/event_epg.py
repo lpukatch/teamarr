@@ -402,7 +402,11 @@ class EventEPGGenerator:
             # Include exception_keyword so each keyword variant gets its own EPG programmes
             from teamarr.consumers.lifecycle import generate_event_tvg_id
 
-            tvg_id = generate_event_tvg_id(event.id, event.provider, segment, exception_keyword)
+            feed_team = match.get("feed_team")
+            feed_team_id = feed_team.id if feed_team else None
+            tvg_id = generate_event_tvg_id(
+                event.id, event.provider, segment, exception_keyword, feed_team_id
+            )
             stream_name = stream.get("name", "")
 
             # Build context using home team perspective
@@ -414,7 +418,7 @@ class EventEPGGenerator:
                 league=event.league,
                 card_segment=segment,
             )
-            context.feed_team = match.get("feed_team")
+            context.feed_team = feed_team
             context.extra_vars = {"exception_keyword": keyword_value}
 
             # Generate channel name from template
