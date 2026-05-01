@@ -373,3 +373,43 @@ def extract_feed_home_away(ctx: TemplateContext, game_ctx: GameContext | None) -
         and game_ctx.event.home_team.id == ctx.feed_team.id
     )
     return "Home" if is_home else "Away"
+
+
+# --- Broadcast feed labels (#195) ---
+# Pre-formatted strings that include the literal " Feed" suffix so users can
+# drop them into EPG titles without orphan-text issues. When feed separation
+# is inactive, both return "" — the resolver's whitespace cleanup then drops
+# the whole phrase, unlike "{feed_home_away} Team Feed" which would leave
+# "Team Feed" behind.
+
+
+@register_variable(
+    name="broadcast_feed",
+    category=Category.HOME_AWAY,
+    suffix_rules=SuffixRules.BASE_ONLY,
+    description="'Home Team Feed' / 'Away Team Feed' / '' (empty when no feed separation)",
+    scope=TemplateScope.EVENT_ONLY,
+)
+def extract_broadcast_feed(ctx: TemplateContext, game_ctx: GameContext | None) -> str:
+    if not ctx.feed_team or not game_ctx or not game_ctx.event:
+        return ""
+    is_home = (
+        game_ctx.event.home_team
+        and game_ctx.event.home_team.id == ctx.feed_team.id
+    )
+    return "Home Team Feed" if is_home else "Away Team Feed"
+
+
+@register_variable(
+    name="broadcast_feed_team",
+    category=Category.HOME_AWAY,
+    suffix_rules=SuffixRules.BASE_ONLY,
+    description="'{Team Name} Feed' (e.g., 'Seattle Mariners Feed') or '' if no feed",
+    scope=TemplateScope.EVENT_ONLY,
+)
+def extract_broadcast_feed_team(
+    ctx: TemplateContext, game_ctx: GameContext | None
+) -> str:
+    if not ctx.feed_team:
+        return ""
+    return f"{ctx.feed_team.name} Feed"

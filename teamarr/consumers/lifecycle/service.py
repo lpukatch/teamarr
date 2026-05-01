@@ -38,6 +38,8 @@ FEED_TEMPLATE_VARS = frozenset({
     "feed_team_abbrev",
     "feed_team_abbrev_lower",
     "feed_home_away",
+    "broadcast_feed",
+    "broadcast_feed_team",
 })
 
 
