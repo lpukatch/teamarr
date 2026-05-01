@@ -1720,9 +1720,10 @@ class EventGroupProcessor:
         """Get team filter with settings fallback.
 
         Priority chain:
-        1. Group's own filter (if configured)
-        2. Global settings default (if configured)
-        3. No filtering (default)
+        1. Master toggle off (settings.enabled=False) → no filtering, no playoff bypass
+        2. Group's own filter (if configured)
+        3. Global settings default (if configured)
+        4. No filtering (default)
 
         Returns:
             Tuple of (include_teams, exclude_teams, mode, bypass_filter_for_playoffs)
@@ -1730,6 +1731,11 @@ class EventGroupProcessor:
         from teamarr.database.settings import get_team_filter_settings
 
         settings = get_team_filter_settings(conn)
+
+        # Master toggle: when disabled, skip filtering entirely (group filters
+        # included). Playoff bypass is moot when nothing is being filtered.
+        if not settings.enabled:
+            return None, None, "include", False
 
         # Determine bypass_filter_for_playoffs (group override -> global default)
         bypass_playoffs = group.bypass_filter_for_playoffs
