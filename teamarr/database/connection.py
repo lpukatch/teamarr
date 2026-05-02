@@ -375,39 +375,8 @@ def _run_migrations(conn: sqlite3.Connection) -> None:
     - 48: Added channel_reset_enabled and channel_reset_cron to settings
     - 49: Added combat sports custom regex columns (fighters, event_name, config)
     """
-    # Fix for issue #178: v65 pre-migration drops+recreates the settings table,
-    # causing schema_version to be DEFAULT (latest) instead of the original value.
-    # This makes all migrations appear already applied, permanently skipping column
-    # additions (like subscription_leagues on event_epg_groups). If the backup table
-    # exists, restore the original schema_version so migrations run correctly.
-    try:
-        has_v65_backup = conn.execute(
-            "SELECT COUNT(*) FROM sqlite_master "
-            "WHERE type='table' AND name='_settings_v65_backup'"
-        ).fetchone()[0]
-        if has_v65_backup:
-            backup_row = conn.execute(
-                "SELECT schema_version FROM _settings_v65_backup WHERE id = 1"
-            ).fetchone()
-            if backup_row and backup_row[0] is not None:
-                original_version = backup_row[0]
-                conn.execute(
-                    "UPDATE settings SET schema_version = ? WHERE id = 1",
-                    (original_version,),
-                )
-                logger.info(
-                    "[MIGRATE] Corrected schema_version from v65 backup: %d",
-                    original_version,
-                )
-    except Exception as e:
-        logger.warning("[MIGRATE] Could not check v65 backup: %s", e)
-
-    # Get current schema version
-    try:
-        row = conn.execute("SELECT schema_version FROM settings WHERE id = 1").fetchone()
-        current_version = row["schema_version"] if row else 2
-    except Exception:
-        current_version = 2
+    _recover_schema_version_from_v65_backup_if_needed(conn)
+    current_version = _get_current_schema_version(conn)
 
     # ==========================================================================
     # CHECKPOINT v43: Consolidated migration for versions 2-43
@@ -584,6 +553,50 @@ def _apply_migration(
     migration_fn(conn)
     conn.execute("UPDATE settings SET schema_version = ? WHERE id = 1", (target,))
     logger.info("[MIGRATE] Schema upgraded to v%d (%s)", target, description)
+
+
+def _get_current_schema_version(conn: sqlite3.Connection) -> int:
+    """Read settings.schema_version, defaulting to v2 (initial V2 schema)."""
+    try:
+        row = conn.execute("SELECT schema_version FROM settings WHERE id = 1").fetchone()
+        return row["schema_version"] if row else 2
+    except Exception:
+        return 2
+
+
+def _recover_schema_version_from_v65_backup_if_needed(conn: sqlite3.Connection) -> None:
+    """Restore schema_version from the v65 backup table if present (issue #178).
+
+    The v65 pre-migration drops+recreates the settings table to change a
+    CHECK constraint, which causes schema_version to be reseeded to its
+    DEFAULT (latest) value. That makes all subsequent migrations appear
+    already applied and silently skips column additions. If the v65 backup
+    table is still around, restore the original schema_version so migrations
+    re-run correctly.
+    """
+    try:
+        has_v65_backup = conn.execute(
+            "SELECT COUNT(*) FROM sqlite_master "
+            "WHERE type='table' AND name='_settings_v65_backup'"
+        ).fetchone()[0]
+        if not has_v65_backup:
+            return
+
+        backup_row = conn.execute(
+            "SELECT schema_version FROM _settings_v65_backup WHERE id = 1"
+        ).fetchone()
+        if backup_row and backup_row[0] is not None:
+            original_version = backup_row[0]
+            conn.execute(
+                "UPDATE settings SET schema_version = ? WHERE id = 1",
+                (original_version,),
+            )
+            logger.info(
+                "[MIGRATE] Corrected schema_version from v65 backup: %d",
+                original_version,
+            )
+    except Exception as e:
+        logger.warning("[MIGRATE] Could not check v65 backup: %s", e)
 
 
 # =============================================================================
