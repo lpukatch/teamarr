@@ -128,7 +128,8 @@ The settings table is a single row with 67 columns, organized into these groups:
 | `condition_presets.py` | Conditional description presets |
 | `exception_keywords.py` | Exception keyword configuration |
 | `safe_sql.py` | SQL injection prevention (column validation) |
-| `checkpoint_v43.py` | V1→V2 migration checkpoint |
+| `checkpoint_v43.py` | V2 schema-version checkpoint (consolidates v2–v43 migrations) |
+| `migration.py` | Backup-restore validation helpers |
 
 ## Channel Numbering Algorithm
 

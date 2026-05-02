@@ -20,14 +20,6 @@ DEFAULT_DB_PATH = Path(__file__).parent.parent.parent / "data" / "teamarr.db"
 # Schema file location
 SCHEMA_PATH = Path(__file__).parent / "schema.sql"
 
-# Global flag for V1 database detection (set during init, checked by migration)
-_v1_database_detected = False
-
-
-def is_v1_database_detected() -> bool:
-    """Check if a V1 database was detected during initialization."""
-    return _v1_database_detected
-
 
 def get_connection(db_path: Path | str | None = None) -> sqlite3.Connection:
     """Get a database connection.
@@ -99,11 +91,6 @@ def init_db(db_path: Path | str | None = None) -> None:
             # and querying a core table. This catches both corruption AND V1 databases.
             _verify_database_integrity(conn, path)
 
-            # If V1 database detected, skip schema initialization - only migration endpoints work
-            if _v1_database_detected:
-                logger.info("[MIGRATE] Skipping V2 schema initialization for V1 database")
-                return
-
             # ================================================================
             # Structural pre-migrations (renames, table rebuilds)
             # These can't be handled by reconciliation — they require
@@ -160,48 +147,38 @@ def init_db(db_path: Path | str | None = None) -> None:
 def _verify_database_integrity(conn: sqlite3.Connection, path: Path) -> None:
     """Verify database is valid and compatible with V2.
 
-    This runs BEFORE schema initialization to catch:
+    Catches:
     1. Corrupt database files ("file is not a database")
-    2. V1 databases (different schema, incompatible)
-
-    Args:
-        conn: Database connection
-        path: Path to database file for error messages
+    2. V1 databases — V1 is no longer supported. The presence of V1-specific
+       tables raises immediately with instructions to delete or relocate.
 
     Raises:
         RuntimeError: If database is a V1 database
         sqlite3.DatabaseError: If database file is corrupt
     """
-    # Force an actual read from the file to detect corruption early
-    # PRAGMA integrity_check would be thorough but slow; just query sqlite_master
     try:
         cursor = conn.execute("SELECT name FROM sqlite_master WHERE type='table' LIMIT 100")
         existing_tables = {row["name"] for row in cursor.fetchall()}
     except sqlite3.DatabaseError:
-        # Let the outer handler deal with "file is not a database" errors
         raise
 
-    # Check for V1-specific tables that indicate an incompatible database
-    # These tables exist only in V1 and NOT in V2
     v1_indicators = {
-        "schedule_cache",  # V1 caching
-        "league_config",  # V1 league configuration
-        "h2h_cache",  # V1 head-to-head (removed in V2)
-        "error_log",  # V1 error logging
-        "soccer_cache_meta",  # V1 soccer-specific cache
-        "team_stats_cache",  # V1 stats cache
+        "schedule_cache",
+        "league_config",
+        "h2h_cache",
+        "error_log",
+        "soccer_cache_meta",
+        "team_stats_cache",
     }
     v1_tables_found = v1_indicators & existing_tables
 
     if v1_tables_found:
-        logger.warning(
-            f"Database file '{path}' appears to be a V1 database. "
-            f"Found V1-specific tables: {v1_tables_found}. "
-            "V2 migration page will be shown to the user."
+        raise RuntimeError(
+            f"Database file '{path}' is a V1 (Teamarr 1.x) database "
+            f"(found V1-specific tables: {sorted(v1_tables_found)}). "
+            "V1 is no longer supported. Move or delete the database file and "
+            "restart Teamarr to initialize a fresh V2 database."
         )
-        # Set global flag for V1 detection - don't raise error, let migration handle it
-        global _v1_database_detected
-        _v1_database_detected = True
 
 
 def _rename_league_id_column_if_needed(conn: sqlite3.Connection) -> None:

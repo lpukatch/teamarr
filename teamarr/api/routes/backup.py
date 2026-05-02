@@ -3,7 +3,6 @@
 import logging
 import os
 import shutil
-import sqlite3
 import tempfile
 from datetime import datetime
 from pathlib import Path
@@ -14,6 +13,7 @@ from pydantic import BaseModel
 
 from teamarr.database import get_db
 from teamarr.database.connection import DEFAULT_DB_PATH
+from teamarr.database.migration import validate_backup_file
 
 logger = logging.getLogger(__name__)
 
@@ -439,24 +439,12 @@ async def restore_backup(file: UploadFile = File(...)):
             tmp.write(content)
             tmp.flush()
 
-            # Validate it's a valid SQLite database
             try:
-                conn = sqlite3.connect(str(tmp_path))
-                cursor = conn.cursor()
-                # Check for expected tables
-                cursor.execute(
-                    "SELECT name FROM sqlite_master WHERE type='table' AND name='settings'"
-                )
-                if not cursor.fetchone():
-                    raise HTTPException(
-                        status_code=status.HTTP_400_BAD_REQUEST,
-                        detail="Invalid backup file: missing required tables",
-                    )
-                conn.close()
-            except sqlite3.DatabaseError as e:
+                validate_backup_file(tmp_path)
+            except ValueError as e:
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
-                    detail=f"Invalid SQLite database: {e}",
+                    detail=str(e),
                 ) from e
 
             # Create backup of current database before restoring

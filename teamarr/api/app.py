@@ -6,8 +6,8 @@ import threading
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import FastAPI, Request
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi import FastAPI
+from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from teamarr.api.routes import (
@@ -21,7 +21,6 @@ from teamarr.api.routes import (
     groups,
     health,
     keywords,
-    migration,
     presets,
     settings,
     sort_priorities,
@@ -260,24 +259,15 @@ _app_state: dict = {}
 async def lifespan(app: FastAPI):
     """Application lifespan handler - runs on startup and shutdown."""
     from teamarr.database import get_db, init_db
-    from teamarr.database.connection import is_v1_database_detected
     from teamarr.dispatcharr import close_dispatcharr
 
     # Startup - minimal blocking, then background tasks
     setup_logging()
     logger.info("[STARTUP] Starting Teamarr...")
 
-    # Initialize database (fast) - this also detects V1 databases
+    # Initialize database (fast)
     init_db()
 
-    # If V1 database detected, skip V2 initialization - only serve migration endpoints
-    if is_v1_database_detected():
-        logger.warning("[STARTUP] V1 database detected - running in migration mode only")
-        yield
-        logger.info("[SHUTDOWN] Teamarr stopped (migration mode)")
-        return
-
-    # Normal V2 startup continues...
     # Cleanup any stuck processing runs from previous crashes
     from teamarr.database.stats import cleanup_stuck_runs
 
@@ -310,7 +300,6 @@ async def lifespan(app: FastAPI):
 def create_app() -> FastAPI:
     """Create and configure the FastAPI application."""
     from teamarr.config import BASE_VERSION
-    from teamarr.database.connection import is_v1_database_detected
 
     app = FastAPI(
         title="Teamarr API",
@@ -321,25 +310,6 @@ def create_app() -> FastAPI:
         openapi_url="/openapi.json",
         lifespan=lifespan,
     )
-
-    # Migration mode middleware - block all API routes except migration endpoints
-    @app.middleware("http")
-    async def migration_mode_middleware(request: Request, call_next):
-        if is_v1_database_detected():
-            path = request.url.path
-            # Allow these routes in migration mode:
-            # - /health (health check)
-            # - /api/v1/migration/* (migration endpoints)
-            # - Static files and SPA routes (no /api prefix)
-            if path.startswith("/api/") and not path.startswith("/api/v1/migration"):
-                return JSONResponse(
-                    status_code=503,
-                    content={
-                        "detail": "V1 database detected - migration required",
-                        "migration_mode": True,
-                    },
-                )
-        return await call_next(request)
 
     # Include API routers
     app.include_router(health.router, tags=["Health"])
@@ -357,7 +327,6 @@ def create_app() -> FastAPI:
     app.include_router(stats.router, prefix="/api/v1/stats", tags=["Stats"])
     app.include_router(variables.router, prefix="/api/v1", tags=["Variables"])
     app.include_router(dispatcharr.router, prefix="/api/v1", tags=["Dispatcharr"])
-    app.include_router(migration.router, prefix="/api/v1", tags=["Migration"])
     app.include_router(backup.router, prefix="/api/v1", tags=["Backup"])
     app.include_router(subscription.router, prefix="/api/v1", tags=["Subscription"])
     app.include_router(detection_keywords.router, tags=["Detection Keywords"])
