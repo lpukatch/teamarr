@@ -361,7 +361,7 @@ CREATE TABLE IF NOT EXISTS settings (
     emby_api_key TEXT,
 
     -- Schema Version
-    schema_version INTEGER DEFAULT 72
+    schema_version INTEGER DEFAULT 73
 );
 
 -- Insert default settings
