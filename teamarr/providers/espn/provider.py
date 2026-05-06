@@ -354,7 +354,7 @@ class ESPNProvider(UFCParserMixin, TournamentParserMixin, SportsProvider):
             id=team_data.get("id", team_id),
             provider=self.name,
             name=team_data.get("displayName", ""),
-            short_name=team_data.get("shortDisplayName", ""),
+            short_name=team_data.get("shortDisplayName") or team_data.get("name") or "",
             abbreviation=team_data.get("abbreviation", ""),
             league=league,
             sport=sport,
@@ -541,11 +541,20 @@ class ESPNProvider(UFCParserMixin, TournamentParserMixin, SportsProvider):
     def _parse_team(self, competitor: dict, league: str, sport: str) -> Team:
         """Parse competitor data into Team."""
         team_data = competitor.get("team", {})
+        # Summary endpoint omits `shortDisplayName` (returns null) but always has
+        # `name` populated with the short form ("Rays", "Blue Jays"). Scoreboard
+        # has both. Fall back to `name` so the field stays populated regardless
+        # of which endpoint the team came from. (#201)
+        short_name = (
+            team_data.get("shortDisplayName")
+            or team_data.get("name")
+            or ""
+        )
         return Team(
             id=team_data.get("id", competitor.get("id", "")),
             provider=self.name,
             name=team_data.get("displayName", ""),
-            short_name=team_data.get("shortDisplayName", ""),
+            short_name=short_name,
             abbreviation=team_data.get("abbreviation", ""),
             league=league,
             sport=sport,
@@ -813,7 +822,7 @@ class ESPNProvider(UFCParserMixin, TournamentParserMixin, SportsProvider):
             id=str(team_id),
             provider=self.name,
             name=team_data.get("displayName", ""),
-            short_name=team_data.get("shortDisplayName", ""),
+            short_name=team_data.get("shortDisplayName") or team_data.get("name") or "",
             abbreviation=team_data.get("abbreviation", ""),
             league=league,
             sport=sport,
