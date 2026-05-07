@@ -240,14 +240,18 @@ export interface ChannelsDVRSettings {
   enabled: boolean
   url: string | null
   source_name: string | null
-  username: string | null
-  password: string | null
 }
 
 export interface ChannelsDVRTestResponse {
   success: boolean
   server_version?: string | null
   source_name?: string | null
+  error?: string | null
+}
+
+export interface ChannelsDVRSourcesResponse {
+  success: boolean
+  sources: string[]
   error?: string | null
 }
 
@@ -566,6 +570,11 @@ export async function updateChannelsDVRSettings(data: Partial<ChannelsDVRSetting
   return api.put("/settings/channelsdvr", data)
 }
 
-export async function testChannelsDVRConnection(data?: { url?: string; source_name?: string; username?: string; password?: string }): Promise<ChannelsDVRTestResponse> {
+export async function testChannelsDVRConnection(data?: { url?: string; source_name?: string }): Promise<ChannelsDVRTestResponse> {
   return api.post("/channelsdvr/test", data || {})
+}
+
+export async function getChannelsDVRSources(url?: string): Promise<ChannelsDVRSourcesResponse> {
+  const qs = url ? `?url=${encodeURIComponent(url)}` : ""
+  return api.get(`/channelsdvr/sources${qs}`)
 }

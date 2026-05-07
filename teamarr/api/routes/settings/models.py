@@ -518,13 +518,6 @@ class ChannelsDVRSettingsModel(BaseModel):
     enabled: bool = False
     url: str | None = None
     source_name: str | None = None
-    username: str | None = None
-    password: str | None = None
-
-    @field_serializer("password")
-    @classmethod
-    def _mask_password(cls, v: str | None) -> str | None:
-        return MASKED_SECRET if v else None
 
 
 class ChannelsDVRSettingsUpdate(BaseModel):
@@ -533,8 +526,6 @@ class ChannelsDVRSettingsUpdate(BaseModel):
     enabled: bool | None = None
     url: str | None = None
     source_name: str | None = None
-    username: str | None = None
-    password: str | None = None
 
 
 class ChannelsDVRConnectionTestRequest(BaseModel):
@@ -544,8 +535,6 @@ class ChannelsDVRConnectionTestRequest(BaseModel):
         None, description="Override URL (uses saved if not provided)"
     )
     source_name: str | None = Field(None, description="Override source name")
-    username: str | None = Field(None, description="Override Basic Auth username")
-    password: str | None = Field(None, description="Override Basic Auth password")
 
 
 class ChannelsDVRConnectionTestResponse(BaseModel):
@@ -554,6 +543,14 @@ class ChannelsDVRConnectionTestResponse(BaseModel):
     success: bool
     server_version: str | None = None
     source_name: str | None = None
+    error: str | None = None
+
+
+class ChannelsDVRSourcesResponse(BaseModel):
+    """List of M3U sources discovered on the Channels DVR server."""
+
+    success: bool
+    sources: list[str] = []
     error: str | None = None
 
 

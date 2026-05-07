@@ -828,8 +828,6 @@ def update_channelsdvr_settings(
     enabled: bool | None = None,
     url: str | None = None,
     source_name: str | None = None,
-    username: str | None = None,
-    password: str | None = None,
 ) -> bool:
     """Update Channels DVR integration settings.
 
@@ -840,8 +838,6 @@ def update_channelsdvr_settings(
         enabled: Enable/disable Channels DVR integration
         url: Channels DVR server URL (e.g., http://channelsdvr:8089)
         source_name: M3U source name to refresh
-        username: Optional HTTP Basic Auth username (for reverse-proxied servers)
-        password: Optional HTTP Basic Auth password
 
     Returns:
         True if updated
@@ -858,12 +854,6 @@ def update_channelsdvr_settings(
     if source_name is not None:
         updates.append("channelsdvr_source_name = ?")
         values.append(source_name)
-    if username is not None:
-        updates.append("channelsdvr_username = ?")
-        values.append(username)
-    if password is not None:
-        updates.append("channelsdvr_password = ?")
-        values.append(password)
 
     if not updates:
         return False

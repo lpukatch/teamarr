@@ -811,12 +811,6 @@ def _build_channelsdvr_settings(row) -> ChannelsDVRSettings:
         source_name=row["channelsdvr_source_name"]
         if "channelsdvr_source_name" in row.keys()
         else d.source_name,
-        username=row["channelsdvr_username"]
-        if "channelsdvr_username" in row.keys()
-        else d.username,
-        password=row["channelsdvr_password"]
-        if "channelsdvr_password" in row.keys()
-        else d.password,
     )
 
 
@@ -830,8 +824,7 @@ def get_channelsdvr_settings(conn: Connection) -> ChannelsDVRSettings:
         ChannelsDVRSettings object with Channels DVR configuration
     """
     cursor = conn.execute(
-        """SELECT channelsdvr_enabled, channelsdvr_url, channelsdvr_source_name,
-                  channelsdvr_username, channelsdvr_password
+        """SELECT channelsdvr_enabled, channelsdvr_url, channelsdvr_source_name
            FROM settings WHERE id = 1"""
     )
     row = cursor.fetchone()

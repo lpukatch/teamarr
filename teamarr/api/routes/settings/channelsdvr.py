@@ -9,7 +9,7 @@ from .models import (
     ChannelsDVRConnectionTestResponse,
     ChannelsDVRSettingsModel,
     ChannelsDVRSettingsUpdate,
-    unmask_or_skip,
+    ChannelsDVRSourcesResponse,
 )
 
 router = APIRouter()
@@ -27,8 +27,6 @@ def get_channelsdvr_settings():
         enabled=settings.enabled,
         url=settings.url,
         source_name=settings.source_name,
-        username=settings.username,
-        password=settings.password,
     )
 
 
@@ -46,8 +44,6 @@ def update_channelsdvr_settings(update: ChannelsDVRSettingsUpdate):
             enabled=update.enabled,
             url=update.url,
             source_name=update.source_name,
-            username=update.username,
-            password=unmask_or_skip(update.password),
         )
 
     with get_db() as conn:
@@ -57,8 +53,6 @@ def update_channelsdvr_settings(update: ChannelsDVRSettingsUpdate):
         enabled=settings.enabled,
         url=settings.url,
         source_name=settings.source_name,
-        username=settings.username,
-        password=settings.password,
     )
 
 
@@ -69,7 +63,7 @@ def test_channelsdvr_connection(
     """Test connection to Channels DVR server.
 
     If no parameters provided, tests with saved settings.
-    Accepts optional url/source_name/username/password overrides.
+    Accepts optional url/source_name overrides.
     """
     from teamarr.channelsdvr.client import ChannelsDVRClient
     from teamarr.database.settings import get_channelsdvr_settings
@@ -81,12 +75,6 @@ def test_channelsdvr_connection(
     source_name = (
         request.source_name if request and request.source_name else saved.source_name
     ) or ""
-    username = (
-        request.username if request and request.username else saved.username
-    ) or ""
-    password = (
-        request.password if request and request.password else saved.password
-    ) or ""
 
     if not url:
         return ChannelsDVRConnectionTestResponse(
@@ -94,17 +82,43 @@ def test_channelsdvr_connection(
             error="No Channels DVR URL configured",
         )
 
-    client = ChannelsDVRClient(
-        base_url=url,
-        source_name=source_name,
-        username=username,
-        password=password,
-    )
+    client = ChannelsDVRClient(base_url=url, source_name=source_name)
     result = client.test_connection()
 
     return ChannelsDVRConnectionTestResponse(
         success=result.get("success", False),
         server_version=result.get("server_version"),
         source_name=result.get("source_name"),
+        error=result.get("error"),
+    )
+
+
+@router.get("/channelsdvr/sources", response_model=ChannelsDVRSourcesResponse)
+def list_channelsdvr_sources(url: str | None = None):
+    """List M3U sources configured on the Channels DVR server.
+
+    Used by the settings UI to populate the source-name dropdown.
+    Falls back to the saved URL when none is provided.
+    """
+    from teamarr.channelsdvr.client import ChannelsDVRClient
+    from teamarr.database.settings import get_channelsdvr_settings
+
+    if not url:
+        with get_db() as conn:
+            saved = get_channelsdvr_settings(conn)
+        url = saved.url or ""
+
+    if not url:
+        return ChannelsDVRSourcesResponse(
+            success=False,
+            error="No Channels DVR URL configured",
+        )
+
+    client = ChannelsDVRClient(base_url=url)
+    result = client.list_m3u_sources()
+
+    return ChannelsDVRSourcesResponse(
+        success=result.get("success", False),
+        sources=result.get("sources", []),
         error=result.get("error"),
     )

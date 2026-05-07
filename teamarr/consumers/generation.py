@@ -513,8 +513,6 @@ def run_full_generation(
                 client = ChannelsDVRClient(
                     base_url=channelsdvr_settings.url,
                     source_name=channelsdvr_settings.source_name,
-                    username=channelsdvr_settings.username or "",
-                    password=channelsdvr_settings.password or "",
                 )
                 channelsdvr_result = client.trigger_m3u_refresh(timeout=60)
                 result.channelsdvr_refresh = channelsdvr_result

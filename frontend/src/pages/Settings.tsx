@@ -76,6 +76,7 @@ import {
   useChannelsDVRSettings,
   useUpdateChannelsDVRSettings,
   useTestChannelsDVRConnection,
+  useChannelsDVRSources,
 } from "@/hooks/useSettings"
 import { SortPriorityManager } from "@/components/SortPriorityManager"
 import { StreamOrderingManager } from "@/components/StreamOrderingManager"
@@ -933,6 +934,14 @@ export function Settings() {
   const { data: channelsdvrData } = useChannelsDVRSettings()
   const updateChannelsDVR = useUpdateChannelsDVRSettings()
   const testChannelsDVR = useTestChannelsDVRConnection()
+  const [channelsdvr, setChannelsDVR] = useState<Partial<ChannelsDVRSettings>>({
+    enabled: false,
+    url: null,
+    source_name: null,
+  })
+  const [channelsdvrTestResult, setChannelsDVRTestResult] = useState<{ success: boolean; message: string } | null>(null)
+  const { data: channelsdvrSourcesData, isFetching: channelsdvrSourcesLoading } =
+    useChannelsDVRSources(channelsdvr.url || channelsdvrData?.url)
 
   // Per-league subscription config
   const { data: leagueConfigsData } = useLeagueConfigs()
@@ -1005,14 +1014,6 @@ export function Settings() {
     api_key: null,
   })
   const [jellyfinTestResult, setJellyfinTestResult] = useState<{ success: boolean; message: string } | null>(null)
-  const [channelsdvr, setChannelsDVR] = useState<Partial<ChannelsDVRSettings>>({
-    enabled: false,
-    url: null,
-    source_name: null,
-    username: null,
-    password: null,
-  })
-  const [channelsdvrTestResult, setChannelsDVRTestResult] = useState<{ success: boolean; message: string } | null>(null)
   const [newKeyword, setNewKeyword] = useState({ label: "", match_terms: "", behavior: "consolidate" })
   const [editingKeyword, setEditingKeyword] = useState<{ id: number; label: string; match_terms: string } | null>(null)
 
@@ -1148,8 +1149,6 @@ export function Settings() {
         enabled: channelsdvrData.enabled,
         url: channelsdvrData.url,
         source_name: channelsdvrData.source_name,
-        username: channelsdvrData.username,
-        password: "", // Don't show masked password
       })
     }
   }, [channelsdvrData])
@@ -1326,10 +1325,6 @@ export function Settings() {
         enabled: channelsdvr.enabled,
         url: channelsdvr.url,
         source_name: channelsdvr.source_name,
-        username: channelsdvr.username,
-      }
-      if (channelsdvr.password) {
-        data.password = channelsdvr.password
       }
       await updateChannelsDVR.mutateAsync(data)
       toast.success("Channels DVR settings saved")
@@ -1344,8 +1339,6 @@ export function Settings() {
       const result = await testChannelsDVR.mutateAsync({
         url: channelsdvr.url || undefined,
         source_name: channelsdvr.source_name || undefined,
-        username: channelsdvr.username || undefined,
-        password: channelsdvr.password || undefined,
       })
       if (result.success) {
         const versionPart = result.server_version ? ` (v${result.server_version})` : ""
@@ -3540,47 +3533,51 @@ export function Settings() {
             />
           </div>
 
-          {/* Source Name */}
+          {/* Source Name (discovered list) */}
           <div className="space-y-2">
-            <Label htmlFor="channelsdvr-source-name">M3U Source Name</Label>
-            <Input
-              id="channelsdvr-source-name"
-              value={channelsdvr.source_name ?? ""}
-              onChange={(e) => setChannelsDVR({ ...channelsdvr, source_name: e.target.value })}
-              placeholder="Teamarr"
-            />
-            <p className="text-xs text-muted-foreground">
-              The exact name of the M3U source as configured in Channels DVR. Refresh hits
-              <code className="mx-1 px-1 rounded bg-muted">PUT /providers/m3u/sources/&lt;name&gt;/refresh</code>
-              after each generation.
-            </p>
+            <Label htmlFor="channelsdvr-source-name">M3U Source</Label>
+            {(() => {
+              const sources = channelsdvrSourcesData?.sources ?? []
+              const sourcesError = channelsdvrSourcesData && !channelsdvrSourcesData.success
+                ? channelsdvrSourcesData.error : null
+              const saved = channelsdvr.source_name ?? ""
+              const savedMissing = saved && sources.length > 0 && !sources.includes(saved)
+              const noUrl = !channelsdvr.url
+              return (
+                <>
+                  <Select
+                    id="channelsdvr-source-name"
+                    value={saved}
+                    onChange={(e) => setChannelsDVR({ ...channelsdvr, source_name: e.target.value })}
+                    disabled={noUrl || channelsdvrSourcesLoading}
+                  >
+                    <option value="">
+                      {noUrl
+                        ? "— Set URL first —"
+                        : channelsdvrSourcesLoading
+                        ? "Loading sources…"
+                        : sources.length === 0
+                        ? "— No sources discovered —"
+                        : "— Select an M3U source —"}
+                    </option>
+                    {sources.map((s) => (
+                      <option key={s} value={s}>{s}</option>
+                    ))}
+                    {savedMissing && (
+                      <option value={saved}>{saved} (not found on server)</option>
+                    )}
+                  </Select>
+                  <p className="text-xs text-muted-foreground">
+                    Pulled from <code className="px-1 rounded bg-muted">GET /providers/m3u/sources</code>.
+                    Refresh hits <code className="px-1 rounded bg-muted">PUT /providers/m3u/sources/&lt;name&gt;/refresh</code> after each generation.
+                  </p>
+                  {sourcesError && (
+                    <p className="text-xs text-destructive">Couldn't load sources: {sourcesError}</p>
+                  )}
+                </>
+              )
+            })()}
           </div>
-
-          {/* Username/Password (optional Basic Auth) */}
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="channelsdvr-username">Username (optional)</Label>
-              <Input
-                id="channelsdvr-username"
-                value={channelsdvr.username ?? ""}
-                onChange={(e) => setChannelsDVR({ ...channelsdvr, username: e.target.value })}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="channelsdvr-password">Password (optional)</Label>
-              <Input
-                id="channelsdvr-password"
-                type="password"
-                value={channelsdvr.password ?? ""}
-                onChange={(e) => setChannelsDVR({ ...channelsdvr, password: e.target.value })}
-                placeholder="Leave blank to keep current"
-              />
-            </div>
-          </div>
-          <p className="text-xs text-muted-foreground">
-            Channels DVR's local API has no authentication by default. Only fill these in if you
-            front the server with a reverse proxy that requires HTTP Basic Auth.
-          </p>
 
           {/* Save button */}
           <Button onClick={handleSaveChannelsDVR} disabled={updateChannelsDVR.isPending}>

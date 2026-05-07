@@ -368,11 +368,10 @@ CREATE TABLE IF NOT EXISTS settings (
     jellyfin_api_key TEXT,
 
     -- Channels DVR Integration (M3U Source Refresh)
+    -- Local API is unauthenticated by Channels DVR design; no credentials stored.
     channelsdvr_enabled BOOLEAN DEFAULT 0,
     channelsdvr_url TEXT,
     channelsdvr_source_name TEXT,
-    channelsdvr_username TEXT,
-    channelsdvr_password TEXT,
 
     -- Schema Version
     schema_version INTEGER DEFAULT 73

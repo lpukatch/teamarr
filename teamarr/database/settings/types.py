@@ -276,8 +276,6 @@ class ChannelsDVRSettings:
     enabled: bool = False
     url: str | None = None
     source_name: str | None = None
-    username: str | None = None
-    password: str | None = None
 
 
 @dataclass

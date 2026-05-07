@@ -1,14 +1,14 @@
 """Channels DVR Server client for triggering M3U source refresh.
 
-Channels DVR exposes an unauthenticated REST API on port 8089 by default
-(see https://getchannels.com/docs/server-api/introduction/). Some users
-front the server with a reverse proxy that adds HTTP Basic Auth, so the
-client supports optional username/password.
+Channels DVR exposes an unauthenticated REST API on port 8089
+(see https://getchannels.com/docs/server-api/introduction/). The API
+requires requests to originate from the same local network — Teamarr
+deployments live next to the DVR, so no auth handling is needed here.
 
 The refresh endpoint is fire-and-forget: ``PUT /providers/m3u/sources/
-<source_name>/refresh`` returns immediately while the server starts the
-refresh task in the background. This is unlike Emby/Jellyfin, which
-expose a polling task model, so there is nothing here to poll.
+<source_name>/refresh`` returns immediately while the server starts
+the refresh task in the background. This is unlike Emby/Jellyfin,
+which expose a polling task model, so there is nothing here to poll.
 """
 
 import logging
@@ -29,23 +29,56 @@ class ChannelsDVRClient:
         self,
         base_url: str,
         source_name: str = "",
-        username: str = "",
-        password: str = "",
         timeout: int = 30,
     ):
         self.base_url = base_url.rstrip("/")
         self.source_name = source_name
-        self.username = username
-        self.password = password
         self.timeout = timeout
-
-    def _auth(self) -> httpx.BasicAuth | None:
-        if self.username and self.password:
-            return httpx.BasicAuth(self.username, self.password)
-        return None
 
     def _source_path(self) -> str:
         return f"/providers/m3u/sources/{quote(self.source_name, safe='')}"
+
+    def list_m3u_sources(self) -> dict:
+        """Fetch the list of M3U sources configured on the server.
+
+        Returns:
+            dict with success, sources (list of source names), error
+        """
+        try:
+            resp = httpx.get(
+                f"{self.base_url}/providers/m3u/sources",
+                timeout=self.timeout,
+            )
+            resp.raise_for_status()
+        except httpx.ConnectError:
+            return {
+                "success": False,
+                "sources": [],
+                "error": f"Cannot connect to {self.base_url}",
+            }
+        except httpx.HTTPError as e:
+            return {"success": False, "sources": [], "error": str(e)}
+
+        try:
+            data = resp.json()
+        except ValueError:
+            return {
+                "success": False,
+                "sources": [],
+                "error": "Sources endpoint did not return JSON",
+            }
+
+        sources: list[str] = []
+        if isinstance(data, list):
+            for item in data:
+                if isinstance(item, str):
+                    sources.append(item)
+                elif isinstance(item, dict):
+                    name = item.get("Name") or item.get("name")
+                    if name:
+                        sources.append(str(name))
+
+        return {"success": True, "sources": sources}
 
     def test_connection(self) -> dict:
         """Verify connectivity, version, and that the source exists.
@@ -57,7 +90,6 @@ class ChannelsDVRClient:
             resp = httpx.get(
                 f"{self.base_url}/status",
                 timeout=self.timeout,
-                auth=self._auth(),
             )
             resp.raise_for_status()
         except httpx.ConnectError:
@@ -65,13 +97,6 @@ class ChannelsDVRClient:
                 "success": False,
                 "error": f"Cannot connect to {self.base_url}",
             }
-        except httpx.HTTPStatusError as e:
-            if e.response.status_code in (401, 403):
-                return {
-                    "success": False,
-                    "error": "Authentication failed — check username/password",
-                }
-            return {"success": False, "error": str(e)}
         except httpx.HTTPError as e:
             return {"success": False, "error": str(e)}
 
@@ -94,7 +119,6 @@ class ChannelsDVRClient:
             src_resp = httpx.get(
                 f"{self.base_url}{self._source_path()}",
                 timeout=self.timeout,
-                auth=self._auth(),
             )
         except httpx.HTTPError as e:
             return {
@@ -143,15 +167,12 @@ class ChannelsDVRClient:
             resp = httpx.put(
                 f"{self.base_url}{self._source_path()}/refresh",
                 timeout=timeout,
-                auth=self._auth(),
             )
             resp.raise_for_status()
         except httpx.HTTPStatusError as e:
             duration = time.monotonic() - start
             if e.response.status_code == 404:
                 msg = f"Source '{self.source_name}' not found"
-            elif e.response.status_code in (401, 403):
-                msg = "Authentication failed — check username/password"
             else:
                 msg = f"Refresh failed: HTTP {e.response.status_code}"
             return {"success": False, "message": msg, "duration": duration}

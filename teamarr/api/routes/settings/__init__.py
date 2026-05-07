@@ -185,8 +185,6 @@ def get_settings():
             enabled=settings.channelsdvr.enabled,
             url=settings.channelsdvr.url,
             source_name=settings.channelsdvr.source_name,
-            username=settings.channelsdvr.username,
-            password=settings.channelsdvr.password,
         ),
         epg_generation_counter=settings.epg_generation_counter,
         schema_version=settings.schema_version,
