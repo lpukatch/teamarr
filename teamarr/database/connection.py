@@ -1331,25 +1331,50 @@ def _migrate_v73_dedupe_milb_renamed_codes(conn: sqlite3.Connection) -> None:
     old_codes = tuple(rename.keys())
     placeholders = ",".join("?" for _ in old_codes)
 
+    # Each tuple: (table, column, unique_scope_columns_or_None).
+    # unique_scope_columns is set when the table has a UNIQUE constraint that
+    # includes the league column. For those tables, a blanket UPDATE
+    # old->new can collide if both rows already exist (GitHub #202), so we
+    # delete the old row in favor of the existing new row before updating.
     scalar_targets = (
-        ("managed_channels", "league"),
-        ("team_aliases", "league"),
-        ("channel_sort_priorities", "league_code"),
+        ("managed_channels", "league", None),
+        ("team_aliases", "league", None),
+        ("channel_sort_priorities", "league_code", ("sport",)),
         # Logs and detection caches (best-effort consistency).
-        ("epg_matched_streams", "detected_league"),
-        ("epg_failed_matches", "detected_league"),
-        ("stream_match_cache", "league"),
-        ("match_corrections", "incorrect_league"),
-        ("match_corrections", "correct_league"),
+        ("epg_matched_streams", "detected_league", None),
+        ("epg_failed_matches", "detected_league", None),
+        ("stream_match_cache", "league", None),
+        ("match_corrections", "incorrect_league", None),
+        ("match_corrections", "correct_league", None),
     )
 
     # 1. Scalar league columns. Skip silently if the table or column is missing
     # — partial schemas (e.g. unit-test fixtures, mid-migration restarts) would
     # otherwise log a noisy warning per old code per missing target.
-    for table, column in scalar_targets:
+    for table, column, unique_scope in scalar_targets:
         if not _column_exists(conn, table, column):
             continue
+        # Only attempt the UNIQUE-aware delete-before-update when every scope
+        # column is actually present. Partial schemas (test fixtures, in-flight
+        # migrations) without the scope columns can't have the corresponding
+        # UNIQUE constraint either, so a plain UPDATE is safe there.
+        scope = unique_scope if unique_scope and all(
+            _column_exists(conn, table, c) for c in unique_scope
+        ) else None
         for old, new in rename.items():
+            if scope:
+                # If a row with the new code already exists for the same
+                # unique-scope (e.g. same sport), drop the old-coded row so
+                # the UPDATE below doesn't violate UNIQUE(sport, league_code).
+                scope_cols = ", ".join(scope)
+                conn.execute(
+                    f"""DELETE FROM {table}
+                        WHERE {column} = ?
+                          AND ({scope_cols}) IN (
+                            SELECT {scope_cols} FROM {table} WHERE {column} = ?
+                          )""",
+                    (old, new),
+                )
             conn.execute(
                 f"UPDATE {table} SET {column} = ? WHERE {column} = ?",
                 (new, old),

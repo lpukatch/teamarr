@@ -95,7 +95,10 @@ def _make_v72_db(tmp_path: Path) -> sqlite3.Connection:
         """
         CREATE TABLE channel_sort_priorities (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            league_code TEXT
+            sport TEXT NOT NULL,
+            league_code TEXT,
+            sort_priority INTEGER NOT NULL DEFAULT 0,
+            UNIQUE(sport, league_code)
         )
         """
     )
@@ -303,6 +306,50 @@ class TestV73RemapsUserData:
         leagues = json.loads(row["leagues"])
         assert leagues.count("milb-aaa") == 1
         assert "aaa" not in leagues
+
+    def test_channel_sort_priorities_dedupes_when_old_and_new_both_present(self, tmp_path):
+        """Regression for #202 / teamarrv2-98x: a user with sort priorities
+        configured under both the old MiLB code and the new code for the same
+        sport used to crash startup with UNIQUE(sport, league_code) violation.
+        The migration should now drop the colliding old row in favor of the
+        existing new row."""
+        conn = _make_v72_db(tmp_path)
+        _seed_duplicate_milb_state(conn)
+        conn.execute(
+            "INSERT INTO channel_sort_priorities (sport, league_code, sort_priority)"
+            " VALUES ('baseball', 'aaa', 5)"
+        )
+        conn.execute(
+            "INSERT INTO channel_sort_priorities (sport, league_code, sort_priority)"
+            " VALUES ('baseball', 'milb-aaa', 7)"
+        )
+        # Different sport, same old code — should still be remapped (no collision).
+        conn.execute(
+            "INSERT INTO channel_sort_priorities (sport, league_code, sort_priority)"
+            " VALUES ('softball', 'aaa', 9)"
+        )
+        conn.commit()
+
+        # Must not raise. Pre-fix this would have aborted with sqlite3.IntegrityError.
+        _run_migrations(conn)
+
+        rows = list(
+            conn.execute(
+                "SELECT sport, league_code, sort_priority"
+                " FROM channel_sort_priorities ORDER BY sport, league_code"
+            )
+        )
+        assert (rows[0]["sport"], rows[0]["league_code"], rows[0]["sort_priority"]) == (
+            "baseball",
+            "milb-aaa",
+            7,
+        )
+        assert (rows[1]["sport"], rows[1]["league_code"], rows[1]["sort_priority"]) == (
+            "softball",
+            "milb-aaa",
+            9,
+        )
+        assert len(rows) == 2
 
     def test_log_table_remapped(self, tmp_path):
         conn = _make_v72_db(tmp_path)
