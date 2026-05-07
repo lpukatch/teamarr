@@ -7,19 +7,19 @@ docs_version: "2.3.0"
 
 # Teams
 
-Team-based EPG creates one persistent channel per team. Each channel stays in your guide 24/7 and gets populated with the team's schedule — upcoming games, live events, and recent results.
+Team-based EPG produces one persistent **XMLTV channel** per team in the guide Teamarr writes. Teamarr does *not* create a Dispatcharr channel for each team — that's only done for event-based workflows. Instead, you point one of your existing Dispatcharr channels at the team's XMLTV channel id (via Dispatcharr's normal EPG association), and Teamarr keeps that XMLTV channel populated with the team's schedule — upcoming games, live events, and recent results.
 
 ## How It Works
 
 1. Import teams from the league cache
 2. Assign a **team template** to each team
-3. Teamarr looks up each team's schedule and generates EPG programmes
+3. Teamarr looks up each team's schedule and writes EPG programmes for that team's XMLTV channel
 
-Each team channel shows:
-- **Pregame** filler before the game starts
-- **Live event** programme during the game
-- **Postgame** filler after the game ends
-- **Idle** filler on days with no games
+Each team's EPG includes:
+- **Pregame** programmes before the game starts
+- **Live event** programmes during the game
+- **Postgame** programmes after the game ends
+- **Idle** programmes on days with no games
 
 ## Importing Teams
 
@@ -41,7 +41,7 @@ The Teams table shows all imported teams with:
 | **Team** | Team name with logo |
 | **League** | League the team belongs to |
 | **Template** | Assigned template (click to change) |
-| **Channel** | Dispatcharr channel ID if synced |
+| **Channel** | XMLTV channel id (e.g. `team.espn.nfl.123`) — point a Dispatcharr channel at this id to wire up the EPG |
 | **Status** | Active (has upcoming games) or inactive |
 
 ### Assigning Templates

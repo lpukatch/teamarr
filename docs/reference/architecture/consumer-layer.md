@@ -72,7 +72,7 @@ A global lock prevents concurrent runs. The workflow progresses through 8 phases
 
 ## Team Processor
 
-`team_processor.py` generates EPG for team-based channels (schedule tracking).
+`team_processor.py` generates XMLTV programmes for each team's XMLTV channel (schedule tracking). It does not create or modify Dispatcharr channels — that's the lifecycle service's job and only happens for event-based workflows.
 
 | Method | Description |
 |--------|-------------|
