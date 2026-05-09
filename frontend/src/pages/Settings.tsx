@@ -3595,7 +3595,7 @@ export function Settings() {
                   </Select>
                   <p className="text-xs text-muted-foreground">
                     Discovered from <code className="px-1 rounded bg-muted">GET /devices</code> (Provider = m3u).
-                    Refresh hits <code className="px-1 rounded bg-muted">PUT /providers/m3u/sources/&lt;name&gt;/refresh</code> after each generation.
+                    Refresh hits <code className="px-1 rounded bg-muted">POST /providers/m3u/sources/&lt;name&gt;/refresh</code> after each generation.
                   </p>
                   {sourcesError && (
                     <p className="text-xs text-destructive">Couldn't load sources: {sourcesError}</p>
