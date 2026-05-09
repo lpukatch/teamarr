@@ -3594,7 +3594,7 @@ export function Settings() {
                     )}
                   </Select>
                   <p className="text-xs text-muted-foreground">
-                    Pulled from <code className="px-1 rounded bg-muted">GET /providers/m3u/sources</code>.
+                    Discovered from <code className="px-1 rounded bg-muted">GET /devices</code> (Provider = m3u).
                     Refresh hits <code className="px-1 rounded bg-muted">PUT /providers/m3u/sources/&lt;name&gt;/refresh</code> after each generation.
                   </p>
                   {sourcesError && (

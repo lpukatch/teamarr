@@ -44,14 +44,17 @@ class TestTriggerRefreshGuards:
 
 class TestTriggerRefreshHTTP:
     def test_successful_refresh_returns_success(self, monkeypatch):
+        # Real Channels DVR returns 200 with body "true"; we only need the
+        # status code, but pin the method (POST) and URL so the integration
+        # can't silently regress to a 404-returning verb.
         captured: dict = {}
 
-        def fake_put(url, **kwargs):
+        def fake_post(url, **kwargs):
             captured["url"] = url
-            req = httpx.Request("PUT", url)
-            return httpx.Response(204, request=req)
+            req = httpx.Request("POST", url)
+            return httpx.Response(200, json=True, request=req)
 
-        monkeypatch.setattr(httpx, "put", fake_put)
+        monkeypatch.setattr(httpx, "post", fake_post)
 
         client = ChannelsDVRClient(
             base_url="http://channels:8089", source_name="MyM3U"
@@ -65,11 +68,11 @@ class TestTriggerRefreshHTTP:
         )
 
     def test_404_returns_source_not_found(self, monkeypatch):
-        def fake_put(url, **kwargs):
-            req = httpx.Request("PUT", url)
+        def fake_post(url, **kwargs):
+            req = httpx.Request("POST", url)
             return httpx.Response(404, request=req)
 
-        monkeypatch.setattr(httpx, "put", fake_put)
+        monkeypatch.setattr(httpx, "post", fake_post)
 
         client = ChannelsDVRClient(
             base_url="http://channels:8089", source_name="MyM3U"
@@ -128,13 +131,30 @@ class TestTestConnection:
 
 
 class TestListSources:
-    def test_returns_names_from_dict_payload(self, monkeypatch):
-        # Channels DVR returns PascalCase JSON — confirm we extract Name.
+    def test_filters_devices_to_m3u_and_returns_friendly_names(self, monkeypatch):
+        # /devices returns every tuner/provider; only Provider == "m3u" entries
+        # are M3U sources, and FriendlyName is the source name we want.
+        captured: dict = {}
+
         def fake_get(url, **kwargs):
+            captured["url"] = url
             req = httpx.Request("GET", url)
             payload = [
-                {"Name": "MyM3U", "Source": "..."},
-                {"Name": "OtherSource"},
+                {
+                    "Provider": "m3u",
+                    "DeviceID": "M3U-dispatcharr",
+                    "FriendlyName": "dispatcharr",
+                },
+                {
+                    "Provider": "hdhr",
+                    "DeviceID": "HDHR-12345",
+                    "FriendlyName": "Tuner",
+                },
+                {
+                    "Provider": "m3u",
+                    "DeviceID": "M3U-other",
+                    "FriendlyName": "other",
+                },
             ]
             return httpx.Response(200, json=payload, request=req)
 
@@ -144,13 +164,18 @@ class TestListSources:
         result = client.list_m3u_sources()
 
         assert result["success"] is True
-        assert result["sources"] == ["MyM3U", "OtherSource"]
+        assert result["sources"] == ["dispatcharr", "other"]
+        assert captured["url"] == "http://channels:8089/devices"
 
-    def test_handles_lowercase_name_field(self, monkeypatch):
-        # Defensive: some forks may use lowercase keys.
+    def test_handles_lowercase_keys(self, monkeypatch):
+        # Defensive: tolerate lowercase field names if a fork ever ships them.
         def fake_get(url, **kwargs):
             req = httpx.Request("GET", url)
-            return httpx.Response(200, json=[{"name": "alt"}], request=req)
+            return httpx.Response(
+                200,
+                json=[{"provider": "m3u", "friendlyName": "alt"}],
+                request=req,
+            )
 
         monkeypatch.setattr(httpx, "get", fake_get)
 
@@ -158,16 +183,20 @@ class TestListSources:
         result = client.list_m3u_sources()
         assert result["sources"] == ["alt"]
 
-    def test_handles_string_array_payload(self, monkeypatch):
+    def test_falls_back_to_name_when_friendlyname_missing(self, monkeypatch):
         def fake_get(url, **kwargs):
             req = httpx.Request("GET", url)
-            return httpx.Response(200, json=["A", "B"], request=req)
+            return httpx.Response(
+                200,
+                json=[{"Provider": "m3u", "Name": "legacy"}],
+                request=req,
+            )
 
         monkeypatch.setattr(httpx, "get", fake_get)
 
         client = ChannelsDVRClient(base_url="http://channels:8089")
         result = client.list_m3u_sources()
-        assert result["sources"] == ["A", "B"]
+        assert result["sources"] == ["legacy"]
 
     def test_unreachable_returns_error(self, monkeypatch):
         def fake_get(url, **kwargs):

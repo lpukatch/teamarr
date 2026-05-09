@@ -5,10 +5,11 @@ Channels DVR exposes an unauthenticated REST API on port 8089
 requires requests to originate from the same local network — Teamarr
 deployments live next to the DVR, so no auth handling is needed here.
 
-The refresh endpoint is fire-and-forget: ``PUT /providers/m3u/sources/
-<source_name>/refresh`` returns immediately while the server starts
-the refresh task in the background. This is unlike Emby/Jellyfin,
-which expose a polling task model, so there is nothing here to poll.
+The refresh endpoint is fire-and-forget: ``POST /providers/m3u/sources/
+<source_name>/refresh`` returns ``200 OK`` with body ``true`` as soon
+as the request is accepted, while the server runs the refresh task in
+the background. There is no completion event or task-id to poll, so
+this client only reports whether the request was accepted.
 """
 
 import logging
@@ -41,12 +42,17 @@ class ChannelsDVRClient:
     def list_m3u_sources(self) -> dict:
         """Fetch the list of M3U sources configured on the server.
 
+        Channels DVR has no list endpoint at /providers/m3u/sources; instead
+        every tuner and provider surfaces under /devices, and M3U sources are
+        the entries with Provider == "m3u". The FriendlyName field is the
+        source name used in /providers/m3u/sources/<name>/refresh.
+
         Returns:
             dict with success, sources (list of source names), error
         """
         try:
             resp = httpx.get(
-                f"{self.base_url}/providers/m3u/sources",
+                f"{self.base_url}/devices",
                 timeout=self.timeout,
             )
             resp.raise_for_status()
@@ -65,18 +71,25 @@ class ChannelsDVRClient:
             return {
                 "success": False,
                 "sources": [],
-                "error": "Sources endpoint did not return JSON",
+                "error": "Devices endpoint did not return JSON",
             }
 
         sources: list[str] = []
         if isinstance(data, list):
             for item in data:
-                if isinstance(item, str):
-                    sources.append(item)
-                elif isinstance(item, dict):
-                    name = item.get("Name") or item.get("name")
-                    if name:
-                        sources.append(str(name))
+                if not isinstance(item, dict):
+                    continue
+                provider = item.get("Provider") or item.get("provider") or ""
+                if str(provider).lower() != "m3u":
+                    continue
+                name = (
+                    item.get("FriendlyName")
+                    or item.get("friendlyName")
+                    or item.get("Name")
+                    or item.get("name")
+                )
+                if name:
+                    sources.append(str(name))
 
         return {"success": True, "sources": sources}
 
@@ -164,7 +177,7 @@ class ChannelsDVRClient:
 
         start = time.monotonic()
         try:
-            resp = httpx.put(
+            resp = httpx.post(
                 f"{self.base_url}{self._source_path()}/refresh",
                 timeout=timeout,
             )
