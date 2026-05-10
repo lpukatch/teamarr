@@ -240,6 +240,7 @@ export interface ChannelsDVRSettings {
   enabled: boolean
   url: string | null
   source_name: string | null
+  lineup_id: string | null
 }
 
 export interface ChannelsDVRTestResponse {
@@ -252,6 +253,17 @@ export interface ChannelsDVRTestResponse {
 export interface ChannelsDVRSourcesResponse {
   success: boolean
   sources: string[]
+  error?: string | null
+}
+
+export interface ChannelsDVRLineup {
+  id: string
+  name: string
+}
+
+export interface ChannelsDVRLineupsResponse {
+  success: boolean
+  lineups: ChannelsDVRLineup[]
   error?: string | null
 }
 
@@ -577,4 +589,9 @@ export async function testChannelsDVRConnection(data?: { url?: string; source_na
 export async function getChannelsDVRSources(url?: string): Promise<ChannelsDVRSourcesResponse> {
   const qs = url ? `?url=${encodeURIComponent(url)}` : ""
   return api.get(`/channelsdvr/sources${qs}`)
+}
+
+export async function getChannelsDVRLineups(url?: string): Promise<ChannelsDVRLineupsResponse> {
+  const qs = url ? `?url=${encodeURIComponent(url)}` : ""
+  return api.get(`/channelsdvr/lineups${qs}`)
 }

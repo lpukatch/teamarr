@@ -61,6 +61,7 @@ class GenerationResult:
     emby_refresh: dict = field(default_factory=dict)
     jellyfin_refresh: dict = field(default_factory=dict)
     channelsdvr_refresh: dict = field(default_factory=dict)
+    channelsdvr_epg_refresh: dict = field(default_factory=dict)
 
     # For stats run tracking
     run_id: int | None = None
@@ -492,7 +493,9 @@ def run_full_generation(
             logger.warning("[JELLYFIN] Guide refresh failed (non-blocking): %s", e)
             result.jellyfin_refresh = {"success": False, "error": str(e)}
 
-        # Step 5d: Channels DVR M3U source refresh
+        # Step 5d: Channels DVR M3U source + XMLTV lineup refresh
+        # CDVR splits channel-list and EPG into two providers — without the
+        # lineup PUT the channels are fresh but the guide is stale.
         check_cancelled()
         try:
             from teamarr.database.settings import get_channelsdvr_settings
@@ -500,35 +503,51 @@ def run_full_generation(
             with db_factory() as conn:
                 channelsdvr_settings = get_channelsdvr_settings(conn)
 
-            if (
-                channelsdvr_settings.enabled
-                and channelsdvr_settings.url
-                and channelsdvr_settings.source_name
+            if channelsdvr_settings.enabled and channelsdvr_settings.url and (
+                channelsdvr_settings.source_name
+                or channelsdvr_settings.lineup_id
             ):
                 update_progress(
-                    "channelsdvr", 97, "Refreshing Channels DVR source..."
+                    "channelsdvr", 97, "Refreshing Channels DVR..."
                 )
                 from teamarr.channelsdvr.client import ChannelsDVRClient
 
                 client = ChannelsDVRClient(
                     base_url=channelsdvr_settings.url,
-                    source_name=channelsdvr_settings.source_name,
+                    source_name=channelsdvr_settings.source_name or "",
+                    lineup_id=channelsdvr_settings.lineup_id or "",
                 )
-                channelsdvr_result = client.trigger_m3u_refresh(timeout=60)
-                result.channelsdvr_refresh = channelsdvr_result
-                if channelsdvr_result.get("success"):
-                    logger.info(
-                        "[CHANNELSDVR] M3U refresh triggered in %.1fs",
-                        channelsdvr_result.get("duration", 0),
-                    )
-                else:
-                    logger.warning(
-                        "[CHANNELSDVR] M3U refresh failed: %s",
-                        channelsdvr_result.get("message"),
-                    )
+
+                if channelsdvr_settings.source_name:
+                    m3u_result = client.trigger_m3u_refresh(timeout=60)
+                    result.channelsdvr_refresh = m3u_result
+                    if m3u_result.get("success"):
+                        logger.info(
+                            "[CHANNELSDVR] M3U refresh triggered in %.1fs",
+                            m3u_result.get("duration", 0),
+                        )
+                    else:
+                        logger.warning(
+                            "[CHANNELSDVR] M3U refresh failed: %s",
+                            m3u_result.get("message"),
+                        )
+
+                if channelsdvr_settings.lineup_id:
+                    epg_result = client.trigger_epg_refresh(timeout=60)
+                    result.channelsdvr_epg_refresh = epg_result
+                    if epg_result.get("success"):
+                        logger.info(
+                            "[CHANNELSDVR] EPG refresh triggered in %.1fs",
+                            epg_result.get("duration", 0),
+                        )
+                    else:
+                        logger.warning(
+                            "[CHANNELSDVR] EPG refresh failed: %s",
+                            epg_result.get("message"),
+                        )
         except Exception as e:
             logger.warning(
-                "[CHANNELSDVR] M3U refresh failed (non-blocking): %s", e
+                "[CHANNELSDVR] Refresh failed (non-blocking): %s", e
             )
             result.channelsdvr_refresh = {"success": False, "error": str(e)}
 

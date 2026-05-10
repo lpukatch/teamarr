@@ -518,6 +518,7 @@ class ChannelsDVRSettingsModel(BaseModel):
     enabled: bool = False
     url: str | None = None
     source_name: str | None = None
+    lineup_id: str | None = None
 
 
 class ChannelsDVRSettingsUpdate(BaseModel):
@@ -526,6 +527,7 @@ class ChannelsDVRSettingsUpdate(BaseModel):
     enabled: bool | None = None
     url: str | None = None
     source_name: str | None = None
+    lineup_id: str | None = None
 
 
 class ChannelsDVRConnectionTestRequest(BaseModel):
@@ -551,6 +553,21 @@ class ChannelsDVRSourcesResponse(BaseModel):
 
     success: bool
     sources: list[str] = []
+    error: str | None = None
+
+
+class ChannelsDVRLineup(BaseModel):
+    """An XMLTV lineup configured on the Channels DVR server."""
+
+    id: str
+    name: str
+
+
+class ChannelsDVRLineupsResponse(BaseModel):
+    """List of XMLTV lineups discovered on the Channels DVR server."""
+
+    success: bool
+    lineups: list[ChannelsDVRLineup] = []
     error: str | None = None
 
 

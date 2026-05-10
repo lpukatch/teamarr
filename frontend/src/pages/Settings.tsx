@@ -77,6 +77,7 @@ import {
   useUpdateChannelsDVRSettings,
   useTestChannelsDVRConnection,
   useChannelsDVRSources,
+  useChannelsDVRLineups,
 } from "@/hooks/useSettings"
 import { SortPriorityManager } from "@/components/SortPriorityManager"
 import { StreamOrderingManager } from "@/components/StreamOrderingManager"
@@ -949,6 +950,8 @@ export function Settings() {
   const [channelsdvrTestResult, setChannelsDVRTestResult] = useState<{ success: boolean; message: string } | null>(null)
   const { data: channelsdvrSourcesData, isFetching: channelsdvrSourcesLoading } =
     useChannelsDVRSources(channelsdvr.url || channelsdvrData?.url)
+  const { data: channelsdvrLineupsData, isFetching: channelsdvrLineupsLoading } =
+    useChannelsDVRLineups(channelsdvr.url || channelsdvrData?.url)
 
   // Per-league subscription config
   const { data: leagueConfigsData } = useLeagueConfigs()
@@ -1171,6 +1174,7 @@ export function Settings() {
         enabled: channelsdvrData.enabled,
         url: channelsdvrData.url,
         source_name: channelsdvrData.source_name,
+        lineup_id: channelsdvrData.lineup_id,
       })
     }
   }, [channelsdvrData])
@@ -1347,6 +1351,7 @@ export function Settings() {
         enabled: channelsdvr.enabled,
         url: channelsdvr.url,
         source_name: channelsdvr.source_name,
+        lineup_id: channelsdvr.lineup_id,
       }
       await updateChannelsDVR.mutateAsync(data)
       toast.success("Channels DVR settings saved")
@@ -3599,6 +3604,55 @@ export function Settings() {
                   </p>
                   {sourcesError && (
                     <p className="text-xs text-destructive">Couldn't load sources: {sourcesError}</p>
+                  )}
+                </>
+              )
+            })()}
+          </div>
+
+          {/* XMLTV Lineup (drives EPG refresh) */}
+          <div className="space-y-2">
+            <Label htmlFor="channelsdvr-lineup-id">XMLTV Lineup (EPG)</Label>
+            {(() => {
+              const lineups = channelsdvrLineupsData?.lineups ?? []
+              const lineupsError = channelsdvrLineupsData && !channelsdvrLineupsData.success
+                ? channelsdvrLineupsData.error : null
+              const saved = channelsdvr.lineup_id ?? ""
+              const savedMissing = saved && lineups.length > 0 && !lineups.some((l) => l.id === saved)
+              const noUrl = !channelsdvr.url
+              return (
+                <>
+                  <Select
+                    id="channelsdvr-lineup-id"
+                    value={saved}
+                    onChange={(e) => setChannelsDVR({ ...channelsdvr, lineup_id: e.target.value })}
+                    disabled={noUrl || channelsdvrLineupsLoading}
+                  >
+                    <option value="">
+                      {noUrl
+                        ? "— Set URL first —"
+                        : channelsdvrLineupsLoading
+                        ? "Loading lineups…"
+                        : lineups.length === 0
+                        ? "— No lineups discovered —"
+                        : "— Select an XMLTV lineup —"}
+                    </option>
+                    {lineups.map((l) => (
+                      <option key={l.id} value={l.id}>
+                        {l.name === l.id ? l.id : `${l.name} (${l.id})`}
+                      </option>
+                    ))}
+                    {savedMissing && (
+                      <option value={saved}>{saved} (not found on server)</option>
+                    )}
+                  </Select>
+                  <p className="text-xs text-muted-foreground">
+                    Discovered from <code className="px-1 rounded bg-muted">GET /dvr/lineups</code>.
+                    Refresh hits <code className="px-1 rounded bg-muted">PUT /dvr/lineups/&lt;id&gt;</code> so the EPG actually updates.
+                    Without this the M3U refresh leaves the guide stale.
+                  </p>
+                  {lineupsError && (
+                    <p className="text-xs text-destructive">Couldn't load lineups: {lineupsError}</p>
                   )}
                 </>
               )

@@ -828,6 +828,7 @@ def update_channelsdvr_settings(
     enabled: bool | None = None,
     url: str | None = None,
     source_name: str | None = None,
+    lineup_id: str | None = None,
 ) -> bool:
     """Update Channels DVR integration settings.
 
@@ -838,6 +839,7 @@ def update_channelsdvr_settings(
         enabled: Enable/disable Channels DVR integration
         url: Channels DVR server URL (e.g., http://channelsdvr:8089)
         source_name: M3U source name to refresh
+        lineup_id: XMLTV lineup ID to refresh (drives EPG update)
 
     Returns:
         True if updated
@@ -854,6 +856,9 @@ def update_channelsdvr_settings(
     if source_name is not None:
         updates.append("channelsdvr_source_name = ?")
         values.append(source_name)
+    if lineup_id is not None:
+        updates.append("channelsdvr_lineup_id = ?")
+        values.append(lineup_id)
 
     if not updates:
         return False

@@ -271,11 +271,12 @@ class JellyfinSettings:
 
 @dataclass
 class ChannelsDVRSettings:
-    """Channels DVR integration settings for M3U source refresh."""
+    """Channels DVR integration settings for M3U + XMLTV refresh."""
 
     enabled: bool = False
     url: str | None = None
     source_name: str | None = None
+    lineup_id: str | None = None
 
 
 @dataclass

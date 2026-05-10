@@ -210,5 +210,124 @@ class TestListSources:
         assert result["sources"] == []
 
 
+class TestListLineups:
+    def test_returns_id_and_name(self, monkeypatch):
+        # /dvr/lineups returns every guide lineup with at least an ID; the
+        # ID is what the refresh PUT path expects.
+        captured: dict = {}
+
+        def fake_get(url, **kwargs):
+            captured["url"] = url
+            req = httpx.Request("GET", url)
+            payload = [
+                {"ID": "XMLTV-dispatcharr", "Name": "Dispatcharr Guide"},
+                {"ID": "Gracenote", "Name": "Gracenote (USA)"},
+            ]
+            return httpx.Response(200, json=payload, request=req)
+
+        monkeypatch.setattr(httpx, "get", fake_get)
+
+        client = ChannelsDVRClient(base_url="http://channels:8089")
+        result = client.list_lineups()
+
+        assert result["success"] is True
+        assert result["lineups"] == [
+            {"id": "XMLTV-dispatcharr", "name": "Dispatcharr Guide"},
+            {"id": "Gracenote", "name": "Gracenote (USA)"},
+        ]
+        assert captured["url"] == "http://channels:8089/dvr/lineups"
+
+    def test_falls_back_to_name_when_id_missing(self, monkeypatch):
+        # Some lineups only expose Name; treat Name as the ID in that case.
+        def fake_get(url, **kwargs):
+            req = httpx.Request("GET", url)
+            return httpx.Response(
+                200, json=[{"Name": "XMLTV-only"}], request=req
+            )
+
+        monkeypatch.setattr(httpx, "get", fake_get)
+
+        client = ChannelsDVRClient(base_url="http://channels:8089")
+        result = client.list_lineups()
+        assert result["lineups"] == [{"id": "XMLTV-only", "name": "XMLTV-only"}]
+
+    def test_unreachable_returns_error(self, monkeypatch):
+        def fake_get(url, **kwargs):
+            raise httpx.ConnectError("conn refused")
+
+        monkeypatch.setattr(httpx, "get", fake_get)
+
+        client = ChannelsDVRClient(base_url="http://channels:8089")
+        result = client.list_lineups()
+        assert result["success"] is False
+        assert result["lineups"] == []
+
+
+class TestTriggerEPGRefresh:
+    def test_no_lineup_returns_failure(self):
+        client = ChannelsDVRClient(base_url="http://channels:8089")
+        result = client.trigger_epg_refresh()
+        assert result["success"] is False
+        assert "lineup" in result["message"].lower()
+
+    def test_successful_refresh_uses_put(self, monkeypatch):
+        # Pin the verb (PUT) and URL — the working-script reference is
+        # `PUT /dvr/lineups/XMLTV-{name}`, anything else returns 404.
+        captured: dict = {}
+
+        def fake_put(url, **kwargs):
+            captured["url"] = url
+            req = httpx.Request("PUT", url)
+            return httpx.Response(200, request=req)
+
+        monkeypatch.setattr(httpx, "put", fake_put)
+
+        client = ChannelsDVRClient(
+            base_url="http://channels:8089", lineup_id="XMLTV-dispatcharr"
+        )
+        result = client.trigger_epg_refresh()
+
+        assert result["success"] is True
+        assert (
+            captured["url"]
+            == "http://channels:8089/dvr/lineups/XMLTV-dispatcharr"
+        )
+
+    def test_url_encodes_lineup_id(self, monkeypatch):
+        captured: dict = {}
+
+        def fake_put(url, **kwargs):
+            captured["url"] = url
+            req = httpx.Request("PUT", url)
+            return httpx.Response(200, request=req)
+
+        monkeypatch.setattr(httpx, "put", fake_put)
+
+        client = ChannelsDVRClient(
+            base_url="http://channels:8089", lineup_id="My Lineup/Slash"
+        )
+        client.trigger_epg_refresh()
+
+        assert (
+            captured["url"]
+            == "http://channels:8089/dvr/lineups/My%20Lineup%2FSlash"
+        )
+
+    def test_404_returns_lineup_not_found(self, monkeypatch):
+        def fake_put(url, **kwargs):
+            req = httpx.Request("PUT", url)
+            return httpx.Response(404, request=req)
+
+        monkeypatch.setattr(httpx, "put", fake_put)
+
+        client = ChannelsDVRClient(
+            base_url="http://channels:8089", lineup_id="missing"
+        )
+        result = client.trigger_epg_refresh()
+
+        assert result["success"] is False
+        assert "not found" in result["message"].lower()
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])

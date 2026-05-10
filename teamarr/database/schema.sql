@@ -367,11 +367,14 @@ CREATE TABLE IF NOT EXISTS settings (
     jellyfin_password TEXT,
     jellyfin_api_key TEXT,
 
-    -- Channels DVR Integration (M3U Source Refresh)
+    -- Channels DVR Integration (M3U Source + XMLTV Lineup Refresh)
     -- Local API is unauthenticated by Channels DVR design; no credentials stored.
+    -- channelsdvr_lineup_id refreshes the XMLTV guide; without it CDVR
+    -- updates channels but leaves the EPG stale.
     channelsdvr_enabled BOOLEAN DEFAULT 0,
     channelsdvr_url TEXT,
     channelsdvr_source_name TEXT,
+    channelsdvr_lineup_id TEXT,
 
     -- Schema Version
     schema_version INTEGER DEFAULT 73

@@ -7,6 +7,8 @@ from teamarr.database import get_db
 from .models import (
     ChannelsDVRConnectionTestRequest,
     ChannelsDVRConnectionTestResponse,
+    ChannelsDVRLineup,
+    ChannelsDVRLineupsResponse,
     ChannelsDVRSettingsModel,
     ChannelsDVRSettingsUpdate,
     ChannelsDVRSourcesResponse,
@@ -27,6 +29,7 @@ def get_channelsdvr_settings():
         enabled=settings.enabled,
         url=settings.url,
         source_name=settings.source_name,
+        lineup_id=settings.lineup_id,
     )
 
 
@@ -44,6 +47,7 @@ def update_channelsdvr_settings(update: ChannelsDVRSettingsUpdate):
             enabled=update.enabled,
             url=update.url,
             source_name=update.source_name,
+            lineup_id=update.lineup_id,
         )
 
     with get_db() as conn:
@@ -53,6 +57,7 @@ def update_channelsdvr_settings(update: ChannelsDVRSettingsUpdate):
         enabled=settings.enabled,
         url=settings.url,
         source_name=settings.source_name,
+        lineup_id=settings.lineup_id,
     )
 
 
@@ -120,5 +125,40 @@ def list_channelsdvr_sources(url: str | None = None):
     return ChannelsDVRSourcesResponse(
         success=result.get("success", False),
         sources=result.get("sources", []),
+        error=result.get("error"),
+    )
+
+
+@router.get("/channelsdvr/lineups", response_model=ChannelsDVRLineupsResponse)
+def list_channelsdvr_lineups(url: str | None = None):
+    """List XMLTV lineups configured on the Channels DVR server.
+
+    Used by the settings UI to populate the lineup dropdown. The
+    selected lineup ID is what we PUT to ``/dvr/lineups/<id>`` to
+    refresh the EPG.
+    """
+    from teamarr.channelsdvr.client import ChannelsDVRClient
+    from teamarr.database.settings import get_channelsdvr_settings
+
+    if not url:
+        with get_db() as conn:
+            saved = get_channelsdvr_settings(conn)
+        url = saved.url or ""
+
+    if not url:
+        return ChannelsDVRLineupsResponse(
+            success=False,
+            error="No Channels DVR URL configured",
+        )
+
+    client = ChannelsDVRClient(base_url=url)
+    result = client.list_lineups()
+
+    return ChannelsDVRLineupsResponse(
+        success=result.get("success", False),
+        lineups=[
+            ChannelsDVRLineup(id=lineup["id"], name=lineup["name"])
+            for lineup in result.get("lineups", [])
+        ],
         error=result.get("error"),
     )

@@ -47,6 +47,7 @@ import {
   updateChannelsDVRSettings,
   testChannelsDVRConnection,
   getChannelsDVRSources,
+  getChannelsDVRLineups,
 } from "@/api/settings"
 import type {
   DispatcharrSettings,
@@ -499,6 +500,7 @@ export function useUpdateChannelsDVRSettings() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["settings"] })
       queryClient.invalidateQueries({ queryKey: ["channelsdvr", "sources"] })
+      queryClient.invalidateQueries({ queryKey: ["channelsdvr", "lineups"] })
     },
   })
 }
@@ -514,6 +516,16 @@ export function useChannelsDVRSources(url: string | null | undefined) {
   return useQuery({
     queryKey: ["channelsdvr", "sources", url ?? ""],
     queryFn: () => getChannelsDVRSources(url ?? undefined),
+    enabled: !!url,
+    retry: false,
+    staleTime: 30_000,
+  })
+}
+
+export function useChannelsDVRLineups(url: string | null | undefined) {
+  return useQuery({
+    queryKey: ["channelsdvr", "lineups", url ?? ""],
+    queryFn: () => getChannelsDVRLineups(url ?? undefined),
     enabled: !!url,
     retry: false,
     staleTime: 30_000,
