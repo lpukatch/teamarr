@@ -78,6 +78,7 @@ export function EventGroups() {
 
   // Drag-and-drop state
   const [draggedGroupId, setDraggedGroupId] = useState<number | null>(null)
+  const [dragOverGroupId, setDragOverGroupId] = useState<number | null>(null)
 
   // Preview modal state
   const [previewData, setPreviewData] = useState<PreviewGroupResponse | null>(null)
@@ -107,6 +108,8 @@ export function EventGroups() {
   const [bulkEditTeamFilterMode, setBulkEditTeamFilterMode] = useState<"include" | "exclude">("include")
   const [bulkEditTeamFilterTeams, setBulkEditTeamFilterTeams] = useState<TeamFilterEntry[]>([])
   const [bulkEditBypassPlayoffs, setBulkEditBypassPlayoffs] = useState(false)
+  const [bulkEditTeamStreamsEnabled, setBulkEditTeamStreamsEnabled] = useState(false)
+  const [bulkEditTeamStreams, setBulkEditTeamStreams] = useState(false)
   // Column sorting state
   type SortColumn = "name" | "matched" | "status" | null
   type SortDirection = "asc" | "desc"
@@ -316,14 +319,16 @@ export function EventGroups() {
     e.dataTransfer.setData("text/plain", String(groupId))
   }
 
-  const handleDragOver = (e: React.DragEvent) => {
+  const handleDragOver = (e: React.DragEvent, targetGroupId: number) => {
     e.preventDefault()
     e.dataTransfer.dropEffect = "move"
+    setDragOverGroupId(targetGroupId)
   }
 
   const handleDrop = async (e: React.DragEvent, targetGroupId: number) => {
     e.preventDefault()
     setDraggedGroupId(null)
+    setDragOverGroupId(null)
 
     if (draggedGroupId === null || draggedGroupId === targetGroupId) return
 
@@ -352,6 +357,7 @@ export function EventGroups() {
 
   const handleDragEnd = () => {
     setDraggedGroupId(null)
+    setDragOverGroupId(null)
   }
 
   // Selection handlers
@@ -416,6 +422,8 @@ export function EventGroups() {
     setBulkEditTeamFilterMode("include")
     setBulkEditTeamFilterTeams([])
     setBulkEditBypassPlayoffs(false)
+    setBulkEditTeamStreamsEnabled(false)
+    setBulkEditTeamStreams(false)
   }
 
   const handleBulkEdit = async () => {
@@ -430,6 +438,10 @@ export function EventGroups() {
       } else if (bulkEditStreamTimezone) {
         request.stream_timezone = bulkEditStreamTimezone
       }
+    }
+
+    if (bulkEditTeamStreamsEnabled) {
+      request.team_streams_enabled = bulkEditTeamStreams
     }
 
     if (bulkEditTeamFilterEnabled) {
@@ -821,12 +833,16 @@ export function EventGroups() {
                   return (
                     <React.Fragment key={group.id}>
                       <TableRow
-                        className={`border-l-3 border-l-transparent hover:border-l-emerald-500 group/row ${
-                          draggedGroupId === group.id ? "opacity-50" : ""
+                        className={`border-l-3 group/row ${
+                          draggedGroupId === group.id
+                            ? "opacity-50 border-l-transparent"
+                            : dragOverGroupId === group.id
+                              ? "border-l-transparent border-t-2 border-t-emerald-500"
+                              : "border-l-transparent hover:border-l-emerald-500"
                         }`}
                         draggable={isDndActive}
                         onDragStart={(e) => isDndActive && handleDragStart(e, group.id)}
-                        onDragOver={(e) => isDndActive && handleDragOver(e)}
+                        onDragOver={(e) => isDndActive && handleDragOver(e, group.id)}
                         onDrop={(e) => isDndActive && handleDrop(e, group.id)}
                         onDragEnd={handleDragEnd}
                       >
@@ -880,11 +896,25 @@ export function EventGroups() {
                                 Regex
                               </Badge>
                             )}
+                            {/* Team Streams badge */}
+                            {group.team_streams_enabled && (
+                              <Badge
+                                variant="secondary"
+                                className="bg-emerald-500/15 text-emerald-400 border-emerald-500/30 text-xs"
+                                title="Team stream source: team-branded streams match events where that team plays"
+                              >
+                                Team Streams
+                              </Badge>
+                            )}
                           </div>
                         </TableCell>
                     {/* Matched Column with Progress Bar */}
                     <TableCell className="text-center">
-                      {group.stream_count && group.stream_count > 0 ? (
+                      {group.team_streams_enabled ? (
+                        <span className="text-[0.65rem] text-muted-foreground" title={`Last: ${group.last_refresh ? new Date(group.last_refresh).toLocaleString() : 'Never'}`}>
+                          {group.stream_count ?? 0} streams
+                        </span>
+                      ) : group.stream_count && group.stream_count > 0 ? (
                         <div className="flex flex-col items-center gap-0.5" title={`Last: ${group.last_refresh ? new Date(group.last_refresh).toLocaleString() : 'Never'}`}>
                           <div className="w-full h-1.5 bg-secondary rounded-full overflow-hidden">
                             <div
@@ -1201,6 +1231,28 @@ export function EventGroups() {
               )}
             </div>
 
+            {/* Team Stream Source */}
+            <div className="space-y-2">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <Checkbox
+                  checked={bulkEditTeamStreamsEnabled}
+                  onCheckedChange={(checked) => setBulkEditTeamStreamsEnabled(!!checked)}
+                />
+                <span className="text-sm font-medium">Team stream source</span>
+              </label>
+              {bulkEditTeamStreamsEnabled && (
+                <div className="flex items-center gap-3 pl-6">
+                  <Switch
+                    checked={bulkEditTeamStreams}
+                    onCheckedChange={setBulkEditTeamStreams}
+                  />
+                  <span className="text-sm text-muted-foreground">
+                    {bulkEditTeamStreams ? "Enabled — team-branded streams will match events where that team plays" : "Disabled"}
+                  </span>
+                </div>
+              )}
+            </div>
+
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowBulkEdit(false)}>
@@ -1208,7 +1260,7 @@ export function EventGroups() {
             </Button>
             <Button
               onClick={handleBulkEdit}
-              disabled={bulkUpdateMutation.isPending || !(bulkEditStreamTimezoneEnabled || bulkEditTeamFilterEnabled)}
+              disabled={bulkUpdateMutation.isPending || !(bulkEditStreamTimezoneEnabled || bulkEditTeamFilterEnabled || bulkEditTeamStreamsEnabled)}
             >
               {bulkUpdateMutation.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
               Apply to {selectedIds.size} groups

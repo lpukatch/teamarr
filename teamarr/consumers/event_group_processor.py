@@ -38,7 +38,7 @@ from teamarr.consumers.filler.event_filler import (
     EventFillerResult,
     template_to_event_filler_config,
 )
-from teamarr.consumers.matching import BatchMatchResult, StreamMatcher
+from teamarr.consumers.matching import BatchMatchResult, StreamCategory, StreamMatcher
 from teamarr.core import SEASON_POSTSEASON, Event
 from teamarr.database.groups import (
     EventEPGGroup,
@@ -1217,7 +1217,11 @@ class EventGroupProcessor:
             # Group-specific team extraction
             custom_teams_regex=group.custom_regex_teams,
             custom_teams_enabled=group.custom_regex_teams_enabled,
-            skip_builtin=group.skip_builtin_filter,
+            # team_streams_enabled implicitly skips all builtin filtering — team-branded
+            # streams (e.g. "NHL | Maple Leafs") have no vs/@ separator and would
+            # otherwise be rejected; the classifier and matcher gate what actually matches.
+            skip_builtin=group.skip_builtin_filter or group.team_streams_enabled,
+            team_streams_enabled=group.team_streams_enabled,
         )
 
         stream_filter = StreamFilter(config)
@@ -1405,6 +1409,7 @@ class EventGroupProcessor:
             stream_timezone=group.stream_timezone,  # TZ for interpreting stream dates
             feed_home_terms=feed_home_terms,
             feed_away_terms=feed_away_terms,
+            team_streams_enabled=group.team_streams_enabled,
         )
 
         result = matcher.match_all(
@@ -1456,6 +1461,9 @@ class EventGroupProcessor:
                             "event": result.event,
                             "card_segment": result.card_segment,  # UFC segment from classifier
                             "feed_hint": result.feed_hint,  # "home", "away", or None
+                            "match_type": (
+                                "team" if result.category == StreamCategory.TEAM_ONLY else "event"
+                            ),
                         }
                     )
 

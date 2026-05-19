@@ -90,6 +90,7 @@ class GroupCreate(BaseModel):
     custom_regex_event_name: str | None = None
     custom_regex_event_name_enabled: bool = False
     skip_builtin_filter: bool = False
+    team_streams_enabled: bool = False
     # Team filtering (canonical team selection)
     include_teams: list[TeamFilterEntry] | None = None
     exclude_teams: list[TeamFilterEntry] | None = None
@@ -144,6 +145,7 @@ class GroupUpdate(BaseModel):
     custom_regex_event_name: str | None = None
     custom_regex_event_name_enabled: bool | None = None
     skip_builtin_filter: bool | None = None
+    team_streams_enabled: bool | None = None
     # Team filtering (canonical team selection)
     include_teams: list[TeamFilterEntry] | None = None
     exclude_teams: list[TeamFilterEntry] | None = None
@@ -226,6 +228,7 @@ class GroupResponse(BaseModel):
     custom_regex_event_name: str | None = None
     custom_regex_event_name_enabled: bool = False
     skip_builtin_filter: bool = False
+    team_streams_enabled: bool = False
     # Team filtering (canonical team selection, inherited by children)
     include_teams: list[TeamFilterEntry] | None = None
     exclude_teams: list[TeamFilterEntry] | None = None
@@ -313,6 +316,7 @@ class BulkGroupSettings(BaseModel):
     channel_sort_order: str = "time"
     overlap_handling: str = "add_stream"
     enabled: bool = True
+    team_streams_enabled: bool = False
 
 
 class BulkGroupCreateRequest(BaseModel):
@@ -360,6 +364,7 @@ class BulkGroupUpdateRequest(BaseModel):
     channel_sort_order: str | None = None
     overlap_handling: str | None = None
     enabled: bool | None = None
+    team_streams_enabled: bool | None = None
 
     # Team filtering
     include_teams: list[TeamFilterEntry] | None = None
@@ -565,6 +570,7 @@ def list_groups(
                 custom_regex_event_name=g.custom_regex_event_name,
                 custom_regex_event_name_enabled=g.custom_regex_event_name_enabled,
                 skip_builtin_filter=g.skip_builtin_filter,
+                team_streams_enabled=g.team_streams_enabled,
                 include_teams=[TeamFilterEntry(**t) for t in g.include_teams]
                 if g.include_teams
                 else None,
@@ -667,6 +673,7 @@ def create_group(request: GroupCreate):
             custom_regex_event_name=request.custom_regex_event_name,
             custom_regex_event_name_enabled=request.custom_regex_event_name_enabled,
             skip_builtin_filter=request.skip_builtin_filter,
+            team_streams_enabled=request.team_streams_enabled,
             include_teams=[t.model_dump() for t in request.include_teams]
             if request.include_teams is not None
             else None,
@@ -730,6 +737,7 @@ def create_group(request: GroupCreate):
         custom_regex_event_name=group.custom_regex_event_name,
         custom_regex_event_name_enabled=group.custom_regex_event_name_enabled,
         skip_builtin_filter=group.skip_builtin_filter,
+        team_streams_enabled=group.team_streams_enabled,
         include_teams=[TeamFilterEntry(**t) for t in group.include_teams]
         if group.include_teams
         else None,
@@ -823,6 +831,7 @@ def create_groups_bulk(request: BulkGroupCreateRequest):
                     m3u_account_id=item.m3u_account_id,
                     m3u_account_name=item.m3u_account_name,
                     enabled=request.settings.enabled,
+                    team_streams_enabled=request.settings.team_streams_enabled,
                 )
 
                 results.append(
@@ -908,6 +917,7 @@ def update_groups_bulk(request: BulkGroupUpdateRequest):
                     channel_sort_order=request.channel_sort_order,
                     overlap_handling=request.overlap_handling,
                     enabled=request.enabled,
+                    team_streams_enabled=request.team_streams_enabled,
                     clear_stream_timezone=request.clear_stream_timezone,
                     clear_soccer_mode=request.clear_soccer_mode,
                     clear_soccer_followed_teams=request.clear_soccer_followed_teams,
@@ -1074,6 +1084,7 @@ def get_group_by_id(group_id: int):
         custom_regex_event_name=group.custom_regex_event_name,
         custom_regex_event_name_enabled=group.custom_regex_event_name_enabled,
         skip_builtin_filter=group.skip_builtin_filter,
+        team_streams_enabled=group.team_streams_enabled,
         include_teams=[TeamFilterEntry(**t) for t in group.include_teams]
         if group.include_teams
         else None,
@@ -1191,6 +1202,7 @@ def update_group_by_id(group_id: int, request: GroupUpdate):
                 custom_regex_event_name=request.custom_regex_event_name,
                 custom_regex_event_name_enabled=request.custom_regex_event_name_enabled,
                 skip_builtin_filter=request.skip_builtin_filter,
+                team_streams_enabled=request.team_streams_enabled,
                 include_teams=[t.model_dump() for t in request.include_teams]
                 if request.include_teams is not None
                 else None,
@@ -1290,6 +1302,7 @@ def update_group_by_id(group_id: int, request: GroupUpdate):
         custom_regex_event_name=group.custom_regex_event_name,
         custom_regex_event_name_enabled=group.custom_regex_event_name_enabled,
         skip_builtin_filter=group.skip_builtin_filter,
+        team_streams_enabled=group.team_streams_enabled,
         include_teams=[TeamFilterEntry(**t) for t in group.include_teams]
         if group.include_teams
         else None,
