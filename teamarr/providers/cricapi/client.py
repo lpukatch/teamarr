@@ -166,11 +166,11 @@ class CricAPIClient:
 
                 # Check for API-level errors
                 status = result.get("status", "")
-                if status == "error":
+                if status != "success":
                     logger.warning(
                         "[CRAPI] API error for %s: %s",
                         endpoint,
-                        result.get("msg", "unknown"),
+                        result.get("reason", result.get("msg", "unknown")),
                     )
                     return None
 
@@ -182,7 +182,7 @@ class CricAPIClient:
                     e.response.status_code,
                     url,
                 )
-                if attempt < self._retry_count - 1:
+                if attempt < self._retry_count - 1 and e.response.status_code >= 500:
                     time.sleep(self._retry_delay * (attempt + 1))
                     continue
                 return None

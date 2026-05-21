@@ -99,7 +99,7 @@ class CricAPIProvider(SportsProvider):
             return []
 
         match_list = series_data.get("matchList", [])
-        today = date.today()
+        today = datetime.now(UTC).date()
         cutoff = today + timedelta(days=days_ahead)
 
         events = []
