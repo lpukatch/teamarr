@@ -7,6 +7,8 @@ from fastapi import APIRouter, HTTPException, status
 from teamarr.database import get_db
 
 from .models import (
+    CricAPIKeyValidationRequest,
+    CricAPIKeyValidationResponse,
     DisplaySettingsModel,
     ReconciliationSettingsModel,
     TSDBKeyValidationRequest,
@@ -15,6 +17,14 @@ from .models import (
 )
 
 router = APIRouter()
+
+# TSDB provider IDs for cricket leagues (static, from TSDB's database).
+# Only needed when switching cricket_provider to 'tsdb'.
+_TSDB_CRICKET_IDS: dict[str, str] = {
+    "ipl": "4460",
+    "bbl": "4461",
+    "sa20": "5532",
+}
 
 
 # =============================================================================
@@ -143,6 +153,8 @@ def get_display_settings():
         xmltv_generator_name=settings.display.xmltv_generator_name,
         xmltv_generator_url=settings.display.xmltv_generator_url,
         tsdb_api_key=settings.display.tsdb_api_key,
+        cricapi_api_key=settings.display.cricapi_api_key,
+        cricket_provider=settings.display.cricket_provider,
     )
 
 
@@ -160,6 +172,13 @@ def update_display_settings_endpoint(update: DisplaySettingsModel):
         )
 
     with get_db() as conn:
+        # Detect cricket_provider change before updating
+        prev = conn.execute(
+            "SELECT cricket_provider FROM settings WHERE id = 1"
+        ).fetchone()
+        old_cricket_provider = prev["cricket_provider"] if prev else None
+        cricket_provider_changed = update.cricket_provider != old_cricket_provider
+
         update_display_settings(
             conn,
             time_format=update.time_format,
@@ -168,7 +187,37 @@ def update_display_settings_endpoint(update: DisplaySettingsModel):
             xmltv_generator_name=update.xmltv_generator_name,
             xmltv_generator_url=update.xmltv_generator_url,
             tsdb_api_key=unmask_or_skip(update.tsdb_api_key),
+            cricapi_api_key=unmask_or_skip(update.cricapi_api_key),
+            cricket_provider=update.cricket_provider,
         )
+
+        # Update league entries only when the cricket provider actually changed
+        if cricket_provider_changed:
+            rows = conn.execute(
+                "SELECT league_code FROM leagues WHERE sport = 'cricket'"
+            ).fetchall()
+            cricket_league_codes = [r["league_code"] for r in rows]
+
+            if update.cricket_provider == "tsdb":
+                for league_code in cricket_league_codes:
+                    tsdb_id = _TSDB_CRICKET_IDS.get(league_code)
+                    if not tsdb_id:
+                        continue
+                    conn.execute(
+                        "UPDATE leagues SET provider = 'tsdb', provider_league_id = ?, "
+                        "provider_league_name = NULL, tsdb_tier = 'premium' "
+                        "WHERE league_code = ? AND provider != 'tsdb'",
+                        (tsdb_id, league_code),
+                    )
+            else:
+                for league_code in cricket_league_codes:
+                    conn.execute(
+                        "UPDATE leagues SET provider = 'cricapi', provider_league_id = NULL, "
+                        "provider_league_name = NULL, tsdb_tier = NULL "
+                        "WHERE league_code = ? AND provider != 'cricapi'",
+                        (league_code,),
+                    )
+            conn.commit()
 
     # Update cached display settings so new values are used immediately
     set_config_display(
@@ -179,12 +228,22 @@ def update_display_settings_endpoint(update: DisplaySettingsModel):
         xmltv_generator_url=update.xmltv_generator_url,
     )
 
-    # Reinitialize TSDB provider so it picks up the new API key
-    # without requiring a restart. The factory re-reads the key from DB.
-    if unmask_or_skip(update.tsdb_api_key) is not None:
-        from teamarr.providers.registry import ProviderRegistry
+    # Reinitialize providers only when relevant settings change
+    from teamarr.providers.registry import ProviderRegistry
+    from teamarr.services.league_mappings import get_league_mapping_service
 
+    if unmask_or_skip(update.tsdb_api_key) is not None:
         ProviderRegistry.reinitialize_provider("tsdb")
+
+    if unmask_or_skip(update.cricapi_api_key) is not None:
+        ProviderRegistry.reinitialize_provider("cricapi")
+
+    # Reinitialize league mappings when cricket provider changed so
+    # provider routing picks up the new league-to-provider assignments.
+    if cricket_provider_changed:
+        mapping_service = get_league_mapping_service()
+        mapping_service.reload()
+        ProviderRegistry.initialize(mapping_service)
 
     with get_db() as conn:
         settings = get_all_settings(conn)
@@ -196,6 +255,8 @@ def update_display_settings_endpoint(update: DisplaySettingsModel):
         xmltv_generator_name=settings.display.xmltv_generator_name,
         xmltv_generator_url=settings.display.xmltv_generator_url,
         tsdb_api_key=settings.display.tsdb_api_key,
+        cricapi_api_key=settings.display.cricapi_api_key,
+        cricket_provider=settings.display.cricket_provider,
     )
 
 
@@ -265,4 +326,64 @@ def validate_tsdb_key(request: TSDBKeyValidationRequest):
     except Exception as e:
         return TSDBKeyValidationResponse(
             valid=False, is_premium=False, message=f"Connection error: {e}"
+        )
+
+
+# =============================================================================
+# CRICAPI KEY VALIDATION
+# =============================================================================
+
+
+@router.post("/settings/cricapi/validate-key", response_model=CricAPIKeyValidationResponse)
+def validate_cricapi_key(request: CricAPIKeyValidationRequest):
+    """Validate a CricAPI key before saving.
+
+    Tests the key against the series search endpoint.
+    """
+    import httpx
+
+    key = request.api_key.strip()
+    if not key:
+        return CricAPIKeyValidationResponse(
+            valid=False, message="API key cannot be empty"
+        )
+
+    url = "https://api.cricapi.com/v1/series"
+    try:
+        with httpx.Client(timeout=10.0) as client:
+            resp = client.get(url, params={"apikey": key, "search": "IPL"})
+
+        if resp.status_code != 200:
+            return CricAPIKeyValidationResponse(
+                valid=False, message=f"API returned status {resp.status_code}"
+            )
+
+        data = resp.json()
+        if data.get("status") == "failure":
+            return CricAPIKeyValidationResponse(
+                valid=False, message=data.get("reason", "Invalid API key")
+            )
+
+        info = data.get("info", {})
+        hits_today = info.get("hitsToday", 0)
+        hits_limit = info.get("hitsLimit", 100)
+        series_count = len(data.get("data", []))
+
+        return CricAPIKeyValidationResponse(
+            valid=True,
+            message=(
+                f"Valid key — {hits_today}/{hits_limit} hits used today, "
+                f"{series_count} IPL series found"
+            ),
+            hits_today=hits_today,
+            hits_limit=hits_limit,
+        )
+
+    except httpx.TimeoutException:
+        return CricAPIKeyValidationResponse(
+            valid=False, message="Connection to CricAPI timed out"
+        )
+    except Exception as e:
+        return CricAPIKeyValidationResponse(
+            valid=False, message=f"Connection error: {e}"
         )

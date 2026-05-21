@@ -15,6 +15,7 @@ ProviderRegistry.initialize() must be called during app startup
 to inject the LeagueMappingSource into providers.
 """
 
+from teamarr.providers.cricapi import CricAPIClient, CricAPIProvider
 from teamarr.providers.espn import ESPNClient, ESPNProvider
 from teamarr.providers.hockeytech import HockeyTechClient, HockeyTechProvider
 from teamarr.providers.mlbstats import MLBStatsClient, MLBStatsProvider
@@ -79,6 +80,55 @@ def _create_tsdb_provider() -> TSDBProvider:
         league_mapping_source=ProviderRegistry.get_league_mapping_source(),
         api_key=_get_tsdb_api_key(),
         team_name_resolver=_create_tsdb_team_name_resolver(),
+    )
+
+
+def _get_cricapi_api_key() -> str | None:
+    """Fetch CricAPI API key from database settings.
+
+    This is the boundary where database access happens before
+    passing to the provider layer (which should not access database).
+    """
+    try:
+        from teamarr.database import get_db
+
+        with get_db() as conn:
+            cursor = conn.execute("SELECT cricapi_api_key FROM settings WHERE id = 1")
+            row = cursor.fetchone()
+            if row and row["cricapi_api_key"]:
+                return row["cricapi_api_key"]
+    except Exception:
+        # Database not available or column doesn't exist yet - expected during startup
+        pass
+    return None
+
+
+def _create_cricapi_series_id_updater() -> callable:
+    """Create a series ID updater callback for CricAPI provider.
+
+    This callback accesses the database, keeping DB access at the factory
+    boundary rather than inside the provider layer.
+    """
+    from teamarr.database import get_db
+
+    def updater(league_code: str, new_series_id: str) -> None:
+        with get_db() as conn:
+            conn.execute(
+                "UPDATE leagues SET provider_league_id = ? "
+                "WHERE league_code = ? AND provider = 'cricapi'",
+                (new_series_id, league_code),
+            )
+            conn.commit()
+
+    return updater
+
+
+def _create_cricapi_provider() -> CricAPIProvider:
+    """Factory for CricAPI provider with injected dependencies."""
+    return CricAPIProvider(
+        league_mapping_source=ProviderRegistry.get_league_mapping_source(),
+        api_key=_get_cricapi_api_key(),
+        series_id_updater=_create_cricapi_series_id_updater(),
     )
 
 
@@ -157,6 +207,14 @@ ProviderRegistry.register(
 )
 
 ProviderRegistry.register(
+    name="cricapi",
+    provider_class=CricAPIProvider,
+    factory=_create_cricapi_provider,
+    priority=45,  # Cricket leagues (IPL, BBL, SA20)
+    enabled=True,
+)
+
+ProviderRegistry.register(
     name="tsdb",
     provider_class=TSDBProvider,
     factory=_create_tsdb_provider,
@@ -173,6 +231,9 @@ __all__ = [
     # Registry
     "ProviderConfig",
     "ProviderRegistry",
+    # CricAPI
+    "CricAPIClient",
+    "CricAPIProvider",
     # ESPN
     "ESPNClient",
     "ESPNProvider",

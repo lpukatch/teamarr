@@ -364,6 +364,8 @@ def update_display_settings(conn: Connection, **kwargs) -> bool:
         "xmltv_generator_name": "xmltv_generator_name",
         "xmltv_generator_url": "xmltv_generator_url",
         "tsdb_api_key": "tsdb_api_key",
+        "cricapi_api_key": "cricapi_api_key",
+        "cricket_provider": "cricket_provider",
     }
 
     updates = []
@@ -513,7 +515,8 @@ def update_channel_numbering_settings(
     if global_consolidation_mode is not None:
         if global_consolidation_mode not in ("consolidate", "separate"):
             logger.warning(
-                "[CHANNEL_NUM] Invalid global_consolidation_mode '%s'", global_consolidation_mode,
+                "[CHANNEL_NUM] Invalid global_consolidation_mode '%s'",
+                global_consolidation_mode,
             )
             return False
         updates.append("global_consolidation_mode = ?")
@@ -943,5 +946,3 @@ def update_backup_settings(
         logger.info("[BACKUP] Updated settings: %s", [u.split(" = ")[0] for u in updates])
         return True
     return False
-
-

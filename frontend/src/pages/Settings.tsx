@@ -113,8 +113,9 @@ import type {
   ChannelsDVRSettings,
   SubscriptionLeagueConfig,
   TSDBKeyValidationResult,
+  CricAPIKeyValidationResult,
 } from "@/api/settings"
-import { validateTSDBKey } from "@/api/settings"
+import { validateTSDBKey, validateCricAPIKey } from "@/api/settings"
 
 function formatRelativeTime(dateStr: string | null): string {
   if (!dateStr) return "Never"
@@ -988,6 +989,8 @@ export function Settings() {
   const [display, setDisplay] = useState<DisplaySettings | null>(null)
   const [tsdbValidation, setTsdbValidation] = useState<TSDBKeyValidationResult | null>(null)
   const [tsdbValidating, setTsdbValidating] = useState(false)
+  const [cricapiValidation, setCricapiValidation] = useState<CricAPIKeyValidationResult | null>(null)
+  const [cricapiValidating, setCricapiValidating] = useState(false)
   const [channelNumbering, setChannelNumbering] = useState<ChannelNumberingSettings>({
     global_channel_mode: "auto",
     league_channel_starts: {},
@@ -4180,6 +4183,120 @@ export function Settings() {
           </div>
 
           <Button onClick={() => handleSaveDisplay("TSDB API key saved")} disabled={updateDisplay.isPending}>
+            {updateDisplay.isPending ? (
+              <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+            ) : (
+              <Save className="h-4 w-4 mr-1" />
+            )}
+            Save
+          </Button>
+        </CardContent>
+      </Card>
+
+      {/* Cricket Data */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <CardTitle>Cricket Data</CardTitle>
+            <Badge variant={display?.cricket_provider === "cricapi" ? "default" : "secondary"} className="text-xs">
+              {display?.cricket_provider === "cricapi" ? "CricAPI (Free)" : "TSDB"}
+            </Badge>
+          </div>
+          <CardDescription>
+            Cricket fixture data for IPL, BBL, and SA20 leagues
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {/* Provider Toggle */}
+          <div className="space-y-2">
+            <Label>Data Provider</Label>
+            <div className="flex gap-2">
+              <Button
+                variant={display?.cricket_provider === "cricapi" ? "default" : "outline"}
+                size="sm"
+                onClick={() => display && setDisplay({ ...display, cricket_provider: "cricapi" })}
+              >
+                CricAPI (Free)
+              </Button>
+              <Button
+                variant={display?.cricket_provider === "tsdb" ? "default" : "outline"}
+                size="sm"
+                onClick={() => display && setDisplay({ ...display, cricket_provider: "tsdb" })}
+              >
+                TSDB Premium
+              </Button>
+            </div>
+            {display?.cricket_provider === "cricapi" ? (
+              <p className="text-xs text-muted-foreground">
+                Full fixture coverage via CricketData.org. Free tier includes 100 requests/day — more than enough with caching.
+              </p>
+            ) : (
+              <p className="text-xs text-muted-foreground">
+                Uses your TSDB premium key for cricket data. TSDB free tier provides very limited coverage (~15 events per season).
+              </p>
+            )}
+          </div>
+
+          {/* CricAPI Key (shown when CricAPI selected) */}
+          {display?.cricket_provider === "cricapi" && (
+            <div className="space-y-2">
+              <Label htmlFor="cricapi-api-key">CricAPI Key</Label>
+              <div className="flex gap-2">
+                <Input
+                  id="cricapi-api-key"
+                  type="password"
+                  value={display?.cricapi_api_key ?? ""}
+                  onChange={(e) => {
+                    display && setDisplay({ ...display, cricapi_api_key: e.target.value })
+                    setCricapiValidation(null)
+                  }}
+                  placeholder="Your CricketData.org API key"
+                  className="flex-1"
+                />
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={cricapiValidating || !display?.cricapi_api_key}
+                  onClick={async () => {
+                    if (!display?.cricapi_api_key) return
+                    setCricapiValidating(true)
+                    setCricapiValidation(null)
+                    try {
+                      const result = await validateCricAPIKey(display.cricapi_api_key)
+                      setCricapiValidation(result)
+                    } catch {
+                      setCricapiValidation({ valid: false, message: "Connection error", hits_today: 0, hits_limit: 100 })
+                    } finally {
+                      setCricapiValidating(false)
+                    }
+                  }}
+                >
+                  {cricapiValidating ? <Loader2 className="h-4 w-4 animate-spin" /> : "Validate"}
+                </Button>
+              </div>
+              {cricapiValidation && (
+                <p className={`text-xs ${cricapiValidation.valid ? "text-green-500" : "text-red-500"}`}>
+                  {cricapiValidation.message}
+                </p>
+              )}
+              <p className="text-xs text-muted-foreground">
+                Sign up free at{" "}
+                <a href="https://cricketdata.org/" target="_blank" rel="noopener noreferrer" className="underline">
+                  cricketdata.org
+                </a>{" "}
+                to get your API key. Free tier includes 100 requests/day with full fixture schedules for IPL, BBL, and SA20.
+              </p>
+            </div>
+          )}
+
+          {/* TSDB note (shown when TSDB selected) */}
+          {display?.cricket_provider === "tsdb" && (
+            <p className="text-xs text-muted-foreground">
+              Cricket data will use your TSDB premium key from the section above. Make sure your TSDB key is configured and validated.
+            </p>
+          )}
+
+          <Button onClick={() => handleSaveDisplay("Cricket data settings saved")} disabled={updateDisplay.isPending}>
             {updateDisplay.isPending ? (
               <Loader2 className="h-4 w-4 mr-1 animate-spin" />
             ) : (

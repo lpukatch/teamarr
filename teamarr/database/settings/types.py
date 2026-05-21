@@ -126,6 +126,8 @@ class DisplaySettings:
     xmltv_generator_name: str = "Teamarr"
     xmltv_generator_url: str = "https://github.com/Pharaoh-Labs/teamarr"
     tsdb_api_key: str | None = None
+    cricapi_api_key: str | None = None
+    cricket_provider: str = "cricapi"
 
 
 @dataclass

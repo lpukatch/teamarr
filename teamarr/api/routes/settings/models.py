@@ -3,7 +3,7 @@
 All request/response models for settings endpoints.
 """
 
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field, field_serializer, field_validator
 
@@ -63,6 +63,7 @@ class DispatcharrSettingsModel(BaseModel):
     @classmethod
     def _mask_password(cls, v: str | None) -> str | None:
         return MASKED_SECRET if v else None
+
     epg_id: int | None = None
     # None = all profiles, [] = no profiles, [1,2,...] = specific profiles
     # Supports int IDs and string wildcards like "{sport}", "{league}"
@@ -238,10 +239,17 @@ class DisplaySettingsModel(BaseModel):
     xmltv_generator_name: str = "Teamarr"
     xmltv_generator_url: str = "https://github.com/Pharaoh-Labs/teamarr"
     tsdb_api_key: str | None = None  # Optional TheSportsDB premium API key
+    cricapi_api_key: str | None = None  # Optional CricAPI key for cricket data
+    cricket_provider: Literal["cricapi", "tsdb"] = "cricapi"
 
     @field_serializer("tsdb_api_key")
     @classmethod
     def _mask_tsdb_key(cls, v: str | None) -> str | None:
+        return MASKED_SECRET if v else None
+
+    @field_serializer("cricapi_api_key")
+    @classmethod
+    def _mask_cricapi_key(cls, v: str | None) -> str | None:
         return MASKED_SECRET if v else None
 
 
@@ -257,6 +265,21 @@ class TSDBKeyValidationResponse(BaseModel):
     valid: bool
     is_premium: bool = False
     message: str
+
+
+class CricAPIKeyValidationRequest(BaseModel):
+    """Request to validate a CricAPI API key."""
+
+    api_key: str = Field(..., description="CricAPI API key to validate")
+
+
+class CricAPIKeyValidationResponse(BaseModel):
+    """Response from CricAPI API key validation."""
+
+    valid: bool
+    message: str
+    hits_today: int = 0
+    hits_limit: int = 100
 
 
 # =============================================================================

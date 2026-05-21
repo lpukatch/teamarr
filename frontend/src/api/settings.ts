@@ -87,6 +87,8 @@ export interface DisplaySettings {
   xmltv_generator_name: string
   xmltv_generator_url: string
   tsdb_api_key: string | null  // Optional TheSportsDB premium API key
+  cricapi_api_key: string | null  // Optional CricAPI key for cricket data
+  cricket_provider: "cricapi" | "tsdb"  // Cricket data provider toggle
 }
 
 export interface TSDBKeyValidationResult {
@@ -97,6 +99,17 @@ export interface TSDBKeyValidationResult {
 
 export async function validateTSDBKey(apiKey: string): Promise<TSDBKeyValidationResult> {
   return api.post("/settings/tsdb/validate-key", { api_key: apiKey })
+}
+
+export interface CricAPIKeyValidationResult {
+  valid: boolean
+  message: string
+  hits_today: number
+  hits_limit: number
+}
+
+export async function validateCricAPIKey(apiKey: string): Promise<CricAPIKeyValidationResult> {
+  return api.post("/settings/cricapi/validate-key", { api_key: apiKey })
 }
 
 export interface TeamFilterEntry {

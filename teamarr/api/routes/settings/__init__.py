@@ -137,6 +137,8 @@ def get_settings():
             xmltv_generator_name=settings.display.xmltv_generator_name,
             xmltv_generator_url=settings.display.xmltv_generator_url,
             tsdb_api_key=settings.display.tsdb_api_key,
+            cricapi_api_key=settings.display.cricapi_api_key,
+            cricket_provider=settings.display.cricket_provider,
         ),
         team_filter=TeamFilterSettingsModel(
             include_teams=settings.team_filter.include_teams,

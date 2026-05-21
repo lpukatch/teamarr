@@ -263,6 +263,13 @@ CREATE TABLE IF NOT EXISTS settings (
     -- Premium key ($9/mo) gives 100 req/min and higher limits
     tsdb_api_key TEXT,
 
+    -- CricAPI (CricketData.org) API key for cricket fixtures
+    -- Free tier: 100 requests/day
+    cricapi_api_key TEXT,
+
+    -- Cricket data provider: 'cricapi' (default, free) or 'tsdb' (premium)
+    cricket_provider TEXT DEFAULT 'cricapi',
+
     -- Channel ID Format
     channel_id_format TEXT DEFAULT '{team_name_pascal}.{league_id}',
 
@@ -1032,10 +1039,12 @@ INSERT OR REPLACE INTO leagues (league_code, provider, provider_league_id, provi
     ('nll', 'espn', 'lacrosse/nll', NULL, 'National Lacrosse League', 'lacrosse', 'https://a.espncdn.com/guid/5f77fe12-e54f-41a1-904e-77135452f348/logos/default.png', NULL, 1, 'NLL', 'nll', 'team_vs_team', NULL, NULL, NULL, NULL),
     ('pll', 'espn', 'lacrosse/pll', NULL, 'Premier Lacrosse League', 'lacrosse', 'https://a.espncdn.com/combiner/i?img=/i/teamlogos/leagues/500/pll.png', NULL, 1, 'PLL', 'pll', 'team_vs_team', NULL, NULL, NULL, NULL),
 
-    -- Cricket (TSDB) - Premium tier, requires TSDB premium key for full event coverage
-    ('ipl', 'tsdb', '4460', 'Indian Premier League', 'Indian Premier League', 'cricket', 'https://r2.thesportsdb.com/images/media/league/badge/gaiti11741709844.png', NULL, 1, 'IPL', 'ipl', 'team_vs_team', NULL, NULL, NULL, 'premium'),
-    ('bbl', 'tsdb', '4461', 'Australian Big Bash League', 'Big Bash League', 'cricket', 'https://r2.thesportsdb.com/images/media/league/badge/yko7ny1546635346.png', NULL, 1, 'BBL', 'bbl', 'team_vs_team', NULL, NULL, NULL, 'premium'),
-    ('sa20', 'tsdb', '5532', 'SA20', 'South Africa Twenty20', 'cricket', 'https://r2.thesportsdb.com/images/media/league/badge/aakvuk1734183412.png', NULL, 1, 'SA20', 'sa20', 'team_vs_team', NULL, NULL, NULL, 'premium'),
+    -- Cricket (CricAPI) - Free tier via CricketData.org
+    -- provider_league_id = series GUID (auto-updated on season rollover)
+    -- TSDB premium users: toggle cricket_provider to 'tsdb' in settings
+    ('ipl', 'cricapi', '87c62aac-bc3c-4738-ab93-19da0690488f', NULL, 'Indian Premier League', 'cricket', 'https://r2.thesportsdb.com/images/media/league/badge/gaiti11741709844.png', NULL, 1, 'IPL', 'ipl', 'team_vs_team', NULL, NULL, NULL, NULL),
+    ('bbl', 'cricapi', '4e2f50ed-ed84-46fc-bdcb-ace304b0da34', NULL, 'Big Bash League', 'cricket', 'https://r2.thesportsdb.com/images/media/league/badge/yko7ny1546635346.png', NULL, 1, 'BBL', 'bbl', 'team_vs_team', NULL, NULL, NULL, NULL),
+    ('sa20', 'cricapi', 'f530b0f7-25c0-422e-bf8b-1f2c1e6c68f6', NULL, 'SA20', 'cricket', 'https://r2.thesportsdb.com/images/media/league/badge/aakvuk1734183412.png', NULL, 1, 'SA20', 'sa20', 'team_vs_team', NULL, NULL, NULL, NULL),
 
     -- Rugby (ESPN)
     ('rwc',   'espn', 'rugby/164205',    NULL, 'Rugby World Cup',                 'rugby', 'https://upload.wikimedia.org/wikipedia/commons/a/a3/Rugby_World_Cup_Logo%2C_used_post_RWC_2023.svg', NULL, 1, 'RWC',   'rwc',   'team_vs_team', NULL, NULL, NULL, NULL),
