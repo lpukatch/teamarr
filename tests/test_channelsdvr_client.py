@@ -251,6 +251,29 @@ class TestListLineups:
         result = client.list_lineups()
         assert result["lineups"] == [{"id": "XMLTV-only", "name": "XMLTV-only"}]
 
+    def test_dict_format_source_to_lineup_map(self, monkeypatch):
+        # CDVR actually returns {source_id: lineup_id} — values are the IDs
+        # we PUT to /dvr/lineups/<lineup_id>. Observed in the wild:
+        # {"10A11DAC":"USA-OTA48009","M3U-dispatcharr":"XMLTV-dispatcharr",...}
+        def fake_get(url, **kwargs):
+            req = httpx.Request("GET", url)
+            payload = {
+                "10A11DAC": "USA-OTA48009",
+                "2022-09-I5DK-8H4GRQ:3": "XMLTV-CUSTOM",
+                "M3U-dispatcharr": "XMLTV-dispatcharr",
+                "VIRTUAL": "X-VIRTUAL",
+            }
+            return httpx.Response(200, json=payload, request=req)
+
+        monkeypatch.setattr(httpx, "get", fake_get)
+
+        client = ChannelsDVRClient(base_url="http://channels:8089")
+        result = client.list_lineups()
+
+        assert result["success"] is True
+        ids = {l["id"] for l in result["lineups"]}
+        assert ids == {"USA-OTA48009", "XMLTV-CUSTOM", "XMLTV-dispatcharr", "X-VIRTUAL"}
+
     def test_unreachable_returns_error(self, monkeypatch):
         def fake_get(url, **kwargs):
             raise httpx.ConnectError("conn refused")

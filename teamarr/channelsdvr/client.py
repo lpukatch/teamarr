@@ -276,6 +276,19 @@ class ChannelsDVRClient:
                     or str(lineup_id)
                 )
                 lineups.append({"id": str(lineup_id), "name": str(name)})
+        elif isinstance(data, dict):
+            # CDVR returns {source_id: lineup_id} — values are the lineup IDs
+            # we PUT to /dvr/lineups/<lineup_id> to refresh the guide.
+            for source_id, lineup_id in data.items():
+                if not lineup_id:
+                    continue
+                lineups.append({"id": str(lineup_id), "name": str(lineup_id)})
+        else:
+            logger.warning(
+                "[%s] Unexpected /dvr/lineups response type: %s",
+                self.SERVER_LABEL,
+                type(data).__name__,
+            )
 
         return {"success": True, "lineups": lineups}
 
