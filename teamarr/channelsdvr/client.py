@@ -279,7 +279,7 @@ class ChannelsDVRClient:
         elif isinstance(data, dict):
             # CDVR returns {source_id: lineup_id} — values are the lineup IDs
             # we PUT to /dvr/lineups/<lineup_id> to refresh the guide.
-            for source_id, lineup_id in data.items():
+            for _source_id, lineup_id in data.items():
                 if not lineup_id:
                     continue
                 lineups.append({"id": str(lineup_id), "name": str(lineup_id)})
