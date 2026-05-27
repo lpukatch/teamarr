@@ -239,18 +239,9 @@ class CacheRefresher:
             if progress_callback:
                 progress_callback("Discovering ESPN soccer leagues...", 0)
             soccer_slugs = self._fetch_espn_soccer_league_slugs(progress_callback)
-            # Skip leagues explicitly configured for a non-ESPN provider — e.g. a
-            # user who overrides uru.2 with provider='tsdb' should not have ESPN
-            # re-import its stale team data alongside the correct TSDB data every
-            # refresh.
-            with self._db() as conn:
-                cursor = conn.cursor()
-                cursor.execute(
-                    "SELECT league_code FROM leagues WHERE provider != 'espn' AND enabled = 1"
-                )
-                non_espn_leagues = {row[0] for row in cursor.fetchall()}
+            # Add soccer leagues not already in supported_leagues
             for slug in soccer_slugs:
-                if slug not in supported_leagues and slug not in non_espn_leagues:
+                if slug not in supported_leagues:
                     supported_leagues.append(slug)
 
         if not supported_leagues:
