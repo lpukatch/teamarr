@@ -239,9 +239,10 @@ Provider Layer   → teamarr/providers/ (espn, hockeytech, mlbstats, tsdb)
 
 **Providers** (lower priority = tried first):
 - ESPN (0) - Primary, most leagues
+- Squiggle (30) - AFL (Australian Football League); free, no key required
 - MLB Stats (40) - MiLB (Triple-A through Rookie)
 - HockeyTech (50) - CHL, AHL, PWHL, USHL
-- TSDB (100) - Cricket, Australian sports, rugby, boxing, Scandinavian leagues
+- TSDB (100) - Cricket, rugby, boxing, Scandinavian leagues, uru.2
 
 **Dispatcharr Sync Reliability** (`lifecycle/service.py`):
 All `update_channel` calls go through `_safe_update_channel`, which checks `OperationResult.success` before persisting to local DB. On API failure, the DB stays unchanged so drift is re-detected on the next generation run. Profile sync also compares against Dispatcharr's actual state (`current_channel.channel_profile_ids`) for self-healing. Reconciliation (`reconciliation.py`) detects stream and profile drift as additional drift fields.

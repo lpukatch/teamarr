@@ -7,7 +7,7 @@ docs_version: "2.3.1"
 
 # Supported Sports & Leagues
 
-Teamarr supports **116 pre-configured leagues** across 13 sports, plus **~250 dynamically discovered soccer leagues** from ESPN. Pre-configured leagues have full support (team import + event matching). Discovered leagues support event matching only.
+Teamarr supports **117 pre-configured leagues** across 13 sports, plus **~250 dynamically discovered soccer leagues** from ESPN. Pre-configured leagues have full support (team import + event matching). Discovered leagues support event matching only.
 
 ## Support Levels
 
@@ -28,7 +28,8 @@ Leagues have different levels of support:
 |----------|-------------|
 | **ESPN** | Primary provider for most US leagues and international soccer. Discovers ~250 soccer leagues dynamically. |
 | **MLB Stats API** | Minor League Baseball (MiLB) — Triple-A, Double-A, High-A, Single-A, Rookie |
-| **TheSportsDB** | Australian sports, rugby, cricket, boxing, CFL, Scandinavian leagues. Free and [premium tiers](providers/tsdb.md). |
+| **Squiggle** | AFL (Australian Football League). Free, no API key required. See [provider docs](providers/squiggle.md). |
+| **TheSportsDB** | Rugby, cricket, boxing, CFL, Scandinavian leagues, and more. Free and [premium tiers](providers/tsdb.md). |
 | **HockeyTech** | Canadian and US junior/minor hockey leagues (CHL, AHL, ECHL, PWHL, USHL, Junior A) |
 
 ### TSDB Tier Legend
@@ -218,6 +219,7 @@ Teamarr automatically discovers **~250 soccer leagues** from ESPN's API during c
 | League | ID | Provider |
 |--------|-----|----------|
 | Svenska Cupen (Sweden) | `svenska-cupen` | TSDB **P** |
+| Uruguayan Segunda División | `uru.2` | TSDB **P** |
 
 ### Asia/Pacific
 
@@ -285,10 +287,10 @@ Cricket leagues are TSDB premium tier. A [premium API key](providers/tsdb.md) is
 
 | League | ID | Provider |
 |--------|-----|----------|
-| Australian Football League | `afl` | TSDB **P** |
+| Australian Football League | `afl` | [Squiggle](providers/squiggle.md) |
 
 {: .note }
-AFL is TSDB premium tier. A [premium API key](providers/tsdb.md) is required for full event coverage.
+AFL is served by the Squiggle provider — free, no API key required. Includes team records, ladder ranking, and team logos.
 
 ---
 
