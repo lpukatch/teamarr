@@ -463,7 +463,12 @@ class CacheRefresher:
 
     def _should_include_soccer_league(self, slug: str) -> bool:
         """Filter out junk soccer leagues."""
-        skip_slugs = {"nonfifa", "usa.ncaa.m.1", "usa.ncaa.w.1"}
+        skip_slugs = {
+            "nonfifa", "usa.ncaa.m.1", "usa.ncaa.w.1",
+            # uru.2: ESPN data is severely stale (2011 roster, 2010 scoreboard).
+            # Configured as TSDB-only in schema.sql.
+            "uru.2",
+        }
         skip_patterns = ["not_used"]
 
         if slug in skip_slugs:

@@ -953,6 +953,8 @@ INSERT OR REPLACE INTO leagues (league_code, provider, provider_league_id, provi
     ('aus.1', 'espn', 'soccer/aus.1', NULL, 'A-League Men', 'soccer', 'https://a.espncdn.com/i/leaguelogos/soccer/500/114.png', NULL, 1, 'A-League', 'aleague', 'team_vs_team', 'A-League Men Soccer', NULL, NULL, NULL),
 
     -- Soccer (TSDB Premium) - Leagues requiring premium key for full event coverage
+    -- uru.2: ESPN data is severely stale (2011 roster, 2010 scoreboard) — TSDB only
+    ('uru.2', 'tsdb', '5072', 'Uruguayan Segunda División', 'AUF Segunda', 'soccer', 'https://r2.thesportsdb.com/images/media/league/badge/htc3kb1740672581.png', NULL, 1, NULL, 'uru.2', 'team_vs_team', NULL, NULL, NULL, 'premium'),
     ('svenska-cupen', 'tsdb', '4756', 'Svenska Cupen', 'Svenska Cupen', 'soccer', 'https://r2.thesportsdb.com/images/media/league/badge/p37u1n1694211430.png', NULL, 1, NULL, 'svenska-cupen', 'team_vs_team', NULL, NULL, NULL, 'premium'),
 
     -- MMA (ESPN) - Combat sport with event cards
