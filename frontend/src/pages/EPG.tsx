@@ -615,6 +615,8 @@ export function EPG() {
         onLeagueChange={matcher.setLeague}
         targetDate={matcher.targetDate}
         onTargetDateChange={matcher.setTargetDate}
+        teamFilter={matcher.teamFilter}
+        onTeamFilterChange={matcher.setTeamFilter}
         events={matcher.events}
         loading={matcher.loading}
         submitting={matcher.submitting}
