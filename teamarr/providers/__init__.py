@@ -19,6 +19,7 @@ from teamarr.providers.espn import ESPNClient, ESPNProvider
 from teamarr.providers.hockeytech import HockeyTechClient, HockeyTechProvider
 from teamarr.providers.mlbstats import MLBStatsClient, MLBStatsProvider
 from teamarr.providers.registry import ProviderConfig, ProviderRegistry
+from teamarr.providers.squiggle import SquiggleClient, SquiggleProvider
 from teamarr.providers.supabase import SupabaseLeagueClient, SupabaseProvider
 from teamarr.providers.tsdb import RateLimitStats, TSDBClient, TSDBProvider
 
@@ -102,6 +103,13 @@ def _create_mlbstats_provider() -> MLBStatsProvider:
     )
 
 
+def _create_squiggle_provider() -> SquiggleProvider:
+    """Factory for Squiggle provider with injected dependencies."""
+    return SquiggleProvider(
+        league_mapping_source=ProviderRegistry.get_league_mapping_source(),
+    )
+
+
 # =============================================================================
 # PROVIDER REGISTRATION
 # =============================================================================
@@ -141,6 +149,14 @@ ProviderRegistry.register(
 )
 
 ProviderRegistry.register(
+    name="squiggle",
+    provider_class=SquiggleProvider,
+    factory=_create_squiggle_provider,
+    priority=30,  # AFL primary provider — free, no key required
+    enabled=True,
+)
+
+ProviderRegistry.register(
     name="tsdb",
     provider_class=TSDBProvider,
     factory=_create_tsdb_provider,
@@ -169,6 +185,9 @@ __all__ = [
     # Supabase
     "SupabaseLeagueClient",
     "SupabaseProvider",
+    # Squiggle (AFL)
+    "SquiggleClient",
+    "SquiggleProvider",
     # TheSportsDB
     "RateLimitStats",
     "TSDBClient",

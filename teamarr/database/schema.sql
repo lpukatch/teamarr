@@ -888,7 +888,7 @@ INSERT OR REPLACE INTO leagues (league_code, provider, provider_league_id, provi
     ('norwegian-hockey', 'tsdb', '4926', 'Norwegian Fjordkraft-ligaen', 'Norwegian Fjordkraft-ligaen', 'hockey', 'https://r2.thesportsdb.com/images/media/league/badge/lpfdvc1697194460.png', NULL, 1, NULL, 'norwegian-hockey', 'team_vs_team', NULL, NULL, NULL, 'free'),
 
     -- Australian Football (TSDB)
-    ('afl', 'tsdb', '4456', 'Australian AFL', 'Australian Football League', 'australian-football', 'https://r2.thesportsdb.com/images/media/league/badge/wvx4721525519372.png', NULL, 1, 'AFL', 'afl', 'team_vs_team', 'AFL', NULL, NULL, 'premium'),
+    ('afl', 'squiggle', 'afl', NULL, 'Australian Football League', 'australian-football', 'https://r2.thesportsdb.com/images/media/league/badge/wvx4721525519372.png', NULL, 1, 'AFL', 'afl', 'team_vs_team', 'AFL', NULL, NULL, NULL),
 
     -- Baseball (ESPN)
     ('mlb', 'espn', 'baseball/mlb', NULL, 'Major League Baseball', 'baseball', 'https://a.espncdn.com/i/teamlogos/leagues/500/mlb.png', NULL, 1, 'MLB', 'mlb', 'team_vs_team', 'MLB Baseball', NULL, NULL, NULL),

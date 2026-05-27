@@ -24,6 +24,7 @@ EXPECTED_LEAGUES = {
     "tsdb": 6,  # NRL, Boxing, IPL, BBL, SA20, Svenska Cupen + free tier leagues
     "hockeytech": 6,
     "mlbstats": 5,  # AAA, AA, High-A, Single-A, Rookie
+    "squiggle": 1,  # AFL
 }
 
 
