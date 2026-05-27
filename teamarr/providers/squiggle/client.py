@@ -31,6 +31,7 @@ USER_AGENT = "Teamarr/2 (https://github.com/Pharaoh-Labs/teamarr)"
 # Cache TTLs
 _TTL_GAMES = 60 * 60        # 1 hour — season schedule changes infrequently
 _TTL_TEAMS = 24 * 60 * 60   # 24 hours — 18 teams, never changes mid-season
+_TTL_STANDINGS = 6 * 60 * 60  # 6 hours — ladder updates once per round (~weekly)
 
 
 class SquiggleClient:
@@ -102,6 +103,26 @@ class SquiggleClient:
             self._cache.set(cache_key, games, _TTL_GAMES)
             logger.debug("[SQUIGGLE] Fetched %d games for year=%d", len(games), year)
         return games
+
+    def get_standings(self, year: int) -> list[dict]:
+        """Fetch ladder/standings for a season. Cached for 6 hours.
+
+        Returns one entry per team with: id, name, rank, wins, losses, draws,
+        played, for, against, pts, percentage.
+        """
+        cache_key = make_cache_key("squiggle", "standings", str(year))
+        cached = self._cache.get(cache_key)
+        if cached is not None:
+            return cached
+
+        data = self._get({"q": "standings", "year": year})
+        standings = (data or {}).get("standings") or []
+        if standings:
+            self._cache.set(cache_key, standings, _TTL_STANDINGS)
+            logger.debug(
+                "[SQUIGGLE] Fetched standings for year=%d (%d teams)", year, len(standings)
+            )
+        return standings
 
     @staticmethod
     def logo_url(path: str) -> str:

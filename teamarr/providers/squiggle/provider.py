@@ -21,6 +21,7 @@ from teamarr.core import (
     LeagueMappingSource,
     SportsProvider,
     Team,
+    TeamStats,
     Venue,
 )
 from teamarr.providers.squiggle.client import SquiggleClient
@@ -122,6 +123,37 @@ class SquiggleProvider(SportsProvider):
         result = [t for t in result if t is not None]
         logger.info("[SQUIGGLE] Loaded %d teams for league=%s", len(result), league)
         return result
+
+    def get_team_stats(self, team_id: str, league: str) -> TeamStats | None:
+        if not self.supports_league(league):
+            return None
+
+        standings = self._client.get_standings(date.today().year)
+        entry = next(
+            (s for s in standings if str(s.get("id")) == team_id), None
+        )
+        if not entry:
+            return None
+
+        wins = entry.get("wins", 0) or 0
+        losses = entry.get("losses", 0) or 0
+        draws = entry.get("draws", 0) or 0
+        played = entry.get("played") or 1  # avoid divide-by-zero
+
+        record = f"{wins}-{losses}" if draws == 0 else f"{wins}-{losses}-{draws}"
+
+        pts_for = entry.get("for") or 0
+        pts_against = entry.get("against") or 0
+
+        return TeamStats(
+            record=record,
+            wins=wins,
+            losses=losses,
+            ties=draws,
+            rank=entry.get("rank"),
+            ppg=round(pts_for / played, 1),
+            papg=round(pts_against / played, 1),
+        )
 
     def get_supported_leagues(self) -> list[str]:
         if not self._league_mapping_source:
