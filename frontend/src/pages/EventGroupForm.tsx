@@ -22,6 +22,7 @@ import { TestPatternsModal, type PatternState } from "@/components/TestPatternsM
 import { LeaguePicker } from "@/components/LeaguePicker"
 import { SoccerModeSelector, type SoccerMode } from "@/components/SoccerModeSelector"
 import { getLeagues } from "@/api/teams"
+import { getSubscription } from "@/api/subscription"
 import type { SoccerFollowedTeam } from "@/api/types"
 
 export function EventGroupForm() {
@@ -83,6 +84,7 @@ export function EventGroupForm() {
   const [overrideSoccerMode, setOverrideSoccerMode] = useState<SoccerMode>(null)
   const [overrideSoccerLeagues, setOverrideSoccerLeagues] = useState<string[]>([])
   const [overrideFollowedTeams, setOverrideFollowedTeams] = useState<SoccerFollowedTeam[]>([])
+  const [matchingGlobal, setMatchingGlobal] = useState(false)
 
   // Fetch leagues for splitting soccer vs non-soccer
   const { data: leaguesData } = useQuery({
@@ -90,6 +92,31 @@ export function EventGroupForm() {
     queryFn: () => getLeagues(),
   })
   const allLeagues = leaguesData?.leagues || []
+
+  const matchGlobal = useCallback(async () => {
+    setMatchingGlobal(true)
+    try {
+      const sub = await getSubscription()
+      const soccer: string[] = []
+      const nonSoccer: string[] = []
+      for (const slug of sub.leagues) {
+        const league = allLeagues.find((l) => l.slug === slug)
+        if (league?.sport?.toLowerCase() === "soccer") {
+          soccer.push(slug)
+        } else {
+          nonSoccer.push(slug)
+        }
+      }
+      setOverrideNonSoccerLeagues(nonSoccer)
+      setOverrideSoccerLeagues(soccer)
+      setOverrideSoccerMode((sub.soccer_mode as SoccerMode) || null)
+      setOverrideFollowedTeams(sub.soccer_followed_teams || [])
+    } catch {
+      toast.error("Failed to load global subscription")
+    } finally {
+      setMatchingGlobal(false)
+    }
+  }, [allLeagues])
 
   // Mutations
   const createMutation = useCreateGroup()
@@ -891,6 +918,9 @@ export function EventGroupForm() {
                         setOverrideSoccerLeagues([])
                         setOverrideSoccerMode(null)
                         setOverrideFollowedTeams([])
+                      } else {
+                        // Entering override mode — seed from global subscription
+                        matchGlobal()
                       }
                     }}
                   />
@@ -901,9 +931,21 @@ export function EventGroupForm() {
 
                 {!useGlobalSubscription && (
                   <>
-                    <p className="text-sm text-muted-foreground">
-                      Override which leagues this group matches against instead of using the global subscription.
-                    </p>
+                    <div className="flex items-center justify-between">
+                      <p className="text-sm text-muted-foreground">
+                        Override which leagues this group matches against instead of using the global subscription.
+                      </p>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={matchGlobal}
+                        disabled={matchingGlobal}
+                      >
+                        {matchingGlobal ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : null}
+                        Match Global
+                      </Button>
+                    </div>
 
                     {/* Non-Soccer Sports */}
                     <div className="space-y-2">
