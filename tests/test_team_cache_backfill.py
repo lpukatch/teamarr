@@ -46,8 +46,13 @@ class TestBackfillTeam:
     def test_missing_short_name_filled_from_cache(self, seeded_db):
         # Mimics the post-summary-refresh degraded team.
         team = Team(
-            id="12", provider="espn", name="Tampa Bay Rays",
-            short_name=None, abbreviation="TB", league="mlb", sport="Baseball",
+            id="12",
+            provider="espn",
+            name="Tampa Bay Rays",
+            short_name=None,
+            abbreviation="TB",
+            league="mlb",
+            sport="Baseball",
         )
         result = _backfill_team_from_cache(team, "mlb")
         assert result.short_name == "Rays"
@@ -57,16 +62,26 @@ class TestBackfillTeam:
 
     def test_empty_short_name_filled_from_cache(self, seeded_db):
         team = Team(
-            id="12", provider="espn", name="Tampa Bay Rays",
-            short_name="", abbreviation="TB", league="mlb", sport="Baseball",
+            id="12",
+            provider="espn",
+            name="Tampa Bay Rays",
+            short_name="",
+            abbreviation="TB",
+            league="mlb",
+            sport="Baseball",
         )
         result = _backfill_team_from_cache(team, "mlb")
         assert result.short_name == "Rays"
 
     def test_no_op_when_all_fields_populated(self, seeded_db):
         team = Team(
-            id="12", provider="espn", name="Tampa Bay Rays",
-            short_name="Rays", abbreviation="TB", league="mlb", sport="Baseball",
+            id="12",
+            provider="espn",
+            name="Tampa Bay Rays",
+            short_name="Rays",
+            abbreviation="TB",
+            league="mlb",
+            sport="Baseball",
         )
         result = _backfill_team_from_cache(team, "mlb")
         # Should be the same object — fast path skips the DB lookup.
@@ -75,8 +90,13 @@ class TestBackfillTeam:
     def test_no_op_when_team_not_in_cache(self, seeded_db):
         # Team id 99 isn't seeded → backfill returns the original team unchanged.
         team = Team(
-            id="99", provider="espn", name="Unknown",
-            short_name=None, abbreviation="UNK", league="mlb", sport="Baseball",
+            id="99",
+            provider="espn",
+            name="Unknown",
+            short_name=None,
+            abbreviation="UNK",
+            league="mlb",
+            sport="Baseball",
         )
         result = _backfill_team_from_cache(team, "mlb")
         assert result.short_name is None  # Cache miss leaves it as-is.
@@ -87,8 +107,13 @@ class TestBackfillTeam:
     def test_handles_team_without_id(self, seeded_db):
         # Placeholder/synthetic teams (UFC undecided fighter slots, etc.).
         team = Team(
-            id="", provider="espn", name="TBD",
-            short_name=None, abbreviation="", league="mlb", sport="Baseball",
+            id="",
+            provider="espn",
+            name="TBD",
+            short_name=None,
+            abbreviation="",
+            league="mlb",
+            sport="Baseball",
         )
         result = _backfill_team_from_cache(team, "mlb")
         assert result is team  # No id → no lookup.
@@ -98,8 +123,13 @@ class TestBackfillTeam:
         # get_db is imported lazily inside the function, so we patch the
         # source module.
         team = Team(
-            id="12", provider="espn", name="X",
-            short_name=None, abbreviation="X", league="mlb", sport="Baseball",
+            id="12",
+            provider="espn",
+            name="X",
+            short_name=None,
+            abbreviation="X",
+            league="mlb",
+            sport="Baseball",
         )
         with patch("teamarr.database.get_db", side_effect=Exception("nope")):
             result = _backfill_team_from_cache(team, "mlb")
@@ -110,19 +140,34 @@ class TestBackfillTeam:
 class TestEnrichEventTeams:
     def test_event_with_degraded_teams_gets_backfilled(self, seeded_db):
         home = Team(
-            id="12", provider="espn", name="Tampa Bay Rays",
-            short_name=None, abbreviation="TB", league="mlb", sport="Baseball",
+            id="12",
+            provider="espn",
+            name="Tampa Bay Rays",
+            short_name=None,
+            abbreviation="TB",
+            league="mlb",
+            sport="Baseball",
         )
         away = Team(
-            id="99", provider="espn", name="Other",
-            short_name="Other", abbreviation="OTH", league="mlb", sport="Baseball",
+            id="99",
+            provider="espn",
+            name="Other",
+            short_name="Other",
+            abbreviation="OTH",
+            league="mlb",
+            sport="Baseball",
         )
         event = Event(
-            id="1", provider="espn", name="X at Y", short_name="X @ Y",
-            league="mlb", sport="Baseball",
+            id="1",
+            provider="espn",
+            name="X at Y",
+            short_name="X @ Y",
+            league="mlb",
+            sport="Baseball",
             start_time=datetime(2026, 5, 6, tzinfo=UTC),
             status=EventStatus(state="scheduled"),
-            home_team=home, away_team=away,
+            home_team=home,
+            away_team=away,
         )
         result = _enrich_event_teams(event)
         assert result.home_team.short_name == "Rays"  # Backfilled.
@@ -130,19 +175,34 @@ class TestEnrichEventTeams:
 
     def test_no_op_when_already_complete(self, seeded_db):
         home = Team(
-            id="12", provider="espn", name="Tampa Bay Rays",
-            short_name="Rays", abbreviation="TB", league="mlb", sport="Baseball",
+            id="12",
+            provider="espn",
+            name="Tampa Bay Rays",
+            short_name="Rays",
+            abbreviation="TB",
+            league="mlb",
+            sport="Baseball",
         )
         away = Team(
-            id="14", provider="espn", name="Toronto Blue Jays",
-            short_name="Blue Jays", abbreviation="TOR", league="mlb", sport="Baseball",
+            id="14",
+            provider="espn",
+            name="Toronto Blue Jays",
+            short_name="Blue Jays",
+            abbreviation="TOR",
+            league="mlb",
+            sport="Baseball",
         )
         event = Event(
-            id="1", provider="espn", name="X at Y", short_name="X @ Y",
-            league="mlb", sport="Baseball",
+            id="1",
+            provider="espn",
+            name="X at Y",
+            short_name="X @ Y",
+            league="mlb",
+            sport="Baseball",
             start_time=datetime(2026, 5, 6, tzinfo=UTC),
             status=EventStatus(state="scheduled"),
-            home_team=home, away_team=away,
+            home_team=home,
+            away_team=away,
         )
         result = _enrich_event_teams(event)
         # Both teams unchanged → same Event instance returned (no realloc).

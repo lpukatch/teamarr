@@ -5,8 +5,6 @@ Gender markers (W)/(M) in stream names should narrow the hint to the
 correct league. The (W)/(M) markers should also be stripped from team names.
 """
 
-import re
-
 from teamarr.consumers.matching.classifier import (
     _clean_team_name,
     _narrow_by_gender,
@@ -62,9 +60,7 @@ class TestGenderNarrowing:
 
     def test_women_keyword(self):
         leagues = ["mens-college-basketball", "womens-college-basketball"]
-        result = _narrow_by_gender(
-            leagues, "NCAAB: Women: South Carolina @ LSU"
-        )
+        result = _narrow_by_gender(leagues, "NCAAB: Women: South Carolina @ LSU")
         assert result == "womens-college-basketball"
 
     def test_case_insensitive(self):
@@ -108,9 +104,7 @@ class TestEndToEndClassification:
         """The exact stream from issue #150 should classify correctly."""
         from teamarr.consumers.matching.classifier import classify_stream
 
-        result = classify_stream(
-            "NCAAB 216: 3 SOUTH CAROLINA @ 6 LSU (W) | 2.14 8:30 PM | ABC"
-        )
+        result = classify_stream("NCAAB 216: 3 SOUTH CAROLINA @ 6 LSU (W) | 2.14 8:30 PM | ABC")
 
         # League hint should be narrowed to women's
         assert result.league_hint == "womens-college-basketball"

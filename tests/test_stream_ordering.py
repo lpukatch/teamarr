@@ -168,9 +168,9 @@ class TestTeamFeed:
             ("(Pirates feed) MLB", True),
             ("Home Feed: Cubs vs Pirates", True),
             ("Away Feed: Pirates vs Cubs", True),
-            ("Pirates vs Cubs", False),       # no directional marker
-            ("Cubs vs Reds (Home)", False),   # different team's feed
-            ("ESPN National Feed", False),    # generic, no team
+            ("Pirates vs Cubs", False),  # no directional marker
+            ("Cubs vs Reds (Home)", False),  # different team's feed
+            ("ESPN National Feed", False),  # generic, no team
         ],
     )
     def test_team_feed_matching(self, seeded_db, name, expected):

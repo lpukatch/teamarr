@@ -18,9 +18,7 @@ class TestUrlBuilding:
         assert client.base_url == "http://channels:8089"
 
     def test_source_path_uses_source_name(self):
-        client = ChannelsDVRClient(
-            base_url="http://channels:8089", source_name="MyM3U"
-        )
+        client = ChannelsDVRClient(base_url="http://channels:8089", source_name="MyM3U")
         assert client._source_path() == "/providers/m3u/sources/MyM3U"
 
     def test_source_path_url_encodes_special_chars(self):
@@ -28,10 +26,7 @@ class TestUrlBuilding:
         client = ChannelsDVRClient(
             base_url="http://channels:8089", source_name="My Source/With Slash"
         )
-        assert (
-            client._source_path()
-            == "/providers/m3u/sources/My%20Source%2FWith%20Slash"
-        )
+        assert client._source_path() == "/providers/m3u/sources/My%20Source%2FWith%20Slash"
 
 
 class TestTriggerRefreshGuards:
@@ -56,16 +51,11 @@ class TestTriggerRefreshHTTP:
 
         monkeypatch.setattr(httpx, "post", fake_post)
 
-        client = ChannelsDVRClient(
-            base_url="http://channels:8089", source_name="MyM3U"
-        )
+        client = ChannelsDVRClient(base_url="http://channels:8089", source_name="MyM3U")
         result = client.trigger_m3u_refresh()
 
         assert result["success"] is True
-        assert (
-            captured["url"]
-            == "http://channels:8089/providers/m3u/sources/MyM3U/refresh"
-        )
+        assert captured["url"] == "http://channels:8089/providers/m3u/sources/MyM3U/refresh"
 
     def test_404_returns_source_not_found(self, monkeypatch):
         def fake_post(url, **kwargs):
@@ -74,9 +64,7 @@ class TestTriggerRefreshHTTP:
 
         monkeypatch.setattr(httpx, "post", fake_post)
 
-        client = ChannelsDVRClient(
-            base_url="http://channels:8089", source_name="MyM3U"
-        )
+        client = ChannelsDVRClient(base_url="http://channels:8089", source_name="MyM3U")
         result = client.trigger_m3u_refresh()
 
         assert result["success"] is False
@@ -114,16 +102,12 @@ class TestTestConnection:
             calls.append(url)
             req = httpx.Request("GET", url)
             if url.endswith("/status"):
-                return httpx.Response(
-                    200, json={"version": "2026.04.01"}, request=req
-                )
+                return httpx.Response(200, json={"version": "2026.04.01"}, request=req)
             return httpx.Response(404, request=req)
 
         monkeypatch.setattr(httpx, "get", fake_get)
 
-        client = ChannelsDVRClient(
-            base_url="http://channels:8089", source_name="missing"
-        )
+        client = ChannelsDVRClient(base_url="http://channels:8089", source_name="missing")
         result = client.test_connection()
         assert result["success"] is False
         assert "not found" in result["error"].lower()
@@ -241,9 +225,7 @@ class TestListLineups:
         # Some lineups only expose Name; treat Name as the ID in that case.
         def fake_get(url, **kwargs):
             req = httpx.Request("GET", url)
-            return httpx.Response(
-                200, json=[{"Name": "XMLTV-only"}], request=req
-            )
+            return httpx.Response(200, json=[{"Name": "XMLTV-only"}], request=req)
 
         monkeypatch.setattr(httpx, "get", fake_get)
 
@@ -271,7 +253,7 @@ class TestListLineups:
         result = client.list_lineups()
 
         assert result["success"] is True
-        ids = {l["id"] for l in result["lineups"]}
+        ids = {lineup["id"] for lineup in result["lineups"]}
         assert ids == {"USA-OTA48009", "XMLTV-CUSTOM", "XMLTV-dispatcharr", "X-VIRTUAL"}
 
     def test_unreachable_returns_error(self, monkeypatch):
@@ -305,16 +287,11 @@ class TestTriggerEPGRefresh:
 
         monkeypatch.setattr(httpx, "put", fake_put)
 
-        client = ChannelsDVRClient(
-            base_url="http://channels:8089", lineup_id="XMLTV-dispatcharr"
-        )
+        client = ChannelsDVRClient(base_url="http://channels:8089", lineup_id="XMLTV-dispatcharr")
         result = client.trigger_epg_refresh()
 
         assert result["success"] is True
-        assert (
-            captured["url"]
-            == "http://channels:8089/dvr/lineups/XMLTV-dispatcharr"
-        )
+        assert captured["url"] == "http://channels:8089/dvr/lineups/XMLTV-dispatcharr"
 
     def test_url_encodes_lineup_id(self, monkeypatch):
         captured: dict = {}
@@ -326,15 +303,10 @@ class TestTriggerEPGRefresh:
 
         monkeypatch.setattr(httpx, "put", fake_put)
 
-        client = ChannelsDVRClient(
-            base_url="http://channels:8089", lineup_id="My Lineup/Slash"
-        )
+        client = ChannelsDVRClient(base_url="http://channels:8089", lineup_id="My Lineup/Slash")
         client.trigger_epg_refresh()
 
-        assert (
-            captured["url"]
-            == "http://channels:8089/dvr/lineups/My%20Lineup%2FSlash"
-        )
+        assert captured["url"] == "http://channels:8089/dvr/lineups/My%20Lineup%2FSlash"
 
     def test_404_returns_lineup_not_found(self, monkeypatch):
         def fake_put(url, **kwargs):
@@ -343,9 +315,7 @@ class TestTriggerEPGRefresh:
 
         monkeypatch.setattr(httpx, "put", fake_put)
 
-        client = ChannelsDVRClient(
-            base_url="http://channels:8089", lineup_id="missing"
-        )
+        client = ChannelsDVRClient(base_url="http://channels:8089", lineup_id="missing")
         result = client.trigger_epg_refresh()
 
         assert result["success"] is False

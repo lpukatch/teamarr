@@ -29,10 +29,7 @@ def test_token_authentication_is_serialized_per_session(monkeypatch):
 
     monkeypatch.setattr(TokenManager, "_authenticate", fake_authenticate)
 
-    managers = [
-        TokenManager("http://dispatcharr.example", "user", "password")
-        for _ in range(12)
-    ]
+    managers = [TokenManager("http://dispatcharr.example", "user", "password") for _ in range(12)]
     start = Event()
 
     def get_token(manager):

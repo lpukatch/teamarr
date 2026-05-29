@@ -22,12 +22,22 @@ from teamarr.services.sports_data import SportsDataService
 
 def _make_event(status_state: str = "scheduled", **overrides) -> Event:
     home = Team(
-        id="12", provider="espn", name="Tampa Bay Rays",
-        short_name="Rays", abbreviation="TB", league="mlb", sport="Baseball",
+        id="12",
+        provider="espn",
+        name="Tampa Bay Rays",
+        short_name="Rays",
+        abbreviation="TB",
+        league="mlb",
+        sport="Baseball",
     )
     away = Team(
-        id="14", provider="espn", name="Toronto Blue Jays",
-        short_name="Blue Jays", abbreviation="TOR", league="mlb", sport="Baseball",
+        id="14",
+        provider="espn",
+        name="Toronto Blue Jays",
+        short_name="Blue Jays",
+        abbreviation="TOR",
+        league="mlb",
+        sport="Baseball",
     )
     defaults = dict(
         id="401",
@@ -59,12 +69,22 @@ class TestRefreshIsAdditive:
         # Fresh from summary: same teams but degraded — short_name=None.
         # This is exactly what ESPN's summary endpoint produces.
         degraded_home = Team(
-            id="12", provider="espn", name="Tampa Bay Rays",
-            short_name=None, abbreviation="TB", league="mlb", sport="Baseball",
+            id="12",
+            provider="espn",
+            name="Tampa Bay Rays",
+            short_name=None,
+            abbreviation="TB",
+            league="mlb",
+            sport="Baseball",
         )
         degraded_away = Team(
-            id="14", provider="espn", name="Toronto Blue Jays",
-            short_name=None, abbreviation="TOR", league="mlb", sport="Baseball",
+            id="14",
+            provider="espn",
+            name="Toronto Blue Jays",
+            short_name=None,
+            abbreviation="TOR",
+            league="mlb",
+            sport="Baseball",
         )
         fresh = _make_event(
             status_state="final",
@@ -75,8 +95,10 @@ class TestRefreshIsAdditive:
         )
 
         service = SportsDataService(providers=[])
-        with patch.object(service, "get_event", return_value=fresh), \
-             patch.object(service._cache, "delete"):
+        with (
+            patch.object(service, "get_event", return_value=fresh),
+            patch.object(service._cache, "delete"),
+        ):
             result = service.refresh_event_status(original)
 
         # Status was the point of the refresh — should reflect fresh.
@@ -92,8 +114,10 @@ class TestRefreshIsAdditive:
     def test_returns_original_when_refresh_fails(self):
         original = _make_event(status_state="scheduled")
         service = SportsDataService(providers=[])
-        with patch.object(service, "get_event", return_value=None), \
-             patch.object(service._cache, "delete"):
+        with (
+            patch.object(service, "get_event", return_value=None),
+            patch.object(service._cache, "delete"),
+        ):
             result = service.refresh_event_status(original)
         assert result is original
 
@@ -105,8 +129,10 @@ class TestRefreshIsAdditive:
         original = _make_event(broadcasts=["FOX"])
         fresh = _make_event(broadcasts=["FOX", "ESPN"], status_state="in_progress")
         service = SportsDataService(providers=[])
-        with patch.object(service, "get_event", return_value=fresh), \
-             patch.object(service._cache, "delete"):
+        with (
+            patch.object(service, "get_event", return_value=fresh),
+            patch.object(service._cache, "delete"),
+        ):
             result = service.refresh_event_status(original)
         assert result.broadcasts == ["FOX", "ESPN"]
 
@@ -114,8 +140,10 @@ class TestRefreshIsAdditive:
         original = _make_event(broadcasts=["FOX"])
         fresh = _make_event(broadcasts=[], status_state="final")
         service = SportsDataService(providers=[])
-        with patch.object(service, "get_event", return_value=fresh), \
-             patch.object(service._cache, "delete"):
+        with (
+            patch.object(service, "get_event", return_value=fresh),
+            patch.object(service._cache, "delete"),
+        ):
             result = service.refresh_event_status(original)
         # Empty broadcasts from summary shouldn't wipe the original list.
         assert result.broadcasts == ["FOX"]
@@ -131,8 +159,10 @@ class TestRefreshIsAdditive:
             season_type=None,
         )
         service = SportsDataService(providers=[])
-        with patch.object(service, "get_event", return_value=fresh), \
-             patch.object(service._cache, "delete"):
+        with (
+            patch.object(service, "get_event", return_value=fresh),
+            patch.object(service._cache, "delete"),
+        ):
             result = service.refresh_event_status(original)
         assert result.league == "mlb"
         assert result.sport == "Baseball"
@@ -147,8 +177,10 @@ class TestRefreshCacheInvalidation:
         original = _make_event()
         service = SportsDataService(providers=[])
         mock_delete = MagicMock()
-        with patch.object(service, "get_event", return_value=original), \
-             patch.object(service._cache, "delete", mock_delete):
+        with (
+            patch.object(service, "get_event", return_value=original),
+            patch.object(service._cache, "delete", mock_delete),
+        ):
             service.refresh_event_status(original)
         mock_delete.assert_called_once()
         # Key shape: ("event", "mlb", "401")
