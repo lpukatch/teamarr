@@ -71,7 +71,7 @@ TSDB uses a three-step fallback chain when fetching events:
 
 1. **`eventsday.php`** — date-specific lookup (primary, works for most leagues)
 2. **`eventsnextleague.php`** — upcoming events filtered by date (fallback)
-3. **`eventsround.php`** — full round/season events filtered by date (last resort, used for leagues like Unrivaled)
+3. **`eventsseason.php`** — full-season events filtered by date (last resort, gated to sparse leagues like Unrivaled where the day endpoints return nothing)
 
 ## Rate Limiting
 
