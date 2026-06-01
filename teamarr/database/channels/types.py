@@ -120,6 +120,9 @@ class ManagedChannelStream:
     match_type: str = "event"
     added_at: datetime | None = None
     removed_at: datetime | None = None
+    # Time-windowed membership (epic teamarrv2-183.5). NULL = full-life.
+    attach_at: datetime | None = None
+    detach_at: datetime | None = None
 
     @classmethod
     def from_row(cls, row: dict) -> "ManagedChannelStream":
@@ -138,4 +141,6 @@ class ManagedChannelStream:
             match_type=row.get("match_type", "event"),
             added_at=row.get("added_at"),
             removed_at=row.get("removed_at"),
+            attach_at=row.get("attach_at"),
+            detach_at=row.get("detach_at"),
         )

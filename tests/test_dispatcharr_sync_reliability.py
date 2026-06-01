@@ -468,7 +468,9 @@ _MANAGED_CHANNEL_STREAMS_DDL = """
         m3u_account_name TEXT,
         exception_keyword TEXT,
         added_at TEXT,
-        removed_at TEXT
+        removed_at TEXT,
+        attach_at TEXT,
+        detach_at TEXT
     )
 """
 

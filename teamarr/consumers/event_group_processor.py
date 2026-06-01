@@ -1464,6 +1464,10 @@ class EventGroupProcessor:
                             "match_type": (
                                 "team" if result.category == StreamCategory.TEAM_ONLY else "event"
                             ),
+                            # EPG time-windowing (183.5): program broadcast slot for
+                            # MatchMethod.EPG matches; None for name matches (full-life).
+                            "epg_program_start": result.epg_program_start,
+                            "epg_program_end": result.epg_program_end,
                         }
                     )
 

@@ -165,6 +165,14 @@ CREATE TABLE IF NOT EXISTS settings (
     -- Buffer minutes for after_event delete timing and same_day midnight crossover (default 60)
     channel_post_buffer_minutes INTEGER DEFAULT 60,
 
+    -- EPG stream time-windowing buffers (epic teamarrv2-183.5).
+    -- SEPARATE from the channel create/delete buffers above: these apply to the
+    -- attach/detach window of time-shared linear streams (EPG matching), so one
+    -- linear stream attaches to an event channel only near game time. Global
+    -- pre-attach / post-detach minutes applied to the EPG program slot.
+    epg_stream_pre_buffer_minutes INTEGER DEFAULT 60,
+    epg_stream_post_buffer_minutes INTEGER DEFAULT 60,
+
     -- Filler Settings
     midnight_crossover_mode TEXT DEFAULT 'postgame' CHECK(midnight_crossover_mode IN ('postgame', 'idle')),
 
@@ -1264,6 +1272,14 @@ CREATE TABLE IF NOT EXISTS managed_channel_streams (
     added_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     removed_at TIMESTAMP,
     remove_reason TEXT,
+
+    -- Time-windowed membership (epic teamarrv2-183.5).
+    -- NULL = full-life membership (default; dedicated/name-matched streams stay
+    -- attached for the channel's whole life). Non-NULL = time-shared linear
+    -- stream that is only active in Dispatcharr while attach_at <= now < detach_at
+    -- (derived from the matched EPG program slot +/- the global stream buffers).
+    attach_at TIMESTAMP,
+    detach_at TIMESTAMP,
 
     -- Sync status
     last_verified_at TIMESTAMP,

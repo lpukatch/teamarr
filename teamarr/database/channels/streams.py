@@ -46,6 +46,8 @@ def add_stream_to_channel(
         "m3u_account_name",
         "exception_keyword",
         "match_type",
+        "attach_at",   # time-windowed membership (183.5); None = full-life
+        "detach_at",
     ]
 
     for field_name in allowed_fields:
@@ -340,20 +342,36 @@ def reorder_channel_streams(
 def get_ordered_stream_ids(
     conn: Connection,
     managed_channel_id: int,
+    now: str | None = None,
 ) -> list[int]:
-    """Get stream IDs for a channel in priority order.
+    """Get the ACTIVE stream IDs for a channel in priority order.
+
+    This is the set pushed to Dispatcharr. It honors time-windowed membership
+    (epic teamarrv2-183.5): a stream is active when it has no window
+    (attach_at IS NULL — full-life, the default) OR the current time is inside
+    its window (attach_at <= now < detach_at). Out-of-window time-shared linear
+    streams are excluded so they swap out of the channel until their next slot.
 
     Args:
         conn: Database connection
         managed_channel_id: Channel ID
+        now: UTC "YYYY-MM-DD HH:MM:SS" timestamp for window gating. Defaults to
+            SQLite datetime('now') (UTC). Pass explicitly for deterministic tests
+            and to share one instant across a generation run.
 
     Returns:
         List of dispatcharr_stream_id values in priority order
     """
+    now_expr = "datetime('now')" if now is None else "?"
+    params: tuple = (
+        (managed_channel_id,) if now is None else (managed_channel_id, now, now)
+    )
     cursor = conn.execute(
-        """SELECT dispatcharr_stream_id FROM managed_channel_streams
+        f"""SELECT dispatcharr_stream_id FROM managed_channel_streams
            WHERE managed_channel_id = ? AND removed_at IS NULL
+             AND (attach_at IS NULL
+                  OR (attach_at <= {now_expr} AND {now_expr} < detach_at))
            ORDER BY priority, added_at""",
-        (managed_channel_id,),
+        params,
     )
     return [row[0] for row in cursor.fetchall()]

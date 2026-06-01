@@ -426,7 +426,7 @@ class ChannelReconciler:
         """
         from teamarr.database.channels import (
             get_all_managed_channels,
-            get_channel_streams,
+            get_ordered_stream_ids,
         )
 
         issues = []
@@ -472,13 +472,11 @@ class ChannelReconciler:
                     }
                 )
 
-            # Check stream assignments (DB vs Dispatcharr)
-            db_streams = get_channel_streams(conn, channel.id)
-            db_stream_ids = {
-                s.dispatcharr_stream_id
-                for s in db_streams
-                if getattr(s, "dispatcharr_stream_id", None)
-            }
+            # Check stream assignments (DB vs Dispatcharr). Use the window-gated
+            # active set (get_ordered_stream_ids) as "expected" so time-shared
+            # linear streams that are correctly out of their window (183.5) are
+            # not flagged as drift — this is exactly the set we push to Dispatcharr.
+            db_stream_ids = set(get_ordered_stream_ids(conn, channel.id))
             dispatcharr_stream_ids = set(dispatcharr_channel.streams or ())
             if db_stream_ids and db_stream_ids != dispatcharr_stream_ids:
                 drift_fields.append(

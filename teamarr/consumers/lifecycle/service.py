@@ -16,7 +16,7 @@ from teamarr.core import Event
 from teamarr.templates import ContextBuilder, TemplateResolver
 
 from .dynamic_resolver import DynamicResolver
-from .timing import ChannelLifecycleManager
+from .timing import ChannelLifecycleManager, compute_stream_window
 from .types import (
     ChannelCreationResult,
     CreateTiming,
@@ -514,6 +514,15 @@ class ChannelLifecycleService:
 
                 dispatcharr_settings = get_dispatcharr_settings(conn)
 
+                # EPG stream time-windowing buffers (183.5) — global pre-attach /
+                # post-detach minutes applied to a matched EPG program slot.
+                _buf_row = conn.execute(
+                    "SELECT epg_stream_pre_buffer_minutes, epg_stream_post_buffer_minutes "
+                    "FROM settings WHERE id = 1"
+                ).fetchone()
+                epg_pre_buffer = _buf_row["epg_stream_pre_buffer_minutes"] if _buf_row else 60
+                epg_post_buffer = _buf_row["epg_stream_post_buffer_minutes"] if _buf_row else 60
+
                 # Feed separation settings for channel naming
                 feed_settings = get_feed_separation_settings(conn)
                 feed_label_style = (
@@ -570,6 +579,16 @@ class ChannelLifecycleService:
 
                         # Stream type tag ('event' or 'team') for ordering rules
                         match_type = matched.get("match_type", "event")
+
+                        # Time-windowed membership (183.5): for EPG-matched linear
+                        # streams, derive attach/detach from the program slot +/-
+                        # buffers. None for name matches → full-life membership.
+                        attach_at, detach_at = compute_stream_window(
+                            matched.get("epg_program_start"),
+                            matched.get("epg_program_end"),
+                            epg_pre_buffer,
+                            epg_post_buffer,
+                        )
 
                         # Check if event should be excluded based on timing
                         logger.debug(
@@ -652,6 +671,8 @@ class ChannelLifecycleService:
                                 template=event_template,
                                 segment=segment,
                                 match_type=match_type,
+                                attach_at=attach_at,
+                                detach_at=detach_at,
                             )
                             # None means Dispatcharr channel missing - fall through to create new
                             if channel_result is not None:
@@ -729,6 +750,8 @@ class ChannelLifecycleService:
                             feed_team=feed_team,
                             feed_label_style=feed_label_style,
                             match_type=match_type,
+                            attach_at=attach_at,
+                            detach_at=detach_at,
                         )
 
                         if channel_result.success:
@@ -833,6 +856,8 @@ class ChannelLifecycleService:
         template: dict | None,
         segment: str | None = None,
         match_type: str = "event",
+        attach_at: str | None = None,
+        detach_at: str | None = None,
     ) -> StreamProcessResult | None:
         """Handle an existing channel based on duplicate mode.
 
@@ -932,6 +957,8 @@ class ChannelLifecycleService:
                     m3u_account_name=m3u_account_name,
                     source_group_id=source_group_id,
                     match_type=match_type,
+                    attach_at=attach_at,
+                    detach_at=detach_at,
                 )
 
                 # Sync with Dispatcharr - use ordered stream list to respect rules
@@ -1045,6 +1072,8 @@ class ChannelLifecycleService:
         feed_team=None,
         feed_label_style: str | None = None,
         match_type: str = "event",
+        attach_at: str | None = None,
+        detach_at: str | None = None,
     ) -> ChannelCreationResult:
         """Create a new channel in DB and Dispatcharr.
 
@@ -1207,6 +1236,8 @@ class ChannelLifecycleService:
                 m3u_account_name=group_config.get("m3u_account_name"),
                 source_group_id=group_id,
                 match_type=match_type,
+                attach_at=attach_at,
+                detach_at=detach_at,
             )
 
             # Commit immediately so next channel number query sees this channel
