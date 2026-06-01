@@ -147,6 +147,8 @@ Supports matching streams to events by EPG program data (epic `teamarrv2-183`):
 
 > **Version dependency.** The program-search endpoint (`/api/epg/programs/search/`) only exists on newer Dispatcharr builds — **confirmed working on Dispatcharr `0.24.0`**. Teamarr never hard-requires it: callers gate on `supports_program_search()` and degrade gracefully on older builds (EPG-based matching simply stays off). The settings toggle is feature-gated on this detection.
 
+**Per-run index (`consumers/matching/epg_index.py`).** `EPGProgramIndex.build(...)` fetches programs **only** for the distinct `tvg_id`s of candidate streams in imported event groups (never the whole instance — one search call per `tvg_id`, since the endpoint takes a single `tvg_id` per call), excludes our own `_Teamarr` programs, and builds a `tvg_id → [programs]` index. `lookup(tvg_id, event_start, event_end)` returns programs whose time window overlaps the event (half-open). The matcher (`teamarrv2-183.4`) consumes this; the index itself holds no matching logic.
+
 ## M3U Manager (`managers/m3u.py`)
 
 Stream discovery and M3U account management.

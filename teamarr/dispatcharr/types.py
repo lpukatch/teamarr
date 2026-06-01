@@ -177,6 +177,11 @@ class DispatcharrProgram:
     epg_source: str | None = None  # source name; "_Teamarr" = our own generated EPG
     epg_name: str | None = None
     epg_icon_url: str | None = None
+    # custom_properties.categories — e.g. ("Sports", "Sports event", "Baseball").
+    # Used by the matcher to distinguish real games ("Sports event") from
+    # studio/talk ("Sports non-event") and replays ("Classic Sport Event").
+    # Often absent/empty in sloppy EPG, so it is a precision signal, not a gate.
+    categories: tuple[str, ...] = field(default_factory=tuple)
     stream_ids: tuple[int, ...] = field(default_factory=tuple)
     channel_ids: tuple[int, ...] = field(default_factory=tuple)
 
@@ -187,6 +192,9 @@ class DispatcharrProgram:
         channels = data.get("channels") or []
         stream_ids = tuple(s["id"] for s in streams if isinstance(s, dict) and "id" in s)
         channel_ids = tuple(c["id"] for c in channels if isinstance(c, dict) and "id" in c)
+        props = data.get("custom_properties") or {}
+        raw_cats = props.get("categories") if isinstance(props, dict) else None
+        categories = tuple(str(c) for c in raw_cats) if isinstance(raw_cats, list) else ()
         return cls(
             id=data["id"],
             tvg_id=data.get("tvg_id", ""),
@@ -198,6 +206,7 @@ class DispatcharrProgram:
             epg_source=data.get("epg_source"),
             epg_name=data.get("epg_name"),
             epg_icon_url=data.get("epg_icon_url"),
+            categories=categories,
             stream_ids=stream_ids,
             channel_ids=channel_ids,
         )
