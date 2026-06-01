@@ -1217,10 +1217,18 @@ class EventGroupProcessor:
             # Group-specific team extraction
             custom_teams_regex=group.custom_regex_teams,
             custom_teams_enabled=group.custom_regex_teams_enabled,
-            # team_streams_enabled implicitly skips all builtin filtering — team-branded
-            # streams (e.g. "NHL | Maple Leafs") have no vs/@ separator and would
-            # otherwise be rejected; the classifier and matcher gate what actually matches.
-            skip_builtin=group.skip_builtin_filter or group.team_streams_enabled,
+            # team_streams_enabled and epg_match_enabled both implicitly skip builtin
+            # filtering — team-branded streams ("NHL | Maple Leafs") and static-named
+            # linear channels ("ESPN", "NBA1") have no vs/@ separator and would
+            # otherwise be rejected by the placeholder/event-pattern filter before the
+            # matcher ever sees them. EPG matching needs those linear streams to survive
+            # so it can match them via program data. The classifier/matcher gate what
+            # actually matches, so passing extra streams through is harmless.
+            skip_builtin=(
+                group.skip_builtin_filter
+                or group.team_streams_enabled
+                or group.epg_match_enabled
+            ),
             team_streams_enabled=group.team_streams_enabled,
         )
 
@@ -1360,11 +1368,16 @@ class EventGroupProcessor:
         # Load settings for event filtering
         with self._db_factory() as conn:
             row = conn.execute(
-                "SELECT include_final_events FROM settings WHERE id = 1"
+                "SELECT include_final_events, epg_match_enabled, "
+                "event_match_days_back, event_match_days_ahead "
+                "FROM settings WHERE id = 1"
             ).fetchone()
             include_final_events = (
                 bool(row["include_final_events"]) if row else False
             )
+            global_epg_match = bool(row["epg_match_enabled"]) if row else False
+            match_days_back = (row["event_match_days_back"] if row else 7) or 7
+            match_days_ahead = (row["event_match_days_ahead"] if row else 3) or 3
 
             # Load feed separation settings
             feed_settings = get_feed_separation_settings(conn)
@@ -1372,6 +1385,14 @@ class EventGroupProcessor:
             feed_away_terms = feed_settings.away_terms if feed_settings.enabled else None
 
         sport_durations = self._load_sport_durations_cached()
+
+        # EPG program-data matching (epic 183.6): build a scoped program index
+        # ONLY when both the global switch and this group opted in. Default off →
+        # epg_index is None → matcher behaves exactly as before.
+        epg_index = self._build_epg_index(
+            group, streams, target_date, global_epg_match,
+            match_days_back, match_days_ahead,
+        )
 
         # Search all known leagues (broad match), include only subscribed.
         # This preserves legacy multi-league behavior: streams are matched
@@ -1410,6 +1431,7 @@ class EventGroupProcessor:
             feed_home_terms=feed_home_terms,
             feed_away_terms=feed_away_terms,
             team_streams_enabled=group.team_streams_enabled,
+            epg_index=epg_index,
         )
 
         result = matcher.match_all(
@@ -1423,6 +1445,57 @@ class EventGroupProcessor:
         matcher.purge_stale()
 
         return result
+
+    def _build_epg_index(
+        self,
+        group,
+        streams: list[dict],
+        target_date: date,
+        global_epg_match: bool,
+        match_days_back: int,
+        match_days_ahead: int,
+    ):
+        """Build a scoped EPGProgramIndex for EPG matching, or None if disabled.
+
+        Gated on: global switch + per-group opt-in + a connected Dispatcharr.
+        Scope discipline (183.3): fetch programs ONLY for the distinct tvg_ids
+        carried by this group's candidate streams — never the whole instance.
+        """
+        if not (global_epg_match and group.epg_match_enabled):
+            return None
+        if not self._dispatcharr_client:
+            return None
+
+        tvg_ids = {s.get("tvg_id") for s in streams if s.get("tvg_id")}
+        if not tvg_ids:
+            return None
+
+        from datetime import datetime, time
+
+        from teamarr.consumers.matching.epg_index import EPGProgramIndex
+        from teamarr.utilities.tz import to_utc
+
+        # Window mirrors the event match window so programs overlapping any
+        # candidate event are indexed.
+        day_start = datetime.combine(target_date, time.min)
+        window_start = to_utc(day_start - timedelta(days=match_days_back))
+        window_end = to_utc(day_start + timedelta(days=match_days_ahead + 1))
+
+        try:
+            index = EPGProgramIndex.build(
+                self._dispatcharr_client.epg,
+                tvg_ids,
+                window_start,
+                window_end,
+            )
+            logger.info(
+                "[EPG-MATCH] group=%s indexed %d programs across %d tvg_ids",
+                group.id, index.program_count(), len(index.tvg_ids()),
+            )
+            return index
+        except Exception as e:
+            logger.warning("[EPG-MATCH] Failed to build EPG index for group %s: %s", group.id, e)
+            return None
 
     def _load_sport_durations_cached(self) -> dict[str, float]:
         """Load sport durations (cached for reuse within a run)."""

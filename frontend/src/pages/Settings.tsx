@@ -2674,6 +2674,61 @@ export function Settings() {
             <Label>Include completed/final events in EPG</Label>
           </div>
 
+          {/* EPG program-data matching (epic 183.6) */}
+          <div className="space-y-3 pt-2 border-t">
+            <div className="flex items-center gap-2">
+              <Switch
+                checked={epg?.epg_match_enabled ?? false}
+                onCheckedChange={(checked) =>
+                  epg && setEPG({ ...epg, epg_match_enabled: checked })
+                }
+              />
+              <Label>Match streams using Dispatcharr EPG data</Label>
+            </div>
+            <p className="text-sm text-muted-foreground">
+              Master switch for matching static-named linear channels (ESPN, NBA1) to events
+              via Dispatcharr's program guide, then time-sharing one stream across multiple
+              event channels. Enable per group in each Event Group's settings. Requires a
+              Dispatcharr build with the program-search API; has no effect otherwise.
+            </p>
+            {epg?.epg_match_enabled && (
+              <div className="grid grid-cols-2 gap-4 max-w-md">
+                <div>
+                  <Label htmlFor="epg-pre-buffer">Attach before (minutes)</Label>
+                  <Input
+                    id="epg-pre-buffer"
+                    type="number"
+                    min={0}
+                    value={epg?.epg_stream_pre_buffer_minutes ?? 60}
+                    onChange={(e) =>
+                      epg &&
+                      setEPG({
+                        ...epg,
+                        epg_stream_pre_buffer_minutes: parseInt(e.target.value) || 0,
+                      })
+                    }
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="epg-post-buffer">Detach after (minutes)</Label>
+                  <Input
+                    id="epg-post-buffer"
+                    type="number"
+                    min={0}
+                    value={epg?.epg_stream_post_buffer_minutes ?? 60}
+                    onChange={(e) =>
+                      epg &&
+                      setEPG({
+                        ...epg,
+                        epg_stream_post_buffer_minutes: parseInt(e.target.value) || 0,
+                      })
+                    }
+                  />
+                </div>
+              </div>
+            )}
+          </div>
+
           {/* Scheduled Generation */}
           <div className="space-y-4 pt-2 border-t">
             <div className="flex items-center justify-between">

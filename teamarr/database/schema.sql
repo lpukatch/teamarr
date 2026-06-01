@@ -165,6 +165,12 @@ CREATE TABLE IF NOT EXISTS settings (
     -- Buffer minutes for after_event delete timing and same_day midnight crossover (default 60)
     channel_post_buffer_minutes INTEGER DEFAULT 60,
 
+    -- EPG program-data matching master switch (epic teamarrv2-183.6). Default
+    -- OFF (opt-in); also feature-gated on the connected Dispatcharr exposing
+    -- /api/epg/programs/search/. Per-group epg_match_enabled has no effect unless
+    -- this global switch is on.
+    epg_match_enabled BOOLEAN DEFAULT 0,
+
     -- EPG stream time-windowing buffers (epic teamarrv2-183.5).
     -- SEPARATE from the channel create/delete buffers above: these apply to the
     -- attach/detach window of time-shared linear streams (EPG matching), so one
@@ -492,6 +498,7 @@ CREATE TABLE IF NOT EXISTS event_epg_groups (
         CHECK(team_filter_mode IN ('include', 'exclude')),
     bypass_filter_for_playoffs BOOLEAN,          -- NULL=use default, 0=disabled, 1=enabled (include all playoff games)
     team_streams_enabled BOOLEAN DEFAULT 0,      -- Allow team-branded streams (e.g. "NHL | Toronto Maple Leafs") to match events
+    epg_match_enabled BOOLEAN DEFAULT 0,         -- (183.6) Use Dispatcharr EPG program data to match static-named linear streams (ESPN, NBA1) and time-window them. Requires global epg_match_enabled + a Dispatcharr build with /api/epg/programs/search/.
 
     -- Processing Stats (updated by EPG generation)
     -- Three categories: FILTERED (pre-match), FAILED (match attempted), EXCLUDED (matched but excluded)

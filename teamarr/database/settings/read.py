@@ -141,6 +141,19 @@ def get_all_settings(conn: Connection) -> AllSettings:
             prepend_postponed_label=bool(row["prepend_postponed_label"])
             if row["prepend_postponed_label"] is not None
             else True,
+            epg_match_enabled=bool(row["epg_match_enabled"])
+            if "epg_match_enabled" in row.keys()
+            else False,
+            epg_stream_pre_buffer_minutes=(
+                row["epg_stream_pre_buffer_minutes"]
+                if "epg_stream_pre_buffer_minutes" in row.keys()
+                else 60
+            ) or 60,
+            epg_stream_post_buffer_minutes=(
+                row["epg_stream_post_buffer_minutes"]
+                if "epg_stream_post_buffer_minutes" in row.keys()
+                else 60
+            ) or 60,
         ),
         durations=DurationSettings(
             default=row["duration_default"] or 3.0,
@@ -344,7 +357,9 @@ def get_epg_settings(conn: Connection) -> EPGSettings:
         """SELECT team_schedule_days_ahead, event_match_days_ahead, event_match_days_back,
                   epg_output_days_ahead, epg_lookback_hours, epg_timezone,
                   epg_output_path, include_final_events, midnight_crossover_mode,
-                  cron_expression, prepend_postponed_label
+                  cron_expression, prepend_postponed_label,
+                  epg_match_enabled, epg_stream_pre_buffer_minutes,
+                  epg_stream_post_buffer_minutes
            FROM settings WHERE id = 1"""
     )
     row = cursor.fetchone()
@@ -366,6 +381,9 @@ def get_epg_settings(conn: Connection) -> EPGSettings:
         prepend_postponed_label=bool(row["prepend_postponed_label"])
         if row["prepend_postponed_label"] is not None
         else True,
+        epg_match_enabled=bool(row["epg_match_enabled"]),
+        epg_stream_pre_buffer_minutes=row["epg_stream_pre_buffer_minutes"] or 60,
+        epg_stream_post_buffer_minutes=row["epg_stream_post_buffer_minutes"] or 60,
     )
 
 

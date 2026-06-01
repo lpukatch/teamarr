@@ -206,6 +206,9 @@ class EPGSettingsModel(BaseModel):
     include_final_events: bool = False
     midnight_crossover_mode: str = "postgame"
     cron_expression: str = "0 * * * *"
+    epg_match_enabled: bool = False
+    epg_stream_pre_buffer_minutes: int = 60
+    epg_stream_post_buffer_minutes: int = 60
 
 
 # =============================================================================

@@ -54,6 +54,7 @@ export interface EventGroup {
   custom_regex_event_name_enabled: boolean
   skip_builtin_filter: boolean
   team_streams_enabled: boolean
+  epg_match_enabled: boolean
   // Team filtering (canonical team selection, inherited by children)
   include_teams: TeamFilterEntry[] | null
   exclude_teams: TeamFilterEntry[] | null
@@ -124,6 +125,7 @@ export interface EventGroupCreate {
   custom_regex_event_name_enabled?: boolean
   skip_builtin_filter?: boolean
   team_streams_enabled?: boolean
+  epg_match_enabled?: boolean
   // Team filtering (canonical team selection, inherited by children)
   include_teams?: TeamFilterEntry[] | null
   exclude_teams?: TeamFilterEntry[] | null
@@ -173,6 +175,7 @@ export interface BulkGroupUpdateRequest {
   stream_timezone?: string | null  // IANA timezone for interpreting stream dates
   clear_stream_timezone?: boolean
   team_streams_enabled?: boolean | null
+  epg_match_enabled?: boolean | null
   // Team filtering
   include_teams?: TeamFilterEntry[] | null
   exclude_teams?: TeamFilterEntry[] | null

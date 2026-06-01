@@ -121,6 +121,9 @@ def get_settings():
             include_final_events=settings.epg.include_final_events,
             midnight_crossover_mode=settings.epg.midnight_crossover_mode,
             cron_expression=settings.epg.cron_expression,
+            epg_match_enabled=settings.epg.epg_match_enabled,
+            epg_stream_pre_buffer_minutes=settings.epg.epg_stream_pre_buffer_minutes,
+            epg_stream_post_buffer_minutes=settings.epg.epg_stream_post_buffer_minutes,
         ),
         durations=asdict(settings.durations),
         display=DisplaySettingsModel(

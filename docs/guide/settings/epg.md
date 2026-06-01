@@ -88,3 +88,18 @@ Set default event durations (in hours) for each sport. These are used when the a
 | Golf | 6.0 |
 | Racing | 3.0 |
 | Cricket | 4.0 |
+
+## EPG Program-Data Matching
+
+Traditional linear channels (ESPN, NBA1, FS1) carry many different games across a day under a single static stream name, so Teamarr can't match them by name. **EPG program-data matching** uses Dispatcharr's program guide to match these streams to events by the program *title* (e.g. "MLB Baseball" / "Chicago Cubs at St. Louis Cardinals"), then **time-shares** one linear stream across many event channels — attaching it to each event's channel only near game time and detaching it after.
+
+| Setting | Description |
+|---------|-------------|
+| **Match streams using Dispatcharr EPG data** | Global master switch (default off). Has no effect unless the connected Dispatcharr exposes the program-search API. |
+| **Attach before (minutes)** | How long before a program's start the stream attaches to the event channel. |
+| **Detach after (minutes)** | How long after a program's end the stream detaches. |
+
+Enable it **per Event Group** as well (Event Group settings → *EPG program matching*) — only groups that opt in are scanned. The channel still exists for its normal lifecycle (filler + upcoming guide); only the linear *stream* swaps in and out near game time.
+
+{: .note }
+Requires a recent Dispatcharr build with the program-search endpoint (`/api/epg/programs/search/`). Older builds ignore the setting. Attach/detach precision is bounded by how often EPG generation runs.

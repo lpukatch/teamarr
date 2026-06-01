@@ -54,6 +54,9 @@ export interface EPGSettings {
   include_final_events: boolean
   midnight_crossover_mode: string
   cron_expression: string
+  epg_match_enabled: boolean
+  epg_stream_pre_buffer_minutes: number
+  epg_stream_post_buffer_minutes: number
 }
 
 // Note: team_schedule_days_ahead default is 30 (for Team EPG)
