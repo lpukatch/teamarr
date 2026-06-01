@@ -101,6 +101,26 @@ def test_match_via_epg_fans_out_one_per_program(monkeypatch):
     assert out[1].epg_program_start == BASE + timedelta(hours=4)
 
 
+def test_match_via_epg_sets_clip_bounds_from_neighbors(monkeypatch):
+    # Three back-to-back programs; the middle one's clip bounds are its
+    # neighbours' boundaries (prev end / next start).
+    p0 = _prog(sub="A at B", start=BASE - timedelta(hours=2))            # 16:00-19:00
+    p1 = _prog(sub="Chicago Cubs at St. Louis Cardinals", start=BASE)    # 18:00-21:00
+    p2 = _prog(sub="C at D", start=BASE + timedelta(hours=4))            # 22:00-01:00
+    index = EPGProgramIndex({"espn": [p0, p1, p2]})
+    m = _bare_matcher(index)
+    monkeypatch.setattr(m, "_route_to_outcomes", lambda c, sid, td: [_matched_outcome()])
+    monkeypatch.setattr(m, "_outcome_to_result", lambda outcome, **kw: outcome)
+
+    out = m._match_via_epg(100, "ESPN", "espn", date(2026, 6, 1))
+    middle = out[1]
+    assert middle.epg_clip_before == p0.end_dt   # prev program end
+    assert middle.epg_clip_after == p2.start_dt   # next program start
+    # first program has no prev, last has no next
+    assert out[0].epg_clip_before is None
+    assert out[2].epg_clip_after is None
+
+
 def test_match_via_epg_drops_unmatched_outcomes(monkeypatch):
     index = EPGProgramIndex({"espn": [_prog()]})
     m = _bare_matcher(index)

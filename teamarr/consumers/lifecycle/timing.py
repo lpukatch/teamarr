@@ -36,12 +36,19 @@ def compute_stream_window(
     program_end: datetime | None,
     pre_buffer_minutes: int,
     post_buffer_minutes: int,
+    clip_before: datetime | None = None,
+    clip_after: datetime | None = None,
 ) -> tuple[str | None, str | None]:
     """Compute the (attach_at, detach_at) window for a time-shared linear stream.
 
     Used by epic teamarrv2-183.5: an EPG-matched linear stream attaches to an
     event channel only near game time and detaches after. The window is the
-    matched EPG program slot widened by the global stream buffers.
+    matched EPG program slot widened by the global stream buffers, then CLIPPED
+    to the neighbouring programs so a back-to-back game's buffer never bleeds
+    into the adjacent slot (wrong-game avoidance):
+
+        attach = max(program_start - pre_buffer, clip_before)   # prev prog end
+        detach = min(program_end + post_buffer, clip_after)     # next prog start
 
     Returns SQLite-native UTC strings (comparable to datetime('now')), or
     (None, None) when there is no program slot — meaning full-life membership
@@ -50,7 +57,11 @@ def compute_stream_window(
     if program_start is None or program_end is None:
         return None, None
     attach = program_start - timedelta(minutes=pre_buffer_minutes)
+    if clip_before is not None and clip_before > attach:
+        attach = clip_before  # don't attach during the previous program
     detach = program_end + timedelta(minutes=post_buffer_minutes)
+    if clip_after is not None and clip_after < detach:
+        detach = clip_after  # don't stay attached into the next program
     return (
         attach.astimezone(UTC).strftime(_SQLITE_UTC_FMT),
         detach.astimezone(UTC).strftime(_SQLITE_UTC_FMT),

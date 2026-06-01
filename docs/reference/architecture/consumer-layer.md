@@ -172,6 +172,15 @@ Runs automatically at the end of each generation. Issues have severity levels (c
 - Pre/post buffer minutes
 - Create/delete timing mode (`same_day` or `before_event`/`after_event`)
 
+### Time-windowed stream membership (`managed_channel_streams.attach_at`/`detach_at`)
+
+For EPG-matched linear streams (epic `teamarrv2-183.5`), membership in a channel is **time-windowed** so one linear stream (ESPN, NBA1) rotates across many event channels, attached to each only near game time. This is **separate** from channel create/delete timing — the channel exists for its whole lifecycle (filler + upcoming guide); only the *stream* swaps in and out.
+
+- `compute_stream_window()` (`lifecycle/timing.py`) derives `attach_at`/`detach_at` from the matched EPG program slot ± the global `epg_stream_pre/post_buffer_minutes` settings, **clipped** to the neighbouring programs on that `tvg_id` so a back-to-back game's buffer never bleeds into the adjacent slot.
+- A membership row is **active in Dispatcharr now** when `removed_at IS NULL AND (attach_at IS NULL OR attach_at ≤ now < detach_at)`. `NULL` window = full-life membership (dedicated/name-matched streams — unchanged behavior). `get_ordered_stream_ids()` enforces this; it's the set pushed to Dispatcharr.
+- `removed_at` stays **terminal** (permanent removal only); re-evaluatability comes from the window gate, not from un-setting it.
+- Reconciliation drift uses the **window-gated** set as "expected", so a correctly out-of-window stream is not flagged or re-added.
+
 ## Sports Data Service
 
 `services/sports_data.py` orchestrates provider calls with caching.

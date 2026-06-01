@@ -588,6 +588,8 @@ class ChannelLifecycleService:
                             matched.get("epg_program_end"),
                             epg_pre_buffer,
                             epg_post_buffer,
+                            clip_before=matched.get("epg_clip_before"),
+                            clip_after=matched.get("epg_clip_after"),
                         )
 
                         # Check if event should be excluded based on timing
