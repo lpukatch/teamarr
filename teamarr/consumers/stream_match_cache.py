@@ -50,39 +50,6 @@ def compute_fingerprint(group_id: int, stream_id: int, stream_name: str) -> str:
     return hashlib.sha256(key.encode()).hexdigest()[:16]
 
 
-def compute_program_fingerprint(
-    group_id: int,
-    tvg_id: str,
-    start_time: str | None,
-    title: str,
-    sub_title: str | None,
-) -> str:
-    """Compute fingerprint for an EPG program-data match (epic teamarrv2-183).
-
-    The EPG analog of compute_fingerprint(): the cacheable unit is the
-    PROGRAM CONTENT → event match, NOT (stream_id → event) — one linear stream
-    airs many programs/day, so stream_id is not a stable key. Keying on program
-    content (tvg_id + slot + title + sub_title) invalidates exactly when the
-    guide entry changes, just as the name fingerprint invalidates on name change.
-
-    Deliberately does NOT use Dispatcharr's program.id, which can be reassigned
-    when an EPG source re-imports. The 'p:' prefix namespaces these so they can
-    never collide with a stream-name fingerprint in the shared cache table.
-
-    Args:
-        group_id: Event group ID
-        tvg_id: Guide channel id the program aired on
-        start_time: Program start (ISO string) — the broadcast slot
-        title: Program title (e.g. "MLB Baseball")
-        sub_title: Program sub_title (e.g. "Chicago Cubs at St. Louis Cardinals")
-
-    Returns:
-        16-character hex hash
-    """
-    key = f"p:{group_id}:{tvg_id}:{start_time or ''}:{title}:{sub_title or ''}"
-    return hashlib.sha256(key.encode()).hexdigest()[:16]
-
-
 @dataclass
 class StreamCacheEntry:
     """Cached match result."""

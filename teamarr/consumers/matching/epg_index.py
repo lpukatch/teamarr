@@ -149,6 +149,26 @@ class EPGProgramIndex:
         return hits
 
     # ------------------------------------------------------------- accessors
+    def programs_for(self, tvg_id: str) -> list[DispatcharrProgram]:
+        """All indexed programs on a tvg_id (start-time order). Empty if none.
+
+        Used by the matcher to walk every program on a stream's guide channel
+        and match each to an event (stream → programs → events). Distinct from
+        :meth:`lookup`, which is the reverse (event window → programs) for the
+        lifecycle layer.
+        """
+        return self._by_tvg.get(tvg_id, [])
+
+    def is_linear(self, tvg_id: str) -> bool:
+        """True if the tvg_id carries more than one program in the window.
+
+        Program multiplicity is our LINEAR-vs-DEDICATED signal: a linear channel
+        (ESPN, NBA1) airs many programs/day; a dedicated single-event stream has
+        one. Drives reconciliation — linear streams get EPG time-windowing,
+        dedicated streams keep full-life name-match semantics.
+        """
+        return len(self._by_tvg.get(tvg_id, [])) > 1
+
     def tvg_ids(self) -> list[str]:
         """tvg_ids that have at least one indexed program."""
         return list(self._by_tvg.keys())

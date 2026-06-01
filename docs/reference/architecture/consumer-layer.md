@@ -109,6 +109,18 @@ Output includes: extracted team names, detected league/sport hints, card segment
 
 **Caching:** Fingerprint-based cache keyed by `hash(stream_name, group_id, generation)`. The generation counter increments per EPG run to bust stale cache entries.
 
+### EPG-title matching (`matching/epg_matcher.py`, `matching/epg_index.py`)
+
+For static-named linear channels (ESPN, NBA1) the stream name is unmatchable, but the Dispatcharr EPG guide carries the real matchup. When a group opts in (epic `teamarrv2-183`), `StreamMatcher` augments name matching with EPG-title matching:
+
+1. **Index** — `EPGProgramIndex` (built once per run, scoped to the group's candidate `tvg_id`s) provides `programs_for(tvg_id)` and `is_linear(tvg_id)`.
+2. **Match input** — `build_match_input()` combines `title + sub_title` (teams live in `sub_title`: "MLB Baseball" + "Cubs at Cardinals"), fed through the **same** `classify_stream → TeamMatcher` pipeline.
+3. **Category gate** — `classify_program_policy()` skips `Sports non-event` (studio/talk) and `Classic Sport Event` (replays; precedence over `Sports event`). Absent categories → attempt anyway; the team-match + event-window overlap is its own filter.
+4. **Fan-out** — one linear stream matches **many** events (one per program); results carry `MatchMethod.EPG` and the program's `epg_program_start`/`epg_program_end` window for the lifecycle layer.
+5. **Reconciliation** — `_reconcile_epg()`: linear `tvg_id` + EPG match → EPG wins (time-windowed), name match discarded; dedicated `tvg_id` → name match kept, EPG only fills when name found nothing.
+
+EPG-path caching is free: `TeamMatcher` already keys its cache on `(group_id, stream_id, input_string)`, so each distinct program title is memoized across runs without a separate fingerprint.
+
 ## Channel Lifecycle
 
 ### Service (`lifecycle/service.py`)
@@ -198,6 +210,8 @@ No match defaults to priority 999 (sorted to end). Channels are sorted by priori
 | `consumers/team_processor.py` | Team EPG generation |
 | `consumers/matching/classifier.py` | Stream classification |
 | `consumers/matching/matcher.py` | Stream-to-event matching |
+| `consumers/matching/epg_index.py` | Per-run scoped EPG program index (tvg_id → programs) |
+| `consumers/matching/epg_matcher.py` | EPG title/category matching helpers |
 | `consumers/lifecycle/service.py` | Channel lifecycle management |
 | `consumers/lifecycle/dynamic_resolver.py` | Wildcard resolution |
 | `consumers/lifecycle/reconciliation.py` | Drift detection and repair |

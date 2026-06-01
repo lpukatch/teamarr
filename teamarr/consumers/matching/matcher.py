@@ -23,7 +23,7 @@ Usage:
 import logging
 from collections.abc import Callable
 from dataclasses import dataclass, field
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 from zoneinfo import ZoneInfo
 
 from teamarr.config import get_user_timezone
@@ -34,6 +34,8 @@ from teamarr.consumers.matching.classifier import (
     classify_stream,
 )
 from teamarr.consumers.matching.constants import MATCH_WINDOW_DAYS
+from teamarr.consumers.matching.epg_index import EPGProgramIndex
+from teamarr.consumers.matching.epg_matcher import build_match_input, should_attempt
 from teamarr.consumers.matching.event_matcher import EventCardMatcher
 from teamarr.consumers.matching.result import (
     ExcludedReason,
@@ -84,6 +86,11 @@ class MatchedStreamResult:
     confidence: float = 0.0
     from_cache: bool = False
     origin_match_method: str | None = None  # For cache hits: original method (fuzzy, alias, etc.)
+
+    # EPG matches: the program's broadcast slot, used by the lifecycle layer
+    # (183.5) as the attach/detach window for time-shared linear streams.
+    epg_program_start: datetime | None = None
+    epg_program_end: datetime | None = None
 
     # Classification info
     category: StreamCategory | None = None
@@ -193,6 +200,7 @@ class StreamMatcher:
         feed_home_terms: list[str] | None = None,
         feed_away_terms: list[str] | None = None,
         team_streams_enabled: bool = False,
+        epg_index: "EPGProgramIndex | None" = None,
     ):
         """Initialize the matcher.
 
@@ -306,6 +314,11 @@ class StreamMatcher:
         # Prefetched events (populated in match_all for multi-league matching)
         self._prefetched_events: dict[str, list[Event]] | None = None
 
+        # EPG program index (epic teamarrv2-183). When present (group opted in
+        # via 183.6), the matcher augments name matching with EPG-title matching
+        # for streams carrying a tvg_id. None = no EPG matching (default).
+        self._epg_index = epg_index
+
     def match_all(
         self,
         streams: list[dict],
@@ -362,6 +375,18 @@ class StreamMatcher:
                 stream_name=stream_name,
                 target_date=target_date,
             )
+
+            # EPG augmentation (epic 183.4): for streams carrying a tvg_id in an
+            # EPG-enabled group, also match via EPG program titles and reconcile.
+            tvg_id = stream.get("tvg_id")
+            if self._epg_index is not None and tvg_id:
+                epg_results = self._match_via_epg(
+                    stream_id=stream_id,
+                    stream_name=stream_name,
+                    tvg_id=tvg_id,
+                    target_date=target_date,
+                )
+                match_results = self._reconcile_epg(match_results, epg_results, tvg_id)
 
             # Track cache stats and accumulate (TEAM_ONLY may return multiple results)
             any_matched = False
@@ -528,20 +553,7 @@ class StreamMatcher:
                 exclusion_reason="unclassifiable",
             )]
 
-        # Step 3: Route to appropriate matcher based on category
-        if classified.category == StreamCategory.EVENT_CARD:
-            outcome = self._match_event_card(
-                classified=classified,
-                stream_id=stream_id,
-                target_date=target_date,
-            )
-            return [self._outcome_to_result(
-                outcome=outcome,
-                stream_id=stream_id,
-                stream_name=stream_name,
-                classified=classified,
-            )]
-
+        # Step 3: Gate TEAM_ONLY when disabled, then route by category
         if classified.category == StreamCategory.TEAM_ONLY and not self._team_streams_enabled:
             return [MatchedStreamResult(
                 stream_name=stream_name,
@@ -552,34 +564,112 @@ class StreamMatcher:
                 exclusion_reason="team_streams_disabled",
             )]
 
-        if classified.category == StreamCategory.TEAM_ONLY:
-            outcomes = self._match_team_only(
-                classified=classified,
+        outcomes = self._route_to_outcomes(classified, stream_id, target_date)
+        return [
+            self._outcome_to_result(
+                outcome=o,
                 stream_id=stream_id,
-                target_date=target_date,
+                stream_name=stream_name,
+                classified=classified,
             )
-            return [
-                self._outcome_to_result(
-                    outcome=o,
+            for o in outcomes
+        ]
+
+    def _route_to_outcomes(
+        self,
+        classified: ClassifiedStream,
+        stream_id: int,
+        target_date: date,
+    ) -> list[MatchOutcome]:
+        """Route a classified stream to the right sub-matcher, returning outcomes.
+
+        Shared by the stream-name path (_match_single) and the EPG-title path
+        (_match_via_epg) so both reuse the exact same TeamMatcher/EventCardMatcher
+        logic. EVENT_CARD and TEAM_VS_TEAM yield one outcome; TEAM_ONLY may fan
+        out to several (one per matched event). Callers handle PLACEHOLDER and
+        TEAM_ONLY-disabled gating before reaching here.
+        """
+        if classified.category == StreamCategory.EVENT_CARD:
+            return [self._match_event_card(classified, stream_id, target_date)]
+        if classified.category == StreamCategory.TEAM_ONLY:
+            return self._match_team_only(classified, stream_id, target_date)
+        # TEAM_VS_TEAM
+        return [self._match_team_vs_team(classified, stream_id, target_date)]
+
+    def _match_via_epg(
+        self,
+        stream_id: int,
+        stream_name: str,
+        tvg_id: str,
+        target_date: date,
+    ) -> list[MatchedStreamResult]:
+        """Match a stream to events via its EPG program titles (epic 183.4).
+
+        Walks every program on the stream's guide channel (from the injected
+        EPGProgramIndex), feeds each program's title+sub_title through the SAME
+        classify_stream -> TeamMatcher pipeline used for stream names, and emits
+        one matched result per program (a linear channel legitimately matches
+        MANY events/day). Each result carries the program's broadcast window for
+        the lifecycle layer.
+
+        Cross-run caching comes for free: TeamMatcher caches on
+        (group_id, stream_id, input_string), so each distinct program title is
+        memoized without a separate fingerprint layer. Only MATCHED outcomes are
+        returned — non-games self-reject in the pipeline.
+        """
+        results: list[MatchedStreamResult] = []
+        league_event_type = self._get_dominant_event_type()
+
+        for program in self._epg_index.programs_for(tvg_id):
+            if not should_attempt(program):
+                continue
+
+            classified = classify_stream(
+                build_match_input(program), league_event_type, self._custom_regex,
+                self._feed_home_terms, self._feed_away_terms,
+            )
+            if classified.category == StreamCategory.PLACEHOLDER:
+                continue
+            if classified.category == StreamCategory.TEAM_ONLY and not self._team_streams_enabled:
+                continue
+
+            for outcome in self._route_to_outcomes(classified, stream_id, target_date):
+                if not outcome.is_matched:
+                    continue
+                # Tag as EPG and attach the program's broadcast window (183.5).
+                outcome.match_method = MatchMethod.EPG
+                outcome.epg_program_start = program.start_dt
+                outcome.epg_program_end = program.end_dt
+                results.append(self._outcome_to_result(
+                    outcome=outcome,
                     stream_id=stream_id,
                     stream_name=stream_name,
                     classified=classified,
-                )
-                for o in outcomes
-            ]
+                ))
+        return results
 
-        # TEAM_VS_TEAM
-        outcome = self._match_team_vs_team(
-            classified=classified,
-            stream_id=stream_id,
-            target_date=target_date,
-        )
-        return [self._outcome_to_result(
-            outcome=outcome,
-            stream_id=stream_id,
-            stream_name=stream_name,
-            classified=classified,
-        )]
+    def _reconcile_epg(
+        self,
+        name_results: list[MatchedStreamResult],
+        epg_results: list[MatchedStreamResult],
+        tvg_id: str,
+    ) -> list[MatchedStreamResult]:
+        """Reconcile stream-name matches with EPG matches for one stream.
+
+        Policy (user-confirmed 2026-06-01):
+        - LINEAR tvg_id (multiple programs/day) + EPG matched -> EPG results win
+          (time-windowed); the linear name-match is unreliable and discarded.
+        - LINEAR + no EPG match -> keep the name result (usually unmatched).
+        - DEDICATED tvg_id -> keep the name match; EPG only fills in when the
+          name found nothing (a static-named single-event stream).
+        """
+        epg_matched = [r for r in epg_results if r.matched]
+        if self._epg_index.is_linear(tvg_id):
+            return epg_matched if epg_matched else name_results
+        name_matched = any(r.matched for r in name_results)
+        if not name_matched and epg_matched:
+            return epg_matched
+        return name_results
 
     def _match_team_vs_team(
         self,
@@ -752,6 +842,8 @@ class StreamMatcher:
             excluded_reason=outcome.excluded_reason,
             detail=outcome.detail,
             feed_hint=classified.feed_hint,
+            epg_program_start=outcome.epg_program_start,
+            epg_program_end=outcome.epg_program_end,
         )
 
     def _get_dominant_event_type(self) -> str | None:
