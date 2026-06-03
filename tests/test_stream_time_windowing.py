@@ -50,34 +50,14 @@ def test_window_zero_buffers():
     assert detach == "2026-06-01 20:00:00"
 
 
-def test_window_clips_post_buffer_to_next_program():
-    # Game 18:00-20:00, +60m post buffer would reach 21:00, but the next program
-    # starts at 20:15 -> detach clipped to 20:15 (no bleed into next slot).
-    start, end = BASE, BASE + timedelta(hours=2)
-    next_start = BASE + timedelta(hours=2, minutes=15)
-    _, detach = compute_stream_window(start, end, 60, 60, clip_after=next_start)
-    assert detach == "2026-06-01 20:15:00"
-
-
-def test_window_clips_pre_buffer_to_prev_program():
-    # Game 18:00-20:00, -60m pre buffer would reach 17:00, but the previous
-    # program ends at 17:50 -> attach clipped to 17:50.
-    start, end = BASE, BASE + timedelta(hours=2)
-    prev_end = BASE - timedelta(minutes=10)  # 17:50
-    attach, _ = compute_stream_window(start, end, 60, 60, clip_before=prev_end)
-    assert attach == "2026-06-01 17:50:00"
-
-
-def test_window_no_clip_when_neighbor_far():
-    # Neighbours far away -> buffers apply unclipped.
-    start, end = BASE, BASE + timedelta(hours=2)
-    attach, detach = compute_stream_window(
-        start, end, 60, 60,
-        clip_before=BASE - timedelta(hours=5),
-        clip_after=BASE + timedelta(hours=5),
-    )
-    assert attach == "2026-06-01 17:00:00"
-    assert detach == "2026-06-01 21:00:00"
+def test_window_buffers_apply_unclipped_through_overlap():
+    # Clipping was removed (bead 6qx): buffers always apply in full, even when
+    # the widened window would overlap a neighbouring program. The user owns the
+    # buffer values and accepts a stream being a member of two channels at once.
+    start, end = BASE, BASE + timedelta(hours=2)  # 18:00-20:00
+    attach, detach = compute_stream_window(start, end, 1440, 1440)
+    assert attach == "2026-05-31 18:00:00"  # 24h before start, no clipping
+    assert detach == "2026-06-02 20:00:00"  # 24h after end, no clipping
 
 
 # ======================================================== get_ordered_stream_ids gating

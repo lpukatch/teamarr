@@ -196,11 +196,6 @@ class MatchOutcome:
     # window for time-shared linear streams. None for non-EPG matches.
     epg_program_start: "datetime | None" = None
     epg_program_end: "datetime | None" = None
-    # Adjacent-program boundaries on the same tvg_id (prev program end / next
-    # program start), used to CLIP the buffered window so a back-to-back game's
-    # buffer never bleeds into a neighbouring program (wrong-game avoidance).
-    epg_clip_before: "datetime | None" = None
-    epg_clip_after: "datetime | None" = None
 
     # Common fields
     stream_name: str | None = None

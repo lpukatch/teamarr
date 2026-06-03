@@ -35,7 +35,7 @@ The result: **one** linear stream serves **many** event channels — swapping in
 
 1. **Read the guide.** For each opted-in group, Teamarr asks Dispatcharr for the EPG **programs** airing on the group's streams (`GET /api/epg/programs/search/`).
 2. **Match program titles, not stream names.** Each program's title + subtitle (`MLB Baseball` + `Cubs at Cardinals`) goes through the *same* team-matching pipeline Teamarr uses for stream names, and is matched to a real event.
-3. **Time-share the stream.** A linear stream that airs many programs is attached to each matched event's channel only for that program's window (start − *attach before*, end + *detach after*), then detached so it's free for the next game. Studio shows and replays are skipped.
+3. **Time-share the stream.** A linear stream that airs many programs is attached to each matched event's channel only for that program's window (start − *attach before*, end + *detach after*), then detached when the window ends. Studio shows and replays are skipped.
 
 ### Where the EPG comes from — you don't map it
 
@@ -73,7 +73,7 @@ Turn on **Match streams using Dispatcharr EPG data** (the master switch). When e
 | **Attach before (minutes)** | 60 | How long *before* a program's start the stream attaches to the event channel. |
 | **Detach after (minutes)** | 60 | How long *after* a program's end the stream detaches. |
 
-Buffers give viewers lead-in/lead-out time and absorb schedule slippage. Back-to-back programs on the same channel are automatically clipped so an overlapping buffer never points the wrong game at a channel.
+Buffers give viewers lead-in/lead-out time and absorb schedule slippage. They apply in full — the buffers you set drive the whole window. If a large buffer makes two adjacent programs on the same channel overlap, the stream is simply attached to **both** event channels during the overlap; nothing is trimmed. Buffer changes take effect on the next generation run, including for already-attached streams.
 
 ### 2. Per-group switch — Event Group settings
 

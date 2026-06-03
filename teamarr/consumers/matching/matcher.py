@@ -91,9 +91,6 @@ class MatchedStreamResult:
     # (183.5) as the attach/detach window for time-shared linear streams.
     epg_program_start: datetime | None = None
     epg_program_end: datetime | None = None
-    # Adjacent-program boundaries (prev end / next start) for buffer clipping.
-    epg_clip_before: datetime | None = None
-    epg_clip_after: datetime | None = None
 
     # Classification info
     category: StreamCategory | None = None
@@ -623,12 +620,11 @@ class StreamMatcher:
         results: list[MatchedStreamResult] = []
         league_event_type = self._get_dominant_event_type()
 
-        # Full sorted timeline for this tvg_id — used both to match and to find
-        # each program's neighbours (for back-to-back buffer clipping). Neighbours
-        # are taken from ALL programs, even unmatched ones (e.g. a studio show),
-        # so a linear stream detaches when the next program starts regardless.
+        # Full sorted timeline for this tvg_id. A linear channel legitimately
+        # matches many programs/day; each matched program's broadcast slot drives
+        # its own attach/detach window in the lifecycle layer.
         programs = self._epg_index.programs_for(tvg_id)
-        for i, program in enumerate(programs):
+        for program in programs:
             if not should_attempt(program):
                 continue
 
@@ -641,9 +637,6 @@ class StreamMatcher:
             if classified.category == StreamCategory.TEAM_ONLY and not self._team_streams_enabled:
                 continue
 
-            clip_before = programs[i - 1].end_dt if i > 0 else None
-            clip_after = programs[i + 1].start_dt if i < len(programs) - 1 else None
-
             for outcome in self._route_to_outcomes(classified, stream_id, target_date):
                 if not outcome.is_matched:
                     continue
@@ -651,8 +644,6 @@ class StreamMatcher:
                 outcome.match_method = MatchMethod.EPG
                 outcome.epg_program_start = program.start_dt
                 outcome.epg_program_end = program.end_dt
-                outcome.epg_clip_before = clip_before
-                outcome.epg_clip_after = clip_after
                 results.append(self._outcome_to_result(
                     outcome=outcome,
                     stream_id=stream_id,
@@ -857,8 +848,6 @@ class StreamMatcher:
             feed_hint=classified.feed_hint,
             epg_program_start=outcome.epg_program_start,
             epg_program_end=outcome.epg_program_end,
-            epg_clip_before=outcome.epg_clip_before,
-            epg_clip_after=outcome.epg_clip_after,
         )
 
     def _get_dominant_event_type(self) -> str | None:

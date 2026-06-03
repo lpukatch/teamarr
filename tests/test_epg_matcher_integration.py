@@ -101,9 +101,10 @@ def test_match_via_epg_fans_out_one_per_program(monkeypatch):
     assert out[1].epg_program_start == BASE + timedelta(hours=4)
 
 
-def test_match_via_epg_sets_clip_bounds_from_neighbors(monkeypatch):
-    # Three back-to-back programs; the middle one's clip bounds are its
-    # neighbours' boundaries (prev end / next start).
+def test_match_via_epg_carries_each_program_slot(monkeypatch):
+    # Each matched program carries its own broadcast slot (start/end) for the
+    # lifecycle attach/detach window. Clipping was removed (bead 6qx), so
+    # back-to-back programs are independent — no neighbour boundaries involved.
     p0 = _prog(sub="A at B", start=BASE - timedelta(hours=2))            # 16:00-19:00
     p1 = _prog(sub="Chicago Cubs at St. Louis Cardinals", start=BASE)    # 18:00-21:00
     p2 = _prog(sub="C at D", start=BASE + timedelta(hours=4))            # 22:00-01:00
@@ -113,12 +114,9 @@ def test_match_via_epg_sets_clip_bounds_from_neighbors(monkeypatch):
     monkeypatch.setattr(m, "_outcome_to_result", lambda outcome, **kw: outcome)
 
     out = m._match_via_epg(100, "ESPN", "espn", date(2026, 6, 1))
-    middle = out[1]
-    assert middle.epg_clip_before == p0.end_dt   # prev program end
-    assert middle.epg_clip_after == p2.start_dt   # next program start
-    # first program has no prev, last has no next
-    assert out[0].epg_clip_before is None
-    assert out[2].epg_clip_after is None
+    assert [r.epg_program_start for r in out] == [p0.start_dt, p1.start_dt, p2.start_dt]
+    assert [r.epg_program_end for r in out] == [p0.end_dt, p1.end_dt, p2.end_dt]
+    assert not hasattr(out[1], "epg_clip_before")
 
 
 def test_match_via_epg_drops_unmatched_outcomes(monkeypatch):

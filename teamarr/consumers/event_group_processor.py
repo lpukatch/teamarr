@@ -1575,9 +1575,6 @@ class EventGroupProcessor:
                             # MatchMethod.EPG matches; None for name matches (full-life).
                             "epg_program_start": result.epg_program_start,
                             "epg_program_end": result.epg_program_end,
-                            # Neighbour boundaries for back-to-back buffer clipping.
-                            "epg_clip_before": result.epg_clip_before,
-                            "epg_clip_after": result.epg_clip_after,
                         }
                     )
 
