@@ -580,6 +580,7 @@ class StreamMatcher:
         classified: ClassifiedStream,
         stream_id: int,
         target_date: date,
+        anchor_dt: "datetime | None" = None,
     ) -> list[MatchOutcome]:
         """Route a classified stream to the right sub-matcher, returning outcomes.
 
@@ -588,13 +589,18 @@ class StreamMatcher:
         logic. EVENT_CARD and TEAM_VS_TEAM yield one outcome; TEAM_ONLY may fan
         out to several (one per matched event). Callers handle PLACEHOLDER and
         TEAM_ONLY-disabled gating before reaching here.
+
+        anchor_dt (EPG path only): the program's broadcast instant, used to gate
+        candidate events to the live occurrence (bead t5e).
         """
         if classified.category == StreamCategory.EVENT_CARD:
             return [self._match_event_card(classified, stream_id, target_date)]
         if classified.category == StreamCategory.TEAM_ONLY:
-            return self._match_team_only(classified, stream_id, target_date)
+            return self._match_team_only(classified, stream_id, target_date, anchor_dt=anchor_dt)
         # TEAM_VS_TEAM
-        return [self._match_team_vs_team(classified, stream_id, target_date)]
+        return [
+            self._match_team_vs_team(classified, stream_id, target_date, anchor_dt=anchor_dt)
+        ]
 
     def _match_via_epg(
         self,
@@ -617,16 +623,25 @@ class StreamMatcher:
         memoized without a separate fingerprint layer. Only MATCHED outcomes are
         returned — non-games self-reject in the pipeline.
         """
-        results: list[MatchedStreamResult] = []
+        # Keyed by matched event id so that when several programs match the SAME
+        # event (e.g. a pre-game block + the game itself both pass the anchor
+        # gate), we keep only the one whose start is nearest the event — the live
+        # broadcast — giving a deterministic, correctly-anchored window (bead
+        # t5e). Different events on the same channel keep distinct keys.
+        best_by_event: dict[str, tuple[float, MatchedStreamResult]] = {}
         league_event_type = self._get_dominant_event_type()
 
         # Full sorted timeline for this tvg_id. A linear channel legitimately
         # matches many programs/day; each matched program's broadcast slot drives
         # its own attach/detach window in the lifecycle layer.
         programs = self._epg_index.programs_for(tvg_id)
+        attempted = 0
+        skipped_non_event = 0
         for program in programs:
             if not should_attempt(program):
+                skipped_non_event += 1
                 continue
+            attempted += 1
 
             classified = classify_stream(
                 build_match_input(program), league_event_type, self._custom_regex,
@@ -637,19 +652,69 @@ class StreamMatcher:
             if classified.category == StreamCategory.TEAM_ONLY and not self._team_streams_enabled:
                 continue
 
-            for outcome in self._route_to_outcomes(classified, stream_id, target_date):
+            # Anchor matching to the program's own broadcast instant (bead t5e).
+            # EPG titles carry no date/time, so a program would otherwise match
+            # purely by team names — and a series game whose title repeats across
+            # nights, or a post-game encore/replay, would bind to the wrong
+            # occurrence and anchor its attach/detach window to the wrong slot.
+            # The matcher gates candidate events to those airing within
+            # ANCHOR_MATCH_TOLERANCE of this instant (live broadcast only).
+            for outcome in self._route_to_outcomes(
+                classified, stream_id, target_date, anchor_dt=program.start_dt
+            ):
                 if not outcome.is_matched:
                     continue
                 # Tag as EPG and attach the program's broadcast window (183.5).
                 outcome.match_method = MatchMethod.EPG
                 outcome.epg_program_start = program.start_dt
                 outcome.epg_program_end = program.end_dt
-                results.append(self._outcome_to_result(
-                    outcome=outcome,
-                    stream_id=stream_id,
-                    stream_name=stream_name,
-                    classified=classified,
-                ))
+                # Diagnostic: program slot vs matched event time. A large skew
+                # (Δ) is the tell-tale of a wrong-occurrence bind (bead t5e) —
+                # the program and the event it matched are hours/days apart.
+                ev = outcome.event
+                ev_start = getattr(ev, "start_time", None)
+                ev_id = getattr(ev, "id", None)
+                skew_s = (
+                    abs((ev_start - program.start_dt).total_seconds())
+                    if ev_start is not None and program.start_dt is not None
+                    else 0.0
+                )
+                logger.debug(
+                    "[EPG_MATCH] tvg=%s stream='%s' prog='%s' @%s -> event=%s '%s' @%s (Δ=%dm)",
+                    tvg_id,
+                    stream_name[:32],
+                    build_match_input(program)[:48],
+                    program.start_dt.isoformat() if program.start_dt else "?",
+                    ev_id or "?",
+                    (getattr(ev, "short_name", None) or getattr(ev, "name", None) or "?")[:32],
+                    ev_start.isoformat() if ev_start is not None else "?",
+                    round(skew_s / 60),
+                )
+                # Keep the nearest-to-event program per event (live over pre-game).
+                prev = best_by_event.get(ev_id)
+                if prev is None or skew_s < prev[0]:
+                    best_by_event[ev_id] = (
+                        skew_s,
+                        self._outcome_to_result(
+                            outcome=outcome,
+                            stream_id=stream_id,
+                            stream_name=stream_name,
+                            classified=classified,
+                        ),
+                    )
+
+        results = [r for _, r in best_by_event.values()]
+        if programs:
+            logger.info(
+                "[EPG_MATCH] tvg=%s stream='%s': %d program(s), %d attempted, "
+                "%d non-event skipped, %d event(s) matched",
+                tvg_id,
+                stream_name[:32],
+                len(programs),
+                attempted,
+                skipped_non_event,
+                len(results),
+            )
         return results
 
     def _reconcile_epg(
@@ -680,6 +745,7 @@ class StreamMatcher:
         classified: ClassifiedStream,
         stream_id: int,
         target_date: date,
+        anchor_dt: "datetime | None" = None,
     ) -> MatchOutcome:
         """Match a team-vs-team stream."""
         # Determine effective stream timezone for date/time comparison
@@ -704,6 +770,7 @@ class StreamMatcher:
                 user_tz=self._user_tz,
                 sport_durations=self._sport_durations,
                 stream_tz=stream_tz,
+                anchor_dt=anchor_dt,
             )
         else:
             return self._team_matcher.match_multi_league(
@@ -717,6 +784,7 @@ class StreamMatcher:
                 sport_durations=self._sport_durations,
                 prefetched_events=self._prefetched_events,
                 stream_tz=stream_tz,
+                anchor_dt=anchor_dt,
             )
 
     def _match_team_only(
@@ -724,6 +792,7 @@ class StreamMatcher:
         classified: ClassifiedStream,
         stream_id: int,
         target_date: date,
+        anchor_dt: "datetime | None" = None,
     ) -> list[MatchOutcome]:
         """Match a single-team branded stream, returning one outcome per matched event."""
         stream_tz = self._stream_tz
@@ -744,6 +813,7 @@ class StreamMatcher:
             sport_durations=self._sport_durations,
             prefetched_events=self._prefetched_events,
             stream_tz=stream_tz,
+            anchor_dt=anchor_dt,
         )
 
     def _match_event_card(

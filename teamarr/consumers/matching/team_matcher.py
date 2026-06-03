@@ -36,6 +36,22 @@ from teamarr.utilities.fuzzy_match import get_matcher, normalize_text
 
 logger = logging.getLogger(__name__)
 
+# EPG anchored matching (bead t5e). A live broadcast's EPG program starts at ~the
+# event's official start; encores/replays/"classic" re-airs and the next game in a
+# series air later. When an anchor instant is supplied (the program's start), a
+# candidate event must fall within this tolerance of it to match — the definitive,
+# category-independent guard against binding a stream to an encore or the wrong
+# occurrence.
+#
+# 90 minutes (chosen 2026-06-03): a team-sport event always runs >90 min, so the
+# earliest an encore can START is >90 min after the live start — outside the gate.
+# Meanwhile ±90 min absorbs the usual broadcast-vs-scheduled-start skew (pre-game
+# lead-in). Tighter than an hours-wide window on purpose: it also excludes the
+# OTHER game of a same-day doubleheader (hours apart). Trade-off: if a provider's
+# guide lists the live program >90 min off the event start, that event simply gets
+# no EPG stream (safe no-match) rather than a wrong-occurrence bind.
+ANCHOR_MATCH_TOLERANCE_SECONDS = 90 * 60
+
 
 def _sport_hint_matches(sport_hint: str | list[str], event_sport: str) -> bool:
     """Check if a sport hint matches an event's sport.
@@ -69,6 +85,14 @@ class MatchContext:
     stream_tz: ZoneInfo | None = None  # TZ for stream dates
     team1: str | None = None  # Extracted team names (from classifier)
     team2: str | None = None
+
+    # EPG matching (bead t5e): absolute broadcast instant of the matched program.
+    # When set, same-team candidate events are ranked by absolute time proximity
+    # to this anchor (nearest wins, tolerance-bounded) instead of by calendar
+    # date — so a series game whose title repeats across nights, or a post-game
+    # encore airing, binds to the correct occurrence. The match cache is bypassed
+    # for anchored matches (same title, different instants must not collide).
+    anchor_dt: "datetime | None" = None
 
     # Sport durations for ongoing event detection (hours)
     sport_durations: dict[str, float] = field(default_factory=dict)
@@ -154,6 +178,7 @@ class TeamMatcher:
         user_tz: ZoneInfo,
         sport_durations: dict[str, float] | None = None,
         stream_tz: ZoneInfo | None = None,
+        anchor_dt: "datetime | None" = None,
     ) -> MatchOutcome:
         """Single-league matching - search only the specified league.
 
@@ -192,6 +217,7 @@ class TeamMatcher:
             team1=classified.team1,
             team2=classified.team2,
             sport_durations=sport_durations or {},
+            anchor_dt=anchor_dt,
         )
 
         # Check cache first
@@ -242,6 +268,7 @@ class TeamMatcher:
         sport_durations: dict[str, float] | None = None,
         prefetched_events: dict[str, list["Event"]] | None = None,
         stream_tz: ZoneInfo | None = None,
+        anchor_dt: "datetime | None" = None,
     ) -> MatchOutcome:
         """Multi-league matching with league hint detection.
 
@@ -289,6 +316,7 @@ class TeamMatcher:
             team1=classified.team1,
             team2=classified.team2,
             sport_durations=sport_durations or {},
+            anchor_dt=anchor_dt,
         )
 
         # Check cache first
@@ -381,6 +409,7 @@ class TeamMatcher:
         sport_durations: dict[str, float] | None = None,
         prefetched_events: dict[str, list[Event]] | None = None,
         stream_tz: ZoneInfo | None = None,
+        anchor_dt: "datetime | None" = None,
     ) -> list[MatchOutcome]:
         """Match a single-team branded stream (TEAM_ONLY) to all its events in the window.
 
@@ -479,6 +508,13 @@ class TeamMatcher:
         for league, event in all_events:
             if event.id in seen_event_ids:
                 continue
+
+            # EPG anchored matching (bead t5e): gate to the live occurrence near
+            # the program's broadcast instant (excludes encores / wrong night).
+            if anchor_dt is not None:
+                anchor_skew = abs((event.start_time - anchor_dt).total_seconds())
+                if anchor_skew > ANCHOR_MATCH_TOLERANCE_SECONDS:
+                    continue
             score, _side = self._score_single_team_against_event(team_norm, event)
             if score is None:
                 continue
@@ -522,6 +558,13 @@ class TeamMatcher:
         User-corrected entries are always trusted (pinned).
         Algorithmic entries are validated against date.
         """
+        # Anchored (EPG) matches are keyed only by title in the cache, but two
+        # programs with the same title (a series' Game 1/Game 2, or a live airing
+        # + its encore) must resolve to different events by their own instant.
+        # Skip the cache so each program is matched fresh against its anchor.
+        if ctx.anchor_dt is not None:
+            return None
+
         entry = self._cache.get(ctx.group_id, ctx.stream_id, ctx.stream_name)
         if not entry:
             return None
@@ -636,11 +679,22 @@ class TeamMatcher:
         best_is_future: bool = False  # Whether best match is today or future
         best_date_distance: int = 999  # Absolute days from target_date
         best_time_distance: int = 999999  # Seconds from stream time (for doubleheaders)
+        best_anchor_dist: int = 999999999  # Seconds from EPG anchor (bead t5e)
 
         for event in events:
             # Validate event is within search window (lifecycle handles exclusions)
             if not ctx.is_event_in_search_window(event):
                 continue
+
+            # EPG anchored matching (bead t5e): the candidate must air within the
+            # tolerance of the program's broadcast instant, else it is a different
+            # occurrence — an encore/replay or the next game in the series. This is
+            # the definitive, category-independent guard against encore binding.
+            anchor_dist = 0
+            if ctx.anchor_dt is not None:
+                anchor_dist = abs(int((event.start_time - ctx.anchor_dt).total_seconds()))
+                if anchor_dist > ANCHOR_MATCH_TOLERANCE_SECONDS:
+                    continue
 
             event_date = event.start_time.astimezone(ctx.user_tz).date()
 
@@ -698,12 +752,16 @@ class TeamMatcher:
                         int((event.start_time.astimezone(time_tz) - stream_dt).total_seconds())
                     )
 
-                # Ranking: score > time proximity > future over past > date proximity
+                # Ranking: score > time proximity > future over past > date proximity.
+                # For EPG anchored matches, nearest to the program instant wins
+                # outright (the encore/series guard already gated the candidates).
                 is_better = False
                 if score > best_confidence:
                     is_better = True
                 elif score == best_confidence:
-                    if time_distance < best_time_distance:
+                    if ctx.anchor_dt is not None:
+                        is_better = anchor_dist < best_anchor_dist
+                    elif time_distance < best_time_distance:
                         # Closer to stream time wins (doubleheader case)
                         is_better = True
                     elif time_distance == best_time_distance:
@@ -721,6 +779,7 @@ class TeamMatcher:
                     best_is_future = is_future
                     best_date_distance = abs_distance
                     best_time_distance = time_distance
+                    best_anchor_dist = anchor_dist
 
         if best_match:
             logger.debug(
@@ -808,11 +867,22 @@ class TeamMatcher:
         best_is_future: bool = False  # Whether best match is today or future
         best_date_distance: int = 999  # Absolute days from target_date
         best_time_distance: int = 999999  # Seconds from stream time (for doubleheaders)
+        best_anchor_dist: int = 999999999  # Seconds from EPG anchor (bead t5e)
 
         for league, event in events:
             # Validate event is within search window (lifecycle handles exclusions)
             if not ctx.is_event_in_search_window(event):
                 continue
+
+            # EPG anchored matching (bead t5e): the candidate must air within the
+            # tolerance of the program's broadcast instant, else it is a different
+            # occurrence — an encore/replay or the next game in the series. This is
+            # the definitive, category-independent guard against encore binding.
+            anchor_dist = 0
+            if ctx.anchor_dt is not None:
+                anchor_dist = abs(int((event.start_time - ctx.anchor_dt).total_seconds()))
+                if anchor_dist > ANCHOR_MATCH_TOLERANCE_SECONDS:
+                    continue
 
             event_date = event.start_time.astimezone(ctx.user_tz).date()
 
@@ -870,12 +940,16 @@ class TeamMatcher:
                         int((event.start_time.astimezone(time_tz) - stream_dt).total_seconds())
                     )
 
-                # Ranking: score > time proximity > future over past > date proximity
+                # Ranking: score > time proximity > future over past > date proximity.
+                # For EPG anchored matches, nearest to the program instant wins
+                # outright (the encore/series guard already gated the candidates).
                 is_better = False
                 if score > best_confidence:
                     is_better = True
                 elif score == best_confidence:
-                    if time_distance < best_time_distance:
+                    if ctx.anchor_dt is not None:
+                        is_better = anchor_dist < best_anchor_dist
+                    elif time_distance < best_time_distance:
                         # Closer to stream time wins (doubleheader case)
                         is_better = True
                     elif time_distance == best_time_distance:
@@ -893,6 +967,7 @@ class TeamMatcher:
                     best_confidence = score
                     best_is_future = is_future
                     best_date_distance = abs_distance
+                    best_anchor_dist = anchor_dist
                     best_time_distance = time_distance
 
         if best_match and best_league:

@@ -592,6 +592,19 @@ class ChannelLifecycleService:
                             epg_pre_buffer,
                             epg_post_buffer,
                         )
+                        if attach_at is not None:
+                            # Diagnostic for time-shared EPG streams: the window
+                            # that gates whether this stream is live right now.
+                            logger.debug(
+                                "[EPG_WINDOW] stream='%s' event=%s window=[%s .. %s] "
+                                "(pre=%dm post=%dm)",
+                                stream_name[:32],
+                                event_id,
+                                attach_at,
+                                detach_at,
+                                epg_pre_buffer,
+                                epg_post_buffer,
+                            )
 
                         # Check if event should be excluded based on timing
                         logger.debug(

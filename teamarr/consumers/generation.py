@@ -931,7 +931,7 @@ def _run_stream_audit(
     Logs any channels where the DB and Dispatcharr disagree on stream
     assignments. This is diagnostic-only — no changes are made.
     """
-    from teamarr.database.channels import get_all_managed_channels, get_channel_streams
+    from teamarr.database.channels import get_all_managed_channels, get_ordered_stream_ids
     from teamarr.dispatcharr.managers.channels import ChannelManager
 
     if not dispatcharr_client:
@@ -952,12 +952,11 @@ def _run_stream_audit(
             if not channel.dispatcharr_channel_id:
                 continue
 
-            db_streams = get_channel_streams(conn, channel.id)
-            db_stream_ids = sorted(
-                s.dispatcharr_stream_id
-                for s in db_streams
-                if getattr(s, "dispatcharr_stream_id", None)
-            )
+            # Window-gated active set (same set we actually push to Dispatcharr).
+            # Using the raw stream list here would false-flag time-shared EPG
+            # streams that are correctly out of their attach/detach window (183.5)
+            # as mismatches. Mirrors reconciliation's expected-set logic.
+            db_stream_ids = sorted(get_ordered_stream_ids(conn, channel.id))
 
             d_channel = channel_mgr.get_channel(channel.dispatcharr_channel_id)
             if not d_channel:
