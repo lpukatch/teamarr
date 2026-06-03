@@ -11,7 +11,10 @@ from datetime import UTC, datetime, timedelta, timezone
 import pytest
 
 from teamarr.consumers.lifecycle.timing import compute_stream_window
-from teamarr.database.channels.streams import get_ordered_stream_ids
+from teamarr.database.channels.streams import (
+    get_ordered_stream_ids,
+    update_stream_window,
+)
 
 BASE = datetime(2026, 6, 1, 18, 0, 0, tzinfo=UTC)
 
@@ -159,3 +162,52 @@ def test_priority_order_preserved(conn):
     _add(conn, 100, priority=0)
     _add(conn, 200, priority=1)
     assert get_ordered_stream_ids(conn, 1, now="2026-06-01 18:00:00") == [100, 200, 300]
+
+
+# ======================================================== update_stream_window (bead 095)
+
+
+def _window_of(conn, stream_id):
+    row = conn.execute(
+        "SELECT attach_at, detach_at FROM managed_channel_streams "
+        "WHERE dispatcharr_stream_id = ? AND removed_at IS NULL",
+        (stream_id,),
+    ).fetchone()
+    return (row["attach_at"], row["detach_at"])
+
+
+def test_update_window_recomputes_after_buffer_change(conn):
+    # Stream attached with an old (narrow) window; a buffer change widens it.
+    _add(conn, 200, attach_at="2026-06-01 17:00:00", detach_at="2026-06-01 21:00:00")
+    changed = update_stream_window(
+        conn, 1, 200, "2026-06-01 16:00:00", "2026-06-01 22:00:00"
+    )
+    assert changed is True
+    assert _window_of(conn, 200) == ("2026-06-01 16:00:00", "2026-06-01 22:00:00")
+
+
+def test_update_window_noop_when_unchanged(conn):
+    _add(conn, 200, attach_at="2026-06-01 17:00:00", detach_at="2026-06-01 21:00:00")
+    changed = update_stream_window(
+        conn, 1, 200, "2026-06-01 17:00:00", "2026-06-01 21:00:00"
+    )
+    assert changed is False  # null-safe equality guard: no row touched
+
+
+def test_update_window_ignores_removed_stream(conn):
+    _add(conn, 200, attach_at="2026-06-01 17:00:00", detach_at="2026-06-01 21:00:00",
+         removed_at="2026-06-01 17:30:00")
+    changed = update_stream_window(
+        conn, 1, 200, "2026-06-01 16:00:00", "2026-06-01 22:00:00"
+    )
+    assert changed is False
+
+
+def test_update_window_can_set_from_null(conn):
+    # A stream that was full-life (NULL) gains a real window on a later run.
+    _add(conn, 200)
+    changed = update_stream_window(
+        conn, 1, 200, "2026-06-01 17:00:00", "2026-06-01 21:00:00"
+    )
+    assert changed is True
+    assert _window_of(conn, 200) == ("2026-06-01 17:00:00", "2026-06-01 21:00:00")

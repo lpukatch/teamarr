@@ -882,6 +882,7 @@ class ChannelLifecycleService:
             mark_channel_deleted,
             remove_stream_from_channel,
             stream_exists_on_channel,
+            update_stream_window,
         )
 
         result = StreamProcessResult()
@@ -1028,6 +1029,17 @@ class ChannelLifecycleService:
                         "channel_id": existing.dispatcharr_channel_id,
                         "channel_name": existing.channel_name,
                     }
+                )
+            elif attach_at is not None and detach_at is not None:
+                # Stream already attached: recompute its EPG time-window from the
+                # fresh program slot + current buffers (183.5 / bead 095) so a
+                # buffer-setting change takes effect on the next run, not only at
+                # first attach. Guarded on a non-None window: don't clobber a
+                # full-life/name-matched stream (None,None) or wipe a window on a
+                # transient EPG miss. Reconciliation re-pushes if membership
+                # changed — no manual Dispatcharr update needed here.
+                update_stream_window(
+                    conn, existing.id, stream_id, attach_at, detach_at
                 )
 
             result.existing.append(

@@ -286,6 +286,51 @@ def update_stream_priority(
     return cursor.rowcount > 0
 
 
+def update_stream_window(
+    conn: Connection,
+    managed_channel_id: int,
+    dispatcharr_stream_id: int,
+    attach_at: str | None,
+    detach_at: str | None,
+) -> bool:
+    """Refresh the time-window (attach_at/detach_at) of an attached stream.
+
+    Used by epic teamarrv2-183.5 (bead teamarrv2-095): the window is recomputed
+    every generation run from the fresh EPG program slot + current buffers, so a
+    change to epg_stream_pre/post_buffer_minutes takes effect on already-attached
+    streams instead of only at first attach. Targets the active (not removed) row.
+
+    Returns True if a row was updated (i.e. the values actually changed), False
+    otherwise.
+    """
+    cursor = conn.execute(
+        """UPDATE managed_channel_streams
+           SET attach_at = ?, detach_at = ?
+           WHERE managed_channel_id = ?
+             AND dispatcharr_stream_id = ?
+             AND removed_at IS NULL
+             AND (attach_at IS NOT ? OR detach_at IS NOT ?)""",
+        (
+            attach_at,
+            detach_at,
+            managed_channel_id,
+            dispatcharr_stream_id,
+            attach_at,
+            detach_at,
+        ),
+    )
+    if cursor.rowcount > 0:
+        logger.debug(
+            "[WINDOW] Stream %d on channel %d window -> attach=%s detach=%s",
+            dispatcharr_stream_id,
+            managed_channel_id,
+            attach_at,
+            detach_at,
+        )
+        return True
+    return False
+
+
 def reorder_channel_streams(
     conn: Connection,
     managed_channel_id: int,
