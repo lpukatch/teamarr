@@ -80,6 +80,37 @@ class TestBasicRules:
 
 
 # ---------------------------------------------------------------------------
+# epg_match rule (epic 183 — EPG program-data matched streams)
+# ---------------------------------------------------------------------------
+
+
+class TestEPGMatch:
+    def _epg_stream(self, match_method):
+        return ManagedChannelStream(
+            id=1, managed_channel_id=1, dispatcharr_stream_id=1,
+            stream_name="ESPN", match_method=match_method,
+        )
+
+    def test_epg_match_matches_epg_method(self):
+        svc = StreamOrderingService([StreamOrderingRule("epg_match", "", 1)])
+        assert svc.compute_priority(self._epg_stream("epg")) == 1
+
+    def test_epg_match_ignores_other_methods(self):
+        svc = StreamOrderingService([StreamOrderingRule("epg_match", "", 1)])
+        assert svc.compute_priority(self._epg_stream("fuzzy")) == NO_MATCH_PRIORITY
+        assert svc.compute_priority(self._epg_stream(None)) == NO_MATCH_PRIORITY
+
+    def test_epg_match_with_catch_all_fallback(self):
+        rules = [
+            StreamOrderingRule("epg_match", "", 1),
+            StreamOrderingRule("catch_all", "", 50),
+        ]
+        svc = StreamOrderingService(rules)
+        assert svc.compute_priority(self._epg_stream("epg")) == 1
+        assert svc.compute_priority(self._epg_stream("fuzzy")) == 50
+
+
+# ---------------------------------------------------------------------------
 # catch_all fallback
 # ---------------------------------------------------------------------------
 

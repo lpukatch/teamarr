@@ -118,6 +118,7 @@ class ManagedChannelStream:
     m3u_account_name: str | None = None
     exception_keyword: str | None = None
     match_type: str = "event"
+    match_method: str | None = None  # 'epg', 'fuzzy', etc. — drives the epg_match ordering rule
     added_at: datetime | None = None
     removed_at: datetime | None = None
     # Time-windowed membership (epic teamarrv2-183.5). NULL = full-life.
@@ -139,6 +140,7 @@ class ManagedChannelStream:
             m3u_account_name=row.get("m3u_account_name"),
             exception_keyword=row.get("exception_keyword"),
             match_type=row.get("match_type", "event"),
+            match_method=row.get("match_method"),
             added_at=row.get("added_at"),
             removed_at=row.get("removed_at"),
             attach_at=row.get("attach_at"),

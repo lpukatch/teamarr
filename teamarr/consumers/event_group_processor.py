@@ -538,8 +538,13 @@ class EventGroupProcessor:
                 result.errors.append("No streams found in M3U group")
                 return result
 
-            # Convert DispatcharrStream objects to dict format
-            streams = [{"id": s.id, "name": s.name} for s in raw_streams]
+            # Convert DispatcharrStream objects to dict format. Carry tvg_id so
+            # EPG program matching (which resolves stream -> channel -> programs)
+            # is exercised in preview exactly as in a real generation run.
+            streams = [
+                {"id": s.id, "name": s.name, "tvg_id": s.tvg_id}
+                for s in raw_streams
+            ]
             result.total_streams = len(streams)
 
             # Step 2: Apply stream filtering
@@ -1458,33 +1463,57 @@ class EventGroupProcessor:
         """Build a scoped EPGProgramIndex for EPG matching, or None if disabled.
 
         Gated on: global switch + per-group opt-in + a connected Dispatcharr.
-        Scope discipline (183.3): fetch programs ONLY for the distinct tvg_ids
-        carried by this group's candidate streams — never the whole instance.
+
+        A raw M3U stream's tvg_id is usually a different namespace from EPG
+        program tvg_ids, so we resolve each candidate stream to its EPG-source
+        tvg_id via a cascade (direct tvg_id -> curated channel epg_data_id ->
+        strict name match; see epg_resolver). This does NOT require the stream to
+        be pre-built into an EPG-linked Dispatcharr channel. Programs are fetched
+        by the resolved tvg_id but indexed by the stream tvg_id for matcher
+        lookup.
         """
         if not (global_epg_match and group.epg_match_enabled):
             return None
         if not self._dispatcharr_client:
             return None
 
-        tvg_ids = {s.get("tvg_id") for s in streams if s.get("tvg_id")}
-        if not tvg_ids:
+        if not any(s.get("tvg_id") for s in streams):
             return None
 
         from datetime import datetime, time
 
         from teamarr.consumers.matching.epg_index import EPGProgramIndex
-        from teamarr.utilities.tz import to_utc
+        from teamarr.consumers.matching.epg_resolver import resolve_program_tvg_ids
+        from teamarr.utilities.tz import get_user_timezone, to_utc
+
+        # Resolve stream tvg_ids -> EPG-source tvg_ids. Needs the EPGData catalog
+        # (for direct + name matching) and the stream->channel map (for the
+        # curated channel fallback). Both are single scoped fetches.
+        try:
+            epg_data_list = self._dispatcharr_client.channels.get_epg_data_list()
+            stream_channels = self._dispatcharr_client.channels.get_stream_channel_map()
+        except Exception as e:
+            logger.warning("[EPG-MATCH] Failed to load EPG resolution data: %s", e)
+            return None
+
+        resolution, _stats = resolve_program_tvg_ids(streams, epg_data_list, stream_channels)
+        if not resolution:
+            logger.info(
+                "[EPG-MATCH] group=%s no candidate streams resolved to an EPG source", group.id
+            )
+            return None
 
         # Window mirrors the event match window so programs overlapping any
-        # candidate event are indexed.
-        day_start = datetime.combine(target_date, time.min)
+        # candidate event are indexed. Localize to the user's timezone before
+        # converting to UTC (to_utc rejects naive datetimes).
+        day_start = datetime.combine(target_date, time.min, tzinfo=get_user_timezone())
         window_start = to_utc(day_start - timedelta(days=match_days_back))
         window_end = to_utc(day_start + timedelta(days=match_days_ahead + 1))
 
         try:
             index = EPGProgramIndex.build(
                 self._dispatcharr_client.epg,
-                tvg_ids,
+                resolution,
                 window_start,
                 window_end,
             )
@@ -1536,6 +1565,11 @@ class EventGroupProcessor:
                             "feed_hint": result.feed_hint,  # "home", "away", or None
                             "match_type": (
                                 "team" if result.category == StreamCategory.TEAM_ONLY else "event"
+                            ),
+                            # How the stream matched ('epg', 'fuzzy', …) for the
+                            # epg_match stream-ordering rule.
+                            "match_method": (
+                                result.match_method.value if result.match_method else None
                             ),
                             # EPG time-windowing (183.5): program broadcast slot for
                             # MatchMethod.EPG matches; None for name matches (full-life).

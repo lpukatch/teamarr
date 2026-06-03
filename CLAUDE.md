@@ -259,6 +259,14 @@ All `update_channel` calls go through `_safe_update_channel`, which checks `Oper
 - `{sport}` and `{league}` wildcards
 - Auto-creates in Dispatcharr
 
+**EPG Program Matching** (epic `teamarrv2-183`, `teamarr/consumers/matching/epg_*.py`):
+- Matches static-named linear channels (ESPN, FS1) to events via Dispatcharr's program guide (`GET /api/epg/programs/search/`, feature-detected, Dispatcharr 0.24.0+), then time-shares one stream across many event channels (attach/detach window per program).
+- Opt-in: global `epg_match_enabled` (Settings → EPG, + attach/detach buffers) AND per-group `epg_match_enabled`. Per-group flag also sets `skip_builtin` so static names survive filtering.
+- `epg_resolver.py` bridges the stream `tvg_id` → program `tvg_id` namespace gap via a cascade: direct tvg_id → curated channel `epg_data_id` → strict name match (does NOT require an EPG-linked channel). `_Teamarr` source excluded.
+- `epg_index.py` fetches by resolved tvg_id, keys by stream tvg_id; `epg_matcher.py` routes program title+sub_title (pipe-joined) through `classify_stream → TeamMatcher`.
+- `MatchMethod.EPG` persisted to `managed_channel_streams.match_method` → drives the `epg_match` stream-ordering rule. EPG-matched groups show an "EPG Matched" badge.
+- Docs: `docs/guide/epg-matching.md`.
+
 ## Plans & Roadmap
 
 Feature planning lives in beads: `bd list --label roadmap`

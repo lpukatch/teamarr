@@ -579,6 +579,9 @@ class ChannelLifecycleService:
 
                         # Stream type tag ('event' or 'team') for ordering rules
                         match_type = matched.get("match_type", "event")
+                        # How the stream matched ('epg', 'fuzzy', …) for the
+                        # epg_match ordering rule.
+                        match_method = matched.get("match_method")
 
                         # Time-windowed membership (183.5): for EPG-matched linear
                         # streams, derive attach/detach from the program slot +/-
@@ -673,6 +676,7 @@ class ChannelLifecycleService:
                                 template=event_template,
                                 segment=segment,
                                 match_type=match_type,
+                                match_method=match_method,
                                 attach_at=attach_at,
                                 detach_at=detach_at,
                             )
@@ -752,6 +756,7 @@ class ChannelLifecycleService:
                             feed_team=feed_team,
                             feed_label_style=feed_label_style,
                             match_type=match_type,
+                            match_method=match_method,
                             attach_at=attach_at,
                             detach_at=detach_at,
                         )
@@ -858,6 +863,7 @@ class ChannelLifecycleService:
         template: dict | None,
         segment: str | None = None,
         match_type: str = "event",
+        match_method: str | None = None,
         attach_at: str | None = None,
         detach_at: str | None = None,
     ) -> StreamProcessResult | None:
@@ -959,6 +965,7 @@ class ChannelLifecycleService:
                     m3u_account_name=m3u_account_name,
                     source_group_id=source_group_id,
                     match_type=match_type,
+                    match_method=match_method,
                     attach_at=attach_at,
                     detach_at=detach_at,
                 )
@@ -1074,6 +1081,7 @@ class ChannelLifecycleService:
         feed_team=None,
         feed_label_style: str | None = None,
         match_type: str = "event",
+        match_method: str | None = None,
         attach_at: str | None = None,
         detach_at: str | None = None,
     ) -> ChannelCreationResult:
@@ -1238,6 +1246,7 @@ class ChannelLifecycleService:
                 m3u_account_name=group_config.get("m3u_account_name"),
                 source_group_id=group_id,
                 match_type=match_type,
+                match_method=match_method,
                 attach_at=attach_at,
                 detach_at=detach_at,
             )

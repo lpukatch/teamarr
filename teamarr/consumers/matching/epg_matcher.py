@@ -67,13 +67,16 @@ def classify_program_policy(categories: tuple[str, ...]) -> EPGMatchPolicy:
 def build_match_input(program: DispatcharrProgram) -> str:
     """Build the string fed to classify_stream for an EPG program.
 
-    Combines title + sub_title: the title gives league/sport context that helps
-    TeamMatcher disambiguate ("MLB" → baseball), the sub_title carries the
-    matchup. A generic title with no sub_title (e.g. "NHL Hockey") yields no
-    teams and self-rejects downstream — which is correct.
+    Joins title + sub_title with a pipe ("MLB Baseball | Cubs at Cardinals"):
+    real linear EPG puts the show/category in the title and the matchup in the
+    sub_title. The pipe lets classify_stream treat the leading segment as a
+    league/sport hint and strip it, so the matchup is extracted cleanly — a
+    plain space would fold the title into the first team ("MLB Baseball Cubs at
+    Cardinals" → team1="MLB Baseball Cubs"). A generic title with no sub_title
+    (e.g. "NHL Hockey") yields no teams and self-rejects downstream — correct.
     """
-    parts = [program.title or "", program.sub_title or ""]
-    return " ".join(p.strip() for p in parts if p and p.strip()).strip()
+    parts = [p.strip() for p in (program.title or "", program.sub_title or "") if p and p.strip()]
+    return " | ".join(parts)
 
 
 def should_attempt(program: DispatcharrProgram) -> bool:

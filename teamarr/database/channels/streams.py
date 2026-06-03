@@ -46,6 +46,7 @@ def add_stream_to_channel(
         "m3u_account_name",
         "exception_keyword",
         "match_type",
+        "match_method",  # how matched ('epg', 'fuzzy', …); drives the epg_match ordering rule
         "attach_at",   # time-windowed membership (183.5); None = full-life
         "detach_at",
     ]

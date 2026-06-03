@@ -259,6 +259,7 @@ const RULE_TYPES = [
   { value: "regex", label: "Regex Pattern", description: "Match streams by regex against stream name" },
   { value: "stream_type", label: "Stream Type", description: "Match by stream type: event stream or team stream" },
   { value: "team_feed", label: "Home/Away Feed", description: "Match streams that appear to be a team's own broadcast (home or away feed) for any enabled team" },
+  { value: "epg_match", label: "EPG Matched", description: "Match streams attached via EPG program-data matching (time-shared linear channels)" },
 ] as const
 
 const STREAM_TYPE_OPTIONS = [
@@ -275,14 +276,14 @@ function parseStreamTypeValue(value: string) {
   }
 }
 
-const NO_VALUE_TYPES = new Set(["team_feed", "not_team_feed", "catch_all"])
+const NO_VALUE_TYPES = new Set(["team_feed", "not_team_feed", "epg_match", "catch_all"])
 
 interface RuleFormData {
   // Stable client-side id so rows keep their identity across re-sorts.
   // Without this, keying by array index causes focus to follow DOM position
   // instead of the rule, breaking double-digit priority entry (#198).
   _id: number
-  type: "m3u" | "group" | "regex" | "stream_type" | "team_feed" | "not_team_feed" | "catch_all"
+  type: "m3u" | "group" | "regex" | "stream_type" | "team_feed" | "not_team_feed" | "epg_match" | "catch_all"
   value: string
   priority: number
 }
@@ -472,6 +473,10 @@ function RuleRow({
                 onChange={(ids) => onUpdate(index, { ...rule, value: ids.join(",") })}
               />
             </div>
+          ) : rule.type === "epg_match" ? (
+            <span className="text-sm text-muted-foreground italic">
+              No value needed — matches EPG-matched streams
+            </span>
           ) : (
             <Input
               value={rule.value}

@@ -181,6 +181,8 @@ class StreamOrderingService:
             return self._match_team_feed(stream, rule.value)
         elif rule.type == "not_team_feed":
             return self._match_not_team_feed(stream, rule.value)
+        elif rule.type == "epg_match":
+            return self._match_epg_match(stream)
         return False
 
     def _match_m3u(self, stream: ManagedChannelStream, account_name: str) -> bool:
@@ -245,6 +247,14 @@ class StreamOrderingService:
         if pattern is None:
             return False
         return not bool(pattern.search(stream.stream_name))
+
+    def _match_epg_match(self, stream: ManagedChannelStream) -> bool:
+        """Match streams attached via EPG program-data matching (epic 183).
+
+        EPG-matched (time-shared linear) streams carry match_method='epg'; name
+        matches carry other methods (fuzzy/cache/…) or None. No value needed.
+        """
+        return stream.match_method == "epg"
 
     def _match_stream_type(self, stream: ManagedChannelStream, rule_value: str) -> bool:
         """Match stream by type, with optional team filter (value may be 'team|key1,key2')."""

@@ -93,6 +93,7 @@ export function EventGroupImport() {
   const [bulkStreamTimezone, setBulkStreamTimezone] = useState<string | null>(null)
   const [bulkEnabled, setBulkEnabled] = useState(true)
   const [bulkTeamStreams, setBulkTeamStreams] = useState(false)
+  const [bulkEPGMatch, setBulkEPGMatch] = useState(false)
   const [bulkImporting, setBulkImporting] = useState(false)
 
   // Queries
@@ -224,6 +225,7 @@ export function EventGroupImport() {
           stream_timezone: bulkStreamTimezone,
           enabled: bulkEnabled,
           team_streams_enabled: bulkTeamStreams,
+          epg_match_enabled: bulkEPGMatch,
         },
       })
 
@@ -601,6 +603,18 @@ export function EventGroupImport() {
                     />
                     <span className="text-sm text-muted-foreground">
                       {bulkTeamStreams ? "Enabled" : "Disabled"}
+                    </span>
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-xs text-muted-foreground">EPG program matching</Label>
+                  <div className="flex items-center gap-2 h-9">
+                    <Switch
+                      checked={bulkEPGMatch}
+                      onCheckedChange={setBulkEPGMatch}
+                    />
+                    <span className="text-sm text-muted-foreground">
+                      {bulkEPGMatch ? "Enabled" : "Disabled"}
                     </span>
                   </div>
                 </div>

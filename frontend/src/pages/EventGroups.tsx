@@ -110,6 +110,8 @@ export function EventGroups() {
   const [bulkEditBypassPlayoffs, setBulkEditBypassPlayoffs] = useState(false)
   const [bulkEditTeamStreamsEnabled, setBulkEditTeamStreamsEnabled] = useState(false)
   const [bulkEditTeamStreams, setBulkEditTeamStreams] = useState(false)
+  const [bulkEditEPGMatchEnabled, setBulkEditEPGMatchEnabled] = useState(false)
+  const [bulkEditEPGMatch, setBulkEditEPGMatch] = useState(false)
   // Column sorting state
   type SortColumn = "name" | "matched" | "status" | null
   type SortDirection = "asc" | "desc"
@@ -442,6 +444,10 @@ export function EventGroups() {
 
     if (bulkEditTeamStreamsEnabled) {
       request.team_streams_enabled = bulkEditTeamStreams
+    }
+
+    if (bulkEditEPGMatchEnabled) {
+      request.epg_match_enabled = bulkEditEPGMatch
     }
 
     if (bulkEditTeamFilterEnabled) {
@@ -906,6 +912,16 @@ export function EventGroups() {
                                 Team Streams
                               </Badge>
                             )}
+                            {/* EPG Program Matching badge */}
+                            {group.epg_match_enabled && (
+                              <Badge
+                                variant="secondary"
+                                className="bg-violet-500/15 text-violet-400 border-violet-500/30 text-xs"
+                                title="EPG program matching: static-named linear channels matched to events via Dispatcharr's program guide"
+                              >
+                                EPG Matched
+                              </Badge>
+                            )}
                           </div>
                         </TableCell>
                     {/* Matched Column with Progress Bar */}
@@ -1253,6 +1269,28 @@ export function EventGroups() {
               )}
             </div>
 
+            {/* EPG Program Matching */}
+            <div className="space-y-2">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <Checkbox
+                  checked={bulkEditEPGMatchEnabled}
+                  onCheckedChange={(checked) => setBulkEditEPGMatchEnabled(!!checked)}
+                />
+                <span className="text-sm font-medium">EPG program matching</span>
+              </label>
+              {bulkEditEPGMatchEnabled && (
+                <div className="flex items-center gap-3 pl-6">
+                  <Switch
+                    checked={bulkEditEPGMatch}
+                    onCheckedChange={setBulkEditEPGMatch}
+                  />
+                  <span className="text-sm text-muted-foreground">
+                    {bulkEditEPGMatch ? "Enabled — match static-named linear channels to events via Dispatcharr's program guide (requires the global EPG matching switch)" : "Disabled"}
+                  </span>
+                </div>
+              )}
+            </div>
+
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowBulkEdit(false)}>
@@ -1260,7 +1298,7 @@ export function EventGroups() {
             </Button>
             <Button
               onClick={handleBulkEdit}
-              disabled={bulkUpdateMutation.isPending || !(bulkEditStreamTimezoneEnabled || bulkEditTeamFilterEnabled || bulkEditTeamStreamsEnabled)}
+              disabled={bulkUpdateMutation.isPending || !(bulkEditStreamTimezoneEnabled || bulkEditTeamFilterEnabled || bulkEditTeamStreamsEnabled || bulkEditEPGMatchEnabled)}
             >
               {bulkUpdateMutation.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
               Apply to {selectedIds.size} groups

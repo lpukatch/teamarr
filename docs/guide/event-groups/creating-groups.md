@@ -128,3 +128,11 @@ Toggle the group on/off without deleting it. Disabled groups are skipped during 
 ### Priority
 
 When multiple groups could match the same stream, higher priority groups are checked first. Lower numbers = higher priority.
+
+### Team Stream Source
+
+Allow team-branded streams (e.g. `NHL | Toronto Maple Leafs`) to match events where that team plays. Built-in stream filtering is automatically bypassed for this group.
+
+### EPG Program Matching
+
+Match static-named linear channels (e.g. `ESPN`, `FS1`, `NBA1`) in this group to events using Dispatcharr's program guide, and time-share one stream across many event channels near game time. Requires the global EPG switch (Settings → EPG). Built-in filtering is bypassed for this group. See [EPG Program Matching](../epg-matching.md) for the full guide.

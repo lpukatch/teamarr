@@ -39,27 +39,29 @@ def _epg_mgr(supported=True):
 # ============================================================== build / scope
 
 
-def test_build_scopes_one_call_per_distinct_tvg_id():
+def test_build_fetches_by_resolved_tvg_and_keys_by_stream_tvg():
     mgr = _epg_mgr()
     base = datetime(2026, 6, 1, 18, tzinfo=UTC)
     mgr.search_programs.side_effect = lambda tvg_id, **kw: [
         _prog(1, tvg_id, base, base + timedelta(hours=3))
     ]
 
+    # stream tvg_id -> resolved EPG-source tvg_id: fetched by resolved id,
+    # indexed by the stream tvg_id.
     idx = EPGProgramIndex.build(
         mgr,
-        # duplicates + an empty string — should be deduped/dropped
-        tvg_ids=["espn", "tnt", "espn", ""],
+        tvg_id_resolution={"FoxSports1.us": "82547", "ESPN.us": "12345"},
         window_start=base,
         window_end=base + timedelta(days=1),
     )
 
-    # one call per distinct non-empty tvg_id
+    # one call per resolved id, querying by the RESOLVED tvg_id (not stream's)
     assert mgr.search_programs.call_count == 2
-    called_tvgs = {c.kwargs["tvg_id"] for c in mgr.search_programs.call_args_list}
-    assert called_tvgs == {"espn", "tnt"}
+    called = {c.kwargs["tvg_id"] for c in mgr.search_programs.call_args_list}
+    assert called == {"82547", "12345"}
     assert idx.program_count() == 2
-    assert set(idx.tvg_ids()) == {"espn", "tnt"}
+    # keyed by the stream tvg_id so the matcher can look it up
+    assert set(idx.tvg_ids()) == {"FoxSports1.us", "ESPN.us"}
 
 
 def test_build_excludes_teamarr_programs():
@@ -70,7 +72,7 @@ def test_build_excludes_teamarr_programs():
         _prog(2, "espn", base, base + timedelta(hours=2), source="_Teamarr"),
     ]
 
-    idx = EPGProgramIndex.build(mgr, ["espn"], base, base + timedelta(days=1))
+    idx = EPGProgramIndex.build(mgr, {"espn": "espn"}, base, base + timedelta(days=1))
     assert idx.program_count() == 1
     assert idx.lookup("espn", base, base + timedelta(hours=1))[0].id == 1
 
@@ -78,15 +80,15 @@ def test_build_excludes_teamarr_programs():
 def test_build_unsupported_endpoint_returns_empty():
     mgr = _epg_mgr(supported=False)
     base = datetime(2026, 6, 1, tzinfo=UTC)
-    idx = EPGProgramIndex.build(mgr, ["espn"], base, base + timedelta(days=1))
+    idx = EPGProgramIndex.build(mgr, {"espn": "espn"}, base, base + timedelta(days=1))
     assert not idx
     mgr.search_programs.assert_not_called()
 
 
-def test_build_no_tvg_ids_returns_empty_without_probe():
+def test_build_no_resolution_returns_empty_without_probe():
     mgr = _epg_mgr()
     base = datetime(2026, 6, 1, tzinfo=UTC)
-    idx = EPGProgramIndex.build(mgr, ["", None], base, base + timedelta(days=1))
+    idx = EPGProgramIndex.build(mgr, {}, base, base + timedelta(days=1))
     assert not idx
     mgr.supports_program_search.assert_not_called()
     mgr.search_programs.assert_not_called()
@@ -98,7 +100,7 @@ def test_build_formats_window_as_utc_iso_z():
     # naive-ish aware window in a non-UTC tz to confirm conversion
     est = timezone(timedelta(hours=-5))
     start = datetime(2026, 6, 1, 19, tzinfo=est)  # 00:00Z next day
-    EPGProgramIndex.build(mgr, ["espn"], start, start + timedelta(hours=3))
+    EPGProgramIndex.build(mgr, {"espn": "espn"}, start, start + timedelta(hours=3))
     kw = mgr.search_programs.call_args.kwargs
     assert kw["end_after"] == "2026-06-02T00:00:00Z"
     assert kw["start_before"] == "2026-06-02T03:00:00Z"
@@ -115,7 +117,7 @@ def test_lookup_returns_only_overlapping_programs():
         _prog(2, "espn", base + timedelta(hours=4), base + timedelta(hours=6)),   # 04-06
         _prog(3, "espn", base + timedelta(hours=8), base + timedelta(hours=11)),  # 08-11
     ]
-    idx = EPGProgramIndex.build(mgr, ["espn"], base, base + timedelta(days=1))
+    idx = EPGProgramIndex.build(mgr, {"espn": "espn"}, base, base + timedelta(days=1))
 
     # event 02:00-05:00 overlaps programs 1 and 2, not 3
     hits = idx.lookup("espn", base + timedelta(hours=2), base + timedelta(hours=5))
@@ -128,7 +130,7 @@ def test_lookup_boundary_is_half_open():
     mgr.search_programs.return_value = [
         _prog(1, "espn", base, base + timedelta(hours=2)),  # 00-02
     ]
-    idx = EPGProgramIndex.build(mgr, ["espn"], base, base + timedelta(days=1))
+    idx = EPGProgramIndex.build(mgr, {"espn": "espn"}, base, base + timedelta(days=1))
 
     # event starting exactly at program end → no overlap
     assert idx.lookup("espn", base + timedelta(hours=2), base + timedelta(hours=4)) == []
@@ -146,7 +148,7 @@ def test_lookup_skips_programs_without_times():
         _prog(1, "espn", None, None),  # unparseable window
         _prog(2, "espn", base, base + timedelta(hours=3)),
     ]
-    idx = EPGProgramIndex.build(mgr, ["espn"], base, base + timedelta(days=1))
+    idx = EPGProgramIndex.build(mgr, {"espn": "espn"}, base, base + timedelta(days=1))
     # both indexed, but only the timed one is windowable
     assert idx.program_count() == 2
     hits = idx.lookup("espn", base, base + timedelta(hours=1))

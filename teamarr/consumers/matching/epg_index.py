@@ -16,7 +16,6 @@ and categories is the matcher's job (teamarrv2-183.4).
 """
 
 import logging
-from collections.abc import Iterable
 from datetime import UTC, datetime
 
 from teamarr.dispatcharr.managers.epg import EPGManager
@@ -51,36 +50,36 @@ class EPGProgramIndex:
     def build(
         cls,
         epg_manager: EPGManager,
-        tvg_ids: Iterable[str],
+        tvg_id_resolution: "dict[str, str]",
         window_start: datetime,
         window_end: datetime,
         exclude_teamarr: bool = True,
         page_size: int = 500,
     ) -> "EPGProgramIndex":
-        """Fetch and index programs for the given tvg_ids over a time window.
+        """Fetch and index programs per candidate stream over a time window.
+
+        A raw M3U stream's ``tvg_id`` (e.g. "FoxSports1.us") usually lives in a
+        different namespace from EPG program ``tvg_id`` values (the EPG source's
+        channel id, e.g. "82547"), so ``search_programs(tvg_id=<stream tvg>)``
+        returns nothing. The caller resolves each stream tvg_id to the EPG-source
+        tvg_id (see :mod:`epg_resolver`); we fetch by that resolved id but key
+        the index by the STREAM tvg_id so the matcher can look programs up by the
+        value carried on each stream dict.
 
         Args:
             epg_manager: Connected EPGManager (feature-detection handled inside).
-            tvg_ids: Distinct tvg_ids of candidate streams (deduped internally).
+            tvg_id_resolution: Map of stream ``tvg_id`` -> EPG-source ``tvg_id``.
             window_start: Start of the window to index (inclusive-ish).
             window_end: End of the window to index.
             exclude_teamarr: Drop programs from our own "_Teamarr" EPG source.
             page_size: Page size passed to the search endpoint.
 
         Returns:
-            An EPGProgramIndex. Empty if the endpoint is unsupported, no tvg_ids
-            were given, or nothing matched.
+            An EPGProgramIndex. Empty if the endpoint is unsupported, no
+            resolved tvg_ids were given, or nothing matched.
         """
-        # Distinct, non-empty tvg_ids only. Order-preserving for stable logs.
-        distinct: list[str] = []
-        seen: set[str] = set()
-        for t in tvg_ids:
-            if t and t not in seen:
-                seen.add(t)
-                distinct.append(t)
-
-        if not distinct:
-            logger.debug("[EPG-INDEX] No candidate tvg_ids; index empty")
+        if not tvg_id_resolution:
+            logger.debug("[EPG-INDEX] No resolved tvg_ids; index empty")
             return cls({})
 
         if not epg_manager.supports_program_search():
@@ -95,11 +94,13 @@ class EPGProgramIndex:
 
         by_tvg: dict[str, list[DispatcharrProgram]] = {}
         total = 0
-        for tvg in distinct:
-            # One call per tvg_id: the endpoint does not support multi-value
-            # tvg_id (comma list returns nothing; repeated param is last-wins).
+        for stream_tvg, program_tvg in tvg_id_resolution.items():
+            if not stream_tvg or not program_tvg:
+                continue
+            # One call per resolved EPG-source tvg_id (the endpoint does not
+            # support multi-value tvg_id). Key the result by the stream tvg_id.
             programs = epg_manager.search_programs(
-                tvg_id=tvg,
+                tvg_id=program_tvg,
                 start_before=end_iso,
                 end_after=start_iso,
                 page_size=page_size,
@@ -109,14 +110,14 @@ class EPGProgramIndex:
             if not programs:
                 continue
             programs.sort(key=lambda p: p.start_time or "")
-            by_tvg[tvg] = programs
+            by_tvg[stream_tvg] = programs
             total += len(programs)
 
         logger.info(
             "[EPG-INDEX] Indexed %d programs across %d/%d tvg_ids (window %s..%s)",
             total,
             len(by_tvg),
-            len(distinct),
+            len(tvg_id_resolution),
             start_iso,
             end_iso,
         )

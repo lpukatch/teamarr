@@ -4,6 +4,7 @@ Grounded in the live-probe findings: teams in sub_title, category gating with
 classic-replay precedence, and graceful fallback when categories are absent.
 """
 
+from teamarr.consumers.matching.classifier import StreamCategory, classify_stream
 from teamarr.consumers.matching.epg_matcher import (
     EPGMatchPolicy,
     build_match_input,
@@ -64,8 +65,10 @@ def test_category_matching_is_case_insensitive():
 
 
 def test_build_input_combines_title_and_subtitle():
+    # title + sub_title joined with a pipe so the title is treated as a
+    # league/sport hint and stripped, leaving a clean matchup for extraction.
     p = _prog("MLB Baseball", "Chicago Cubs at St. Louis Cardinals")
-    assert build_match_input(p) == "MLB Baseball Chicago Cubs at St. Louis Cardinals"
+    assert build_match_input(p) == "MLB Baseball | Chicago Cubs at St. Louis Cardinals"
 
 
 def test_build_input_generic_title_no_subtitle():
@@ -81,6 +84,21 @@ def test_build_input_strips_and_skips_empty():
 def test_build_input_empty_when_both_blank():
     p = _prog("", None)
     assert build_match_input(p) == ""
+
+
+def test_category_title_does_not_pollute_team_extraction():
+    """Regression: a show/category title must not fold into the first team.
+
+    Real linear EPG puts the category in title ("College Football") and the
+    matchup in sub_title ("Missouri at Auburn"). Pipe-joining lets the
+    classifier strip the title as a hint so teams extract cleanly — a plain
+    space gave team1="College Football Missouri".
+    """
+    p = _prog(title="College Football", sub_title="Missouri at Auburn")
+    classified = classify_stream(build_match_input(p), "team", None, None, None)
+    assert classified.category is StreamCategory.TEAM_VS_TEAM
+    assert classified.team1 == "Missouri"
+    assert classified.team2 == "Auburn"
 
 
 # =================================================================== combined

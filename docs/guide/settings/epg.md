@@ -103,3 +103,5 @@ Enable it **per Event Group** as well (Event Group settings → *EPG program mat
 
 {: .note }
 Requires a recent Dispatcharr build with the program-search endpoint (`/api/epg/programs/search/`). Older builds ignore the setting. Attach/detach precision is bounded by how often EPG generation runs.
+
+See the full [EPG Program Matching guide](../epg-matching.md) for how stream→guide resolution works (no manual EPG mapping needed), requirements, the **EPG Matched** badge and stream-ordering rule, and troubleshooting.

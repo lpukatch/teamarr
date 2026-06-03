@@ -1264,6 +1264,7 @@ CREATE TABLE IF NOT EXISTS managed_channel_streams (
         CHECK(source_group_type IN ('parent', 'child', 'cross_group')),
     match_type TEXT DEFAULT 'event'          -- 'event' (TEAM_VS_TEAM) or 'team' (TEAM_ONLY)
         CHECK(match_type IN ('event', 'team')),
+    match_method TEXT,                        -- how the stream was matched: 'epg', 'fuzzy', 'cache', etc. (drives the epg_match stream-ordering rule)
 
     -- Priority (0 = primary, higher = failover)
     priority INTEGER DEFAULT 0,

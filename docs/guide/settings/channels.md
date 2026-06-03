@@ -147,6 +147,7 @@ Configure priority rules for ordering streams within consolidated channels. When
 | **Regex Pattern** | Prioritize streams matching a regex | `(?i)1080p` = priority 1 |
 | **Stream Type** | Match by how the stream was matched: **event stream** or **team stream**. Optionally narrow a team-stream rule to specific teams. | "Team stream" → priority 3 |
 | **Home/Away Feed** | Match streams that look like a team's own broadcast (its home or away feed), detected from the stream name. Pick one or more teams. **Invert** flips it to match feeds that are *not* your selected teams (useful for pushing other teams' feeds to the back). | Selected teams → priority 1 |
+| **EPG Matched** | Match streams attached via [EPG program-data matching](../epg-matching.md) — i.e. time-shared linear channels (ESPN, FS1) matched to events through Dispatcharr's program guide. No value needed. | EPG matched → priority 1 |
 | **Everything Else** | Catch-all fallback applied to any stream not matched by the rules above. Always present and cannot be removed; set its priority to control where unmatched streams land. | Everything else → priority 99 |
 
 Lower priority numbers = higher priority. Rules are evaluated in order — the first matching rule determines the stream's priority.
