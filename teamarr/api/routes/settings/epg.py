@@ -28,6 +28,7 @@ def get_epg_settings():
         midnight_crossover_mode=settings.midnight_crossover_mode,
         cron_expression=settings.cron_expression,
         epg_match_enabled=settings.epg_match_enabled,
+        epg_xtream_fallback_enabled=settings.epg_xtream_fallback_enabled,
         epg_stream_pre_buffer_minutes=settings.epg_stream_pre_buffer_minutes,
         epg_stream_post_buffer_minutes=settings.epg_stream_post_buffer_minutes,
     )
@@ -62,6 +63,7 @@ def update_epg_settings(update: EPGSettingsModel):
             midnight_crossover_mode=update.midnight_crossover_mode,
             cron_expression=update.cron_expression,
             epg_match_enabled=update.epg_match_enabled,
+            epg_xtream_fallback_enabled=update.epg_xtream_fallback_enabled,
             epg_stream_pre_buffer_minutes=update.epg_stream_pre_buffer_minutes,
             epg_stream_post_buffer_minutes=update.epg_stream_post_buffer_minutes,
         )
@@ -88,6 +90,7 @@ def update_epg_settings(update: EPGSettingsModel):
         midnight_crossover_mode=settings.midnight_crossover_mode,
         cron_expression=settings.cron_expression,
         epg_match_enabled=settings.epg_match_enabled,
+        epg_xtream_fallback_enabled=settings.epg_xtream_fallback_enabled,
         epg_stream_pre_buffer_minutes=settings.epg_stream_pre_buffer_minutes,
         epg_stream_post_buffer_minutes=settings.epg_stream_post_buffer_minutes,
     )

@@ -171,6 +171,14 @@ CREATE TABLE IF NOT EXISTS settings (
     -- this global switch is on.
     epg_match_enabled BOOLEAN DEFAULT 0,
 
+    -- XC (Xtream) provider EPG fallback (epic teamarrv2-crs). Default OFF
+    -- (opt-in). EPG matching normally requires a valid stream-to-EPG mapping in
+    -- Dispatcharr (curated channel link or imported-guide name match). As a
+    -- backup, when a stream's M3U account is an Xtream panel, Teamarr can fetch
+    -- the provider's own xmltv.php independently and match against it. Costs a
+    -- (cached) provider-EPG download per XC account per run.
+    epg_xtream_fallback_enabled BOOLEAN DEFAULT 0,
+
     -- EPG stream time-windowing buffers (epic teamarrv2-183.5).
     -- SEPARATE from the channel create/delete buffers above: these apply to the
     -- attach/detach window of time-shared linear streams (EPG matching), so one

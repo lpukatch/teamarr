@@ -43,11 +43,22 @@ The program data comes from **Dispatcharr's own EPG sources** — the XMLTV guid
 
 | # | Strategy | When it applies |
 |---|----------|-----------------|
-| 1 | **Direct tvg_id** | Your M3U stream's `tvg-id` already matches an EPG-source channel id (namespace-aligned setups). |
-| 2 | **Channel mapping** | The stream is assigned to a Dispatcharr channel whose EPG is linked (`epg_data_id`). This is a *curated* mapping, so it outranks name matching. |
-| 3 | **Name match** | The stream's name matches an EPG channel's name exactly after normalization (stripping `HD`/`FHD`/`(US)` etc.). **Strict:** ambiguous names are skipped, so `ESPN` never resolves to `ESPN2`. |
+| 1 | **Channel mapping** | The stream is assigned to a Dispatcharr channel whose EPG is linked (`epg_data_id`). A *curated* mapping — the most trusted, so it wins outright. |
+| 2 | **Direct tvg_id** | Your M3U stream's `tvg-id` already matches an **active** imported EPG channel id (namespace-aligned setups). |
+| 3 | **Name match** | The stream's name matches an **active** imported EPG channel's name exactly after normalization (stripping `HD`/`FHD`/`(US)`, country prefixes like `US:`/`UK:`, etc.). **Strict:** ambiguous names are skipped, so `ESPN` never resolves to `ESPN2`. |
+| 4 | **Xtream (XC) provider EPG** | *Opt-in fallback.* For streams the above leave unmatched, when the group's M3U account is an Xtream Codes panel, Teamarr fetches the provider's **own** `xmltv.php` and matches against it. See [Xtream fallback](#xtream-xc-provider-epg-fallback). |
 
-Strategy 3 means EPG matching works on **raw stream groups** — you do **not** need to pre-build streams into Dispatcharr channels first. Teamarr's own generated EPG source (`_Teamarr`) is always excluded, so streams never match against Teamarr's own output.
+Strategies 2–3 match against your **active** imported EPG sources only (disabled sources and Teamarr's own `_Teamarr` output are excluded). They mean EPG matching works on **raw stream groups** — you do **not** need to pre-build streams into Dispatcharr channels first.
+
+### Xtream (XC) provider EPG fallback
+
+Strategies 1–3 require a valid stream-to-EPG mapping **inside Dispatcharr**. Many providers' channels — especially **regional sports networks** — have no guide in your imported sources, so they never match.
+
+As a backup, enable **Settings → EPG → "Fall back to Xtream (XC) provider EPG"**. When a group's M3U account is an Xtream Codes panel, Teamarr fetches that provider's own EPG (`{server}/xmltv.php`) directly and matches the still-unresolved streams against it. Because the provider's guide is **source-matched** to its own M3U, the stream `tvg-id` *is* the guide channel id — an exact match, no guessing.
+
+- **Off by default** (opt-in). It downloads the provider's guide once per XC account per generation (cached for several hours).
+- It only **fills gaps** — your curated Dispatcharr guide always takes priority.
+- Provider guides vary in quality; some carry the generic network schedule rather than the live sports override.
 
 ---
 
@@ -55,7 +66,7 @@ Strategy 3 means EPG matching works on **raw stream groups** — you do **not** 
 
 - **Dispatcharr with the program-search API** — `GET /api/epg/programs/search/`, **confirmed on Dispatcharr `0.24.0`**. Teamarr feature-detects this on connect; on older builds the feature simply stays off (the toggle has no effect), with no errors.
 - **A configured EPG source in Dispatcharr** whose guide covers your linear channels.
-- A stream resolvable to that guide by one of the three strategies above. Streams that resolve to nothing are left to normal name matching.
+- A stream resolvable to that guide by one of strategies 1–3 above — or, with the opt-in Xtream fallback, an XC provider whose own EPG covers it. Streams that resolve to nothing are left to normal name matching.
 
 {: .note }
 EPG matching is **opt-in and off by default** — both globally and per group.
@@ -124,7 +135,7 @@ Work down this list:
 
 1. **Both switches on?** Global (Settings → EPG) *and* per-group.
 2. **Program-search supported?** It needs a Dispatcharr build with `/api/epg/programs/search/` (0.24.0+). On older builds the feature is silently off.
-3. **Do the streams resolve to a guide?** They must match by direct tvg_id, a linked Dispatcharr channel, or an exact normalized name. Channels with no EPG source coverage can't match.
+3. **Do the streams resolve to a guide?** They must match by a linked Dispatcharr channel, direct tvg_id, or an exact normalized name against an **active** imported EPG. Channels with no EPG coverage can't match — unless the provider is Xtream and you enable the **XC provider EPG fallback** (Settings → EPG).
 4. **Is anything actually on?** Check the channel's guide — overnight/offseason slots are mostly replays and studio shows, which are skipped by design.
 5. **Are the leagues subscribed?** The program's game must map to an event in a league you follow.
 

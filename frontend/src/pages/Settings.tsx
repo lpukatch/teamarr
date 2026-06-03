@@ -2727,6 +2727,27 @@ export function Settings() {
                 </div>
               </div>
             )}
+            {epg?.epg_match_enabled && (
+              <div className="space-y-2 pt-1">
+                <div className="flex items-center gap-2">
+                  <Switch
+                    checked={epg?.epg_xtream_fallback_enabled ?? false}
+                    onCheckedChange={(checked) =>
+                      epg && setEPG({ ...epg, epg_xtream_fallback_enabled: checked })
+                    }
+                  />
+                  <Label>Fall back to Xtream (XC) provider EPG</Label>
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  EPG matching normally requires a valid stream-to-EPG mapping in Dispatcharr
+                  (a curated channel link or an imported-guide name match). As a backup, for
+                  Xtream Codes (XC) providers, Teamarr can independently fetch the provider's
+                  own EPG and match against it — covering channels Dispatcharr has no guide for
+                  (e.g. regional sports networks). Downloads the provider's guide once per XC
+                  account per run (cached).
+                </p>
+              </div>
+            )}
           </div>
 
           {/* Scheduled Generation */}

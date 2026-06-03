@@ -167,3 +167,29 @@ def test_categories_parsed_from_custom_properties():
         custom_properties={"categories": ["Sports", "Sports event", "Baseball"]},
     )
     assert p.categories == ("Sports", "Sports event", "Baseball")
+
+
+# ===================================================================== merge (crs)
+
+
+def test_merge_fills_gaps_and_keeps_existing():
+    base = datetime(2026, 6, 3, 20, tzinfo=UTC)
+    # Primary (DP) index already has tvg "A".
+    idx = EPGProgramIndex({"A": [_prog(1, "A", base, base + timedelta(hours=2), source="dp")]})
+    # Secondary (Xtream) source: a NEW tvg "B" plus a clashing "A".
+    secondary = {
+        "B": [_prog(-1, "B", base, base + timedelta(hours=2), source="_xtream")],
+        "A": [_prog(-2, "A", base, base + timedelta(hours=2), source="_xtream")],
+    }
+    added = idx.merge(secondary)
+    assert added == 1  # only B added; A is kept from the primary guide
+    assert set(idx.tvg_ids()) == {"A", "B"}
+    # A still the DP program (primary wins), B is the xtream one
+    assert idx.programs_for("A")[0].epg_source == "dp"
+    assert idx.programs_for("B")[0].epg_source == "_xtream"
+
+
+def test_merge_skips_empty_and_blank():
+    idx = EPGProgramIndex({})
+    assert idx.merge({"A": [], "": [object()], None: [object()]}) == 0
+    assert idx.tvg_ids() == []

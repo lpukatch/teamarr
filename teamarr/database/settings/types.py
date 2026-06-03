@@ -83,6 +83,8 @@ class EPGSettings:
     prepend_postponed_label: bool = True
     # EPG program-data matching (epic 183.6)
     epg_match_enabled: bool = False
+    # XC provider EPG fallback (epic crs) — opt-in backup when DP has no mapping
+    epg_xtream_fallback_enabled: bool = False
     epg_stream_pre_buffer_minutes: int = 60
     epg_stream_post_buffer_minutes: int = 60
 

@@ -38,16 +38,34 @@ _QUALITY_TOKENS = re.compile(
     re.IGNORECASE,
 )
 
+# Country / region grouping prefixes (bead yke). Many providers prefix every
+# stream with a country label and a delimiter — "US: ESPN FHD", "UK | Sky
+# Sports". Without stripping it, "US: ESPN" normalizes to "us espn" and never
+# matches the EPGData catalog's "espn", so name-cascade resolution collapses to
+# zero for such providers. We strip ONE leading <code> + (':' or '|') prefix.
+#
+# The delimiter is the safety anchor: "USA Network" (no delimiter) is left
+# intact so its identity "usa" survives, while "US: USA Network" -> "USA
+# Network". The allowlist keeps a stray "ESPN: …"-style title from being
+# mistaken for a region prefix.
+_REGION_PREFIX = re.compile(
+    r"^\s*(?:us|usa|uk|ca|au|nz|ie|ire|fr|de|es|it|nl|pt|be|ch|no|se|dk|fi|"
+    r"br|mx|ar|in|gr|al|tr|bg|cz|pl|ro|hu|hr|rs|eu|intl|latam|ex-?yu)\s*[:|]\s*",
+    re.IGNORECASE,
+)
+
 
 def normalize_channel_name(name: str) -> str:
     """Normalize a channel/EPG name for strict equality matching.
 
-    Lower-cases, drops parentheticals (e.g. "(US)"), strips quality tokens
-    (HD/FHD/UHD/4K/…), reduces punctuation to spaces, and collapses whitespace.
-    "Fox Sports 1 FHD" and "FS1 HD" intentionally do NOT collapse to the same
-    string — strict mode only unifies trivially-decorated variants.
+    Lower-cases, strips a leading country/region grouping prefix ("US: ", "UK |"),
+    drops parentheticals (e.g. "(US)"), strips quality tokens (HD/FHD/UHD/4K/…),
+    reduces punctuation to spaces, and collapses whitespace. "Fox Sports 1 FHD"
+    and "FS1 HD" intentionally do NOT collapse to the same string — strict mode
+    only unifies trivially-decorated variants.
     """
     n = (name or "").lower()
+    n = _REGION_PREFIX.sub("", n, count=1)  # drop leading "us: " / "uk | " grouping label
     n = re.sub(r"\(.*?\)", " ", n)  # drop "(US)", "(1080p)", etc.
     n = re.sub(r"[^a-z0-9]+", " ", n)  # punctuation -> space
     n = _QUALITY_TOKENS.sub(" ", n)
@@ -58,46 +76,68 @@ def resolve_program_tvg_ids(
     streams: list[dict],
     epg_data_list: list[dict],
     stream_channel_map: dict[int, dict],
+    active_source_ids: set[int] | None = None,
 ) -> tuple[dict[str, str], dict[str, int]]:
     """Map each candidate stream's ``tvg_id`` -> an EPG-source ``tvg_id``.
 
+    Precedence (most-trusted first), matching the intended resolution policy:
+
+    1. **channel** — the stream is assigned to a Dispatcharr channel with an
+       ``epg_data_id``. This is an explicit user/auto curation ("this stream IS
+       this guide channel"), so it is trusted unconditionally — even if the
+       linked EPG source is inactive (it simply yields no programs then).
+    2. **direct** — the stream ``tvg_id`` already equals an imported-EPG
+       ``tvg_id`` (namespace-aligned M3U + EPG). Exact id match.
+    3. **name** — the stream NAME maps to exactly one imported-EPG ``tvg_id``
+       after strict normalization. Ambiguous names (>1 tvg_id) are skipped so
+       "ESPN" never silently becomes "ESPN2".
+
+    Direct + name only consider the ACTIVE imported EPG (``active_source_ids``;
+    the caller passes the set of enabled EPG-source ids, excluding our own
+    ``_Teamarr``). When ``active_source_ids`` is None, the full catalog is used
+    (back-compat / unit tests). Streams left unresolved here are candidates for
+    the provider-EPG (Xtream) fallback, which the caller applies afterward.
+
     Args:
         streams: Candidate stream dicts (need ``id``, ``name``, ``tvg_id``).
-        epg_data_list: Dispatcharr EPGData rows (``id``, ``tvg_id``, ``name``).
+        epg_data_list: Dispatcharr EPGData rows (``id``, ``tvg_id``, ``name``,
+            ``epg_source``).
         stream_channel_map: ``stream id -> channel dict`` (``epg_data_id``).
+        active_source_ids: Enabled EPG-source ids for direct/name matching; None
+            uses every row.
 
     Returns:
         (resolution, stats) where ``resolution`` is ``{stream_tvg_id:
         program_tvg_id}`` and ``stats`` counts hits per strategy plus
         ``unresolved`` and ``ambiguous_name`` for logging/observability.
     """
-    epgdata_tvgids = {e["tvg_id"] for e in epg_data_list if e.get("tvg_id")}
+    # Channel curation is trusted against the FULL catalog (the user linked it).
     epgdata_by_id = {e["id"]: e for e in epg_data_list if e.get("id") is not None}
+
+    # Direct + name match only the ACTIVE imported EPG (honor enabled sources).
+    if active_source_ids is not None:
+        imported = [e for e in epg_data_list if e.get("epg_source") in active_source_ids]
+    else:
+        imported = epg_data_list
+    epgdata_tvgids = {e["tvg_id"] for e in imported if e.get("tvg_id")}
 
     # Normalized name -> set of distinct tvg_ids; >1 means ambiguous (skip).
     name_to_tvgids: dict[str, set[str]] = {}
-    for e in epg_data_list:
+    for e in imported:
         norm = normalize_channel_name(e.get("name") or "")
         tvg = e.get("tvg_id")
         if norm and tvg:
             name_to_tvgids.setdefault(norm, set()).add(tvg)
 
     resolution: dict[str, str] = {}
-    stats = {"direct": 0, "name": 0, "channel": 0, "unresolved": 0, "ambiguous_name": 0}
+    stats = {"channel": 0, "direct": 0, "name": 0, "unresolved": 0, "ambiguous_name": 0}
 
     for s in streams:
         s_tvg = s.get("tvg_id")
         if not s_tvg or s_tvg in resolution:
             continue
 
-        # 1. Direct: the stream tvg_id is already an EPG-source tvg_id.
-        if s_tvg in epgdata_tvgids:
-            resolution[s_tvg] = s_tvg
-            stats["direct"] += 1
-            continue
-
-        # 2. Channel: stream -> channel -> epg_data_id -> EPGData tvg_id. A
-        #    curated mapping, so it outranks the name heuristic below.
+        # 1. Channel (curated mapping — most trusted).
         ch = stream_channel_map.get(s.get("id"))
         if ch:
             eid = ch.get("effective_epg_data_id") or ch.get("epg_data_id")
@@ -107,8 +147,13 @@ def resolve_program_tvg_ids(
                 stats["channel"] += 1
                 continue
 
-        # 3. Name: strict, unambiguous normalized-name match (channel-free
-        #    fallback for streams not assigned to a channel).
+        # 2. Direct: the stream tvg_id is itself an active imported-EPG tvg_id.
+        if s_tvg in epgdata_tvgids:
+            resolution[s_tvg] = s_tvg
+            stats["direct"] += 1
+            continue
+
+        # 3. Name: strict, unambiguous normalized-name match.
         norm = normalize_channel_name(s.get("name") or "")
         candidates = name_to_tvgids.get(norm)
         if candidates:
@@ -121,9 +166,9 @@ def resolve_program_tvg_ids(
         stats["unresolved"] += 1
 
     logger.info(
-        "[EPG-RESOLVE] resolved %d stream tvg_ids (direct=%d name=%d channel=%d "
+        "[EPG-RESOLVE] resolved %d stream tvg_ids (channel=%d direct=%d name=%d "
         "ambiguous_name=%d unresolved=%d)",
-        len(resolution), stats["direct"], stats["name"], stats["channel"],
+        len(resolution), stats["channel"], stats["direct"], stats["name"],
         stats["ambiguous_name"], stats["unresolved"],
     )
     return resolution, stats

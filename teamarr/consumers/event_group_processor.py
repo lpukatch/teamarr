@@ -1374,6 +1374,7 @@ class EventGroupProcessor:
         with self._db_factory() as conn:
             row = conn.execute(
                 "SELECT include_final_events, epg_match_enabled, "
+                "epg_xtream_fallback_enabled, "
                 "event_match_days_back, event_match_days_ahead "
                 "FROM settings WHERE id = 1"
             ).fetchone()
@@ -1381,6 +1382,7 @@ class EventGroupProcessor:
                 bool(row["include_final_events"]) if row else False
             )
             global_epg_match = bool(row["epg_match_enabled"]) if row else False
+            xtream_fallback = bool(row["epg_xtream_fallback_enabled"]) if row else False
             match_days_back = (row["event_match_days_back"] if row else 7) or 7
             match_days_ahead = (row["event_match_days_ahead"] if row else 3) or 3
 
@@ -1396,7 +1398,7 @@ class EventGroupProcessor:
         # epg_index is None → matcher behaves exactly as before.
         epg_index = self._build_epg_index(
             group, streams, target_date, global_epg_match,
-            match_days_back, match_days_ahead,
+            match_days_back, match_days_ahead, xtream_fallback,
         )
 
         # Search all known leagues (broad match), include only subscribed.
@@ -1459,6 +1461,7 @@ class EventGroupProcessor:
         global_epg_match: bool,
         match_days_back: int,
         match_days_ahead: int,
+        xtream_fallback: bool = False,
     ):
         """Build a scoped EPGProgramIndex for EPG matching, or None if disabled.
 
@@ -1496,12 +1499,13 @@ class EventGroupProcessor:
             logger.warning("[EPG-MATCH] Failed to load EPG resolution data: %s", e)
             return None
 
-        resolution, _stats = resolve_program_tvg_ids(streams, epg_data_list, stream_channels)
-        if not resolution:
-            logger.info(
-                "[EPG-MATCH] group=%s no candidate streams resolved to an EPG source", group.id
-            )
-            return None
+        # Direct/name matching must only use the ACTIVE imported EPG (curated
+        # channel links are trusted regardless). _Teamarr (our own output) is
+        # excluded so we never resolve a stream to our generated guide.
+        active_source_ids = self._active_epg_source_ids()
+        resolution, _stats = resolve_program_tvg_ids(
+            streams, epg_data_list, stream_channels, active_source_ids=active_source_ids
+        )
 
         # Window mirrors the event match window so programs overlapping any
         # candidate event are indexed. Localize to the user's timezone before
@@ -1511,20 +1515,99 @@ class EventGroupProcessor:
         window_end = to_utc(day_start + timedelta(days=match_days_ahead + 1))
 
         try:
-            index = EPGProgramIndex.build(
-                self._dispatcharr_client.epg,
-                resolution,
-                window_start,
-                window_end,
+            index = (
+                EPGProgramIndex.build(
+                    self._dispatcharr_client.epg, resolution, window_start, window_end
+                )
+                if resolution
+                else EPGProgramIndex({})
             )
-            logger.info(
-                "[EPG-MATCH] group=%s indexed %d programs across %d tvg_ids",
-                group.id, index.program_count(), len(index.tvg_ids()),
-            )
-            return index
         except Exception as e:
             logger.warning("[EPG-MATCH] Failed to build EPG index for group %s: %s", group.id, e)
+            index = EPGProgramIndex({})
+
+        # Cascade layer 4 (epic crs): for streams the curated DP guide produced
+        # NO programs for (unresolved, or resolved to an empty mirror channel),
+        # fall back to the provider's OWN xmltv when the group's M3U account is
+        # Xtream. Source-matched, so the stream tvg_id IS the guide channel id.
+        # Opt-in via the global epg_xtream_fallback_enabled setting.
+        if xtream_fallback:
+            self._add_xtream_epg_fallback(index, group, streams, window_start, window_end)
+
+        if not index:
+            logger.info("[EPG-MATCH] group=%s no programs indexed (DP guide + xtream)", group.id)
             return None
+        logger.info(
+            "[EPG-MATCH] group=%s indexed %d programs across %d tvg_ids",
+            group.id, index.program_count(), len(index.tvg_ids()),
+        )
+        return index
+
+    def _active_epg_source_ids(self) -> set[int] | None:
+        """Enabled EPG-source ids for name/direct matching (excludes _Teamarr).
+
+        Returns None on failure so the resolver falls back to the full catalog
+        rather than matching nothing.
+        """
+        try:
+            sources = self._dispatcharr_client.client.paginated_get(
+                "/api/epg/sources/", error_context="epg sources"
+            )
+        except Exception as e:
+            logger.debug("[EPG-MATCH] active-source lookup failed: %s", e)
+            return None
+        active = {
+            s["id"]
+            for s in sources
+            if s.get("id") is not None and s.get("is_active") and s.get("name") != "_Teamarr"
+        }
+        return active or None
+
+    def _add_xtream_epg_fallback(self, index, group, streams, window_start, window_end) -> None:
+        """Fill EPG-index gaps from the group's Xtream provider's own xmltv (crs).
+
+        No-op unless the group's M3U account is an Xtream panel. Fetches the
+        provider's xmltv.php (cached) only for stream tvg_ids the DP guide left
+        without programs, and merges them in (the curated guide keeps priority).
+        Best-effort: any failure leaves the DP-built index untouched.
+        """
+        from teamarr.consumers.matching.epg_xtream import (
+            fetch_xtream_programs,
+            is_xtream_account,
+            xmltv_url,
+        )
+
+        account_id = getattr(group, "m3u_account_id", None)
+        if not account_id:
+            return
+        try:
+            resp = self._dispatcharr_client.client.get(f"/api/m3u/accounts/{account_id}/")
+            account = resp.json() if resp is not None and resp.status_code == 200 else None
+        except Exception as e:
+            logger.debug("[XTREAM-EPG] group=%s account fetch failed: %s", group.id, e)
+            return
+        if not is_xtream_account(account):
+            return
+
+        already = set(index.tvg_ids())
+        wanted = {s.get("tvg_id") for s in streams if s.get("tvg_id")} - already
+        if not wanted:
+            return
+
+        programs = fetch_xtream_programs(
+            xmltv_url(account),
+            cache_key=f"acct{account_id}",
+            wanted_tvg_ids=wanted,
+            window_start=window_start,
+            window_end=window_end,
+        )
+        if programs:
+            added = index.merge(programs)
+            logger.info(
+                "[XTREAM-EPG] group=%s account=%s filled %d tvg_ids (%d programs) "
+                "from provider xmltv for %d DP-unmatched streams",
+                group.id, account_id, len(programs), added, len(wanted),
+            )
 
     def _load_sport_durations_cached(self) -> dict[str, float]:
         """Load sport durations (cached for reuse within a run)."""

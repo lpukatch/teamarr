@@ -21,9 +21,24 @@ isolation. Orchestration (index lookup, TeamMatcher invocation, reconciliation
 with name matches, caching) lives in StreamMatcher.
 """
 
+import re
 from enum import Enum
 
 from teamarr.dispatcharr.types import DispatcharrProgram
+
+# Decoration characters some EPG feeds append to titles ("Mets at Mariners" +
+# superscript "Live"/"New" markers, e.g. U+1D38 U+1DA6 U+1D5B U+1D49). These
+# spacing-modifier / phonetic-superscript / super-subscript ranges are never
+# part of a team name, so we drop them before team extraction.
+_EPG_DECORATION = re.compile(
+    "[ʰ-˿ᴬ-ᵪᶠ-ᶿ⁰-₟]+"
+)
+
+# Inline matchup separators used by feeds that put the whole matchup in the
+# title with no sub_title ("MLB Baseball : Mets at Mariners", "… — …", "… – …").
+# Converting the FIRST one to the pipe boundary lets classify_stream treat the
+# leading league/category as a strippable hint, same as a real sub_title split.
+_INLINE_SEP = re.compile(r"\s+[:–—]\s+")
 
 # Category tokens (lowercased) that classify a program.
 _CLASSIC = "classic sport event"
@@ -74,9 +89,26 @@ def build_match_input(program: DispatcharrProgram) -> str:
     plain space would fold the title into the first team ("MLB Baseball Cubs at
     Cardinals" → team1="MLB Baseball Cubs"). A generic title with no sub_title
     (e.g. "NHL Hockey") yields no teams and self-rejects downstream — correct.
+
+    EPG sources are heterogeneous, so both segments are first stripped of feed
+    decorations (superscript "Live"/"New" markers). When there is no sub_title,
+    a matchup carried inline in the title with a colon/dash separator ("MLB
+    Baseball : Mets at Mariners") is split at that separator so the leading
+    league/category still becomes a strippable hint — matching the canonical
+    title|sub_title shape. Feeds that already split cleanly (no decorations, no
+    inline separator) are unaffected.
     """
-    parts = [p.strip() for p in (program.title or "", program.sub_title or "") if p and p.strip()]
+    title = _clean_epg_segment(program.title or "")
+    sub_title = _clean_epg_segment(program.sub_title or "")
+    if title and not sub_title:
+        title = _INLINE_SEP.sub(" | ", title, count=1)
+    parts = [p for p in (title, sub_title) if p]
     return " | ".join(parts)
+
+
+def _clean_epg_segment(text: str) -> str:
+    """Strip feed decoration chars and collapse whitespace in one EPG segment."""
+    return re.sub(r"\s+", " ", _EPG_DECORATION.sub(" ", text)).strip()
 
 
 def should_attempt(program: DispatcharrProgram) -> bool:

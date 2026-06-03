@@ -86,6 +86,41 @@ def test_build_input_empty_when_both_blank():
     assert build_match_input(p) == ""
 
 
+# ---- heterogeneous EPG formatting (epic crs.5) ----
+
+
+def test_build_input_splits_inline_colon_matchup():
+    # Xtream/Infinity style: whole matchup in the title with a " : " separator
+    # and no sub_title — split so the league prefix becomes a strippable hint.
+    p = _prog("MLB Baseball : New York Mets at Seattle Mariners", None)
+    assert build_match_input(p) == "MLB Baseball | New York Mets at Seattle Mariners"
+
+
+def test_build_input_strips_superscript_decorations():
+    # Trailing superscript "Live"/"New" markers must not pollute the last team.
+    p = _prog("MLB Baseball : New York Mets at Seattle Mariners ᴸᶦᵛᵉ", None)
+    assert build_match_input(p) == "MLB Baseball | New York Mets at Seattle Mariners"
+    p2 = _prog("WNBA Basketball", "Toronto Tempo at New York Liberty ᴺᵉʷ")
+    assert build_match_input(p2) == "WNBA Basketball | Toronto Tempo at New York Liberty"
+
+
+def test_build_input_inline_split_only_first_separator():
+    # Only the first separator becomes the hint boundary; later ones are left.
+    p = _prog("NBA : Game 1 : Knicks at Spurs", None)
+    assert build_match_input(p) == "NBA | Game 1 : Knicks at Spurs"
+
+
+def test_build_input_dash_separator_inline():
+    p = _prog("Premier League — Arsenal vs Chelsea", None)
+    assert build_match_input(p) == "Premier League | Arsenal vs Chelsea"
+
+
+def test_build_input_no_split_when_subtitle_present():
+    # A real title|sub_title split is authoritative; an in-title colon stays put.
+    p = _prog("MLB Baseball: Special", "Cubs at Cardinals")
+    assert build_match_input(p) == "MLB Baseball: Special | Cubs at Cardinals"
+
+
 def test_category_title_does_not_pollute_team_extraction():
     """Regression: a show/category title must not fold into the first team.
 

@@ -149,6 +149,25 @@ class EPGProgramIndex:
                 hits.append(p)
         return hits
 
+    # -------------------------------------------------------------- merge
+    def merge(self, programs_by_tvg: dict[str, list[DispatcharrProgram]]) -> int:
+        """Add programs for tvg_ids not already present, returning count added.
+
+        Folds in a secondary program source (an Xtream provider's own xmltv,
+        epic crs) AFTER the primary Dispatcharr-guide index is built. tvg_ids
+        already in the index are left untouched — the curated guide wins — so
+        this only fills gaps (streams DP produced no programs for, whether
+        unresolved or resolved to an empty mirror channel). Each added list is
+        sorted by start time to preserve build()'s invariant.
+        """
+        added = 0
+        for tvg, programs in programs_by_tvg.items():
+            if not tvg or not programs or tvg in self._by_tvg:
+                continue
+            self._by_tvg[tvg] = sorted(programs, key=lambda p: p.start_time or "")
+            added += len(self._by_tvg[tvg])
+        return added
+
     # ------------------------------------------------------------- accessors
     def programs_for(self, tvg_id: str) -> list[DispatcharrProgram]:
         """All indexed programs on a tvg_id (start-time order). Empty if none.
