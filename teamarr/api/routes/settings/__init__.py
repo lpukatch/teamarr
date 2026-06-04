@@ -122,6 +122,7 @@ def get_settings():
             midnight_crossover_mode=settings.epg.midnight_crossover_mode,
             cron_expression=settings.epg.cron_expression,
             epg_match_enabled=settings.epg.epg_match_enabled,
+            epg_xtream_fallback_enabled=settings.epg.epg_xtream_fallback_enabled,
             epg_stream_pre_buffer_minutes=settings.epg.epg_stream_pre_buffer_minutes,
             epg_stream_post_buffer_minutes=settings.epg.epg_stream_post_buffer_minutes,
         ),
