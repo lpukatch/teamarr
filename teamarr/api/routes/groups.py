@@ -510,7 +510,11 @@ def list_groups(
     from teamarr.dispatcharr import get_dispatcharr_connection
 
     with get_db() as conn:
-        groups = get_all_groups(conn, include_disabled=include_disabled)
+        # Hide the system-managed channel-source group (183.9) — it is controlled
+        # via Settings → EPG, not edited as a normal Event Group.
+        groups = get_all_groups(
+            conn, include_disabled=include_disabled, exclude_channel_source=True
+        )
 
         stats = {}
         if include_stats:

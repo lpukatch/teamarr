@@ -226,6 +226,7 @@ def update_epg_settings(conn: Connection, **kwargs) -> bool:
         "cron_expression": "cron_expression",
         "epg_match_enabled": "epg_match_enabled",
         "epg_xtream_fallback_enabled": "epg_xtream_fallback_enabled",
+        "epg_channel_source_enabled": "epg_channel_source_enabled",
         "epg_stream_pre_buffer_minutes": "epg_stream_pre_buffer_minutes",
         "epg_stream_post_buffer_minutes": "epg_stream_post_buffer_minutes",
     }

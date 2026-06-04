@@ -29,6 +29,7 @@ def get_epg_settings():
         cron_expression=settings.cron_expression,
         epg_match_enabled=settings.epg_match_enabled,
         epg_xtream_fallback_enabled=settings.epg_xtream_fallback_enabled,
+        epg_channel_source_enabled=settings.epg_channel_source_enabled,
         epg_stream_pre_buffer_minutes=settings.epg_stream_pre_buffer_minutes,
         epg_stream_post_buffer_minutes=settings.epg_stream_post_buffer_minutes,
     )
@@ -64,6 +65,7 @@ def update_epg_settings(update: EPGSettingsModel):
             cron_expression=update.cron_expression,
             epg_match_enabled=update.epg_match_enabled,
             epg_xtream_fallback_enabled=update.epg_xtream_fallback_enabled,
+            epg_channel_source_enabled=update.epg_channel_source_enabled,
             epg_stream_pre_buffer_minutes=update.epg_stream_pre_buffer_minutes,
             epg_stream_post_buffer_minutes=update.epg_stream_post_buffer_minutes,
         )
@@ -91,6 +93,7 @@ def update_epg_settings(update: EPGSettingsModel):
         cron_expression=settings.cron_expression,
         epg_match_enabled=settings.epg_match_enabled,
         epg_xtream_fallback_enabled=settings.epg_xtream_fallback_enabled,
+        epg_channel_source_enabled=settings.epg_channel_source_enabled,
         epg_stream_pre_buffer_minutes=settings.epg_stream_pre_buffer_minutes,
         epg_stream_post_buffer_minutes=settings.epg_stream_post_buffer_minutes,
     )

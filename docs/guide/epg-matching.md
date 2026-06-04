@@ -60,6 +60,18 @@ As a backup, enable **Settings → EPG → "Fall back to Xtream (XC) provider EP
 - It only **fills gaps** — your curated Dispatcharr guide always takes priority.
 - Provider guides vary in quality; some carry the generic network schedule rather than the live sports override.
 
+### Dispatcharr channels as an EPG source
+
+Normally each Event Group sources its candidate streams from an **M3U group** — so EPG matching considers *every* stream in that provider group. If you'd rather match only the channel versions you've **already curated in Dispatcharr**, enable **Settings → EPG → "Use Dispatcharr channels as an EPG source"**.
+
+When on, Teamarr adds a second, **additive** source that:
+
+- Enumerates the Dispatcharr **channels** you've mapped that carry an active, non-`_Teamarr` EPG link.
+- Takes the **streams assigned to each channel** as candidates, tagged with that **channel's own EPG** (strategy 1 — the most authoritative mapping).
+- Runs them through the same matching → channel-creation → time-window pipeline.
+
+It runs **alongside** your per-group M3U matching (not instead of it); matches are consolidated onto the same event channels by event identity. Teamarr's **own generated channels are excluded** — they're output, not input. The source is managed for you as a hidden system group ("Dispatcharr Channels") that appears in stats but not in the Event Groups list; created channels use your global/per-league channel-group, profile, and template defaults.
+
 ---
 
 ## Requirements

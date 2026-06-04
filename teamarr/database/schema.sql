@@ -179,6 +179,13 @@ CREATE TABLE IF NOT EXISTS settings (
     -- (cached) provider-EPG download per XC account per run.
     epg_xtream_fallback_enabled BOOLEAN DEFAULT 0,
 
+    -- EPG channel-source mode (epic teamarrv2-183.9). When enabled, an additional
+    -- system-managed source ("Dispatcharr Channels") feeds EPG matching from the
+    -- streams already assigned to curated Dispatcharr channels (using each
+    -- channel's own EPG), alongside the per-group M3U-group EPG matching. Teamarr's
+    -- own output channels are excluded (they are OUTPUT, not INPUT).
+    epg_channel_source_enabled BOOLEAN DEFAULT 0,
+
     -- EPG stream time-windowing buffers (epic teamarrv2-183.5).
     -- SEPARATE from the channel create/delete buffers above: these apply to the
     -- attach/detach window of time-shared linear streams (EPG matching), so one
@@ -507,6 +514,7 @@ CREATE TABLE IF NOT EXISTS event_epg_groups (
     bypass_filter_for_playoffs BOOLEAN,          -- NULL=use default, 0=disabled, 1=enabled (include all playoff games)
     team_streams_enabled BOOLEAN DEFAULT 0,      -- Allow team-branded streams (e.g. "NHL | Toronto Maple Leafs") to match events
     epg_match_enabled BOOLEAN DEFAULT 0,         -- (183.6) Use Dispatcharr EPG program data to match static-named linear streams (ESPN, NBA1) and time-window them. Requires global epg_match_enabled + a Dispatcharr build with /api/epg/programs/search/.
+    is_channel_source BOOLEAN DEFAULT 0,         -- (183.9) System-managed source group whose candidate streams come from curated Dispatcharr channels (their assigned streams + each channel's own EPG) instead of an M3U group. Auto-created/toggled by settings.epg_channel_source_enabled; hidden from the Event Groups UI.
 
     -- Processing Stats (updated by EPG generation)
     -- Three categories: FILTERED (pre-match), FAILED (match attempted), EXCLUDED (matched but excluded)

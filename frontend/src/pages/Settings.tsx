@@ -2731,6 +2731,26 @@ export function Settings() {
               <div className="space-y-2 pt-1">
                 <div className="flex items-center gap-2">
                   <Switch
+                    checked={epg?.epg_channel_source_enabled ?? false}
+                    onCheckedChange={(checked) =>
+                      epg && setEPG({ ...epg, epg_channel_source_enabled: checked })
+                    }
+                  />
+                  <Label>Use Dispatcharr channels as an EPG source</Label>
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  In addition to per-group M3U matching, pull candidate streams from the
+                  channels you've already curated in Dispatcharr — using each channel's own
+                  EPG to match its assigned streams to events. Lets you match only the channel
+                  versions you've mapped, instead of every stream in a provider group.
+                  Teamarr's own generated channels are excluded.
+                </p>
+              </div>
+            )}
+            {epg?.epg_match_enabled && (
+              <div className="space-y-2 pt-1">
+                <div className="flex items-center gap-2">
+                  <Switch
                     checked={epg?.epg_xtream_fallback_enabled ?? false}
                     onCheckedChange={(checked) =>
                       epg && setEPG({ ...epg, epg_xtream_fallback_enabled: checked })

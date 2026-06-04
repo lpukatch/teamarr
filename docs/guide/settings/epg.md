@@ -96,6 +96,7 @@ Traditional linear channels (ESPN, NBA1, FS1) carry many different games across 
 | Setting | Description |
 |---------|-------------|
 | **Match streams using Dispatcharr EPG data** | Global master switch (default off). Has no effect unless the connected Dispatcharr exposes the program-search API. |
+| **Use Dispatcharr channels as an EPG source** | Opt-in additive source (default off). Alongside per-group M3U matching, Teamarr pulls candidate streams from the channels you've already curated in Dispatcharr — using each channel's own linked EPG to match its assigned streams to events. Lets you match only the channel versions you've mapped instead of every stream in a provider group. Runs as a hidden system group ("Dispatcharr Channels"); Teamarr's own generated channels are excluded (they are output, not input). |
 | **Fall back to Xtream (XC) provider EPG** | Opt-in backup (default off). EPG matching normally needs a valid stream-to-EPG mapping in Dispatcharr; when on, for Xtream Codes (XC) M3U accounts Teamarr fetches the provider's own EPG and matches the still-unresolved streams against it — covering channels (e.g. regional sports networks) Dispatcharr has no guide for. Downloads the provider guide once per XC account per run (cached). |
 | **Attach before (minutes)** | How long before a program's start the stream attaches to the event channel. |
 | **Detach after (minutes)** | How long after a program's end the stream detaches. |

@@ -638,6 +638,26 @@ class EventGroupProcessor:
             del self._subscription_leagues_cache
 
         with self._db_factory() as conn:
+            # Sync the system-managed "Dispatcharr Channels" source group (183.9) to
+            # the global setting before loading groups. When enabled it joins the
+            # normal processing loop; when disabled it stays out and its channels are
+            # reaped by the disabled-group cleanup.
+            try:
+                from teamarr.database.groups import ensure_channel_source_group
+
+                _cs_row = conn.execute(
+                    "SELECT epg_match_enabled, epg_channel_source_enabled "
+                    "FROM settings WHERE id = 1"
+                ).fetchone()
+                _channel_source_on = bool(
+                    _cs_row
+                    and _cs_row["epg_match_enabled"]
+                    and _cs_row["epg_channel_source_enabled"]
+                )
+                ensure_channel_source_group(conn, _channel_source_on)
+            except Exception as e:
+                logger.warning("[CHANNEL_SOURCE] Failed to sync source group: %s", e)
+
             groups = get_all_groups(conn, include_disabled=False)
             total_groups = len(groups)
             processed_count = 0
@@ -1148,11 +1168,16 @@ class EventGroupProcessor:
     def _fetch_streams(self, group: EventEPGGroup) -> list[dict]:
         """Fetch M3U streams from Dispatcharr for the group.
 
-        Uses group's m3u_group_id to filter streams.
+        Uses group's m3u_group_id to filter streams. The system-managed
+        channel-source group (183.9) instead draws its candidates from the
+        streams curated onto Dispatcharr channels.
         """
         if not self._dispatcharr_client:
             logger.warning("[EVENT_EPG] Dispatcharr not configured - cannot fetch streams")
             return []
+
+        if getattr(group, "is_channel_source", False):
+            return self._fetch_channel_source_streams()
 
         try:
             m3u_manager = self._dispatcharr_client.m3u
@@ -1185,6 +1210,114 @@ class EventGroupProcessor:
         except Exception as e:
             logger.error("[EVENT_EPG] Failed to fetch streams: %s", e)
             return []
+
+    def _fetch_channel_source_streams(self) -> list[dict]:
+        """Build EPG-match candidates from streams curated onto Dispatcharr channels.
+
+        Epic 183.9. For each Dispatcharr channel that (a) carries an active,
+        non-``_Teamarr`` EPG link and (b) is NOT one of Teamarr's own managed
+        output channels, emit a candidate per assigned stream tagged with the
+        CHANNEL's own EPG ``tvg_id`` — so the existing resolver/index path matches
+        that channel's programs to events and attaches its streams. Teamarr's
+        channels are OUTPUT, not INPUT, so they are excluded.
+        """
+        client = self._dispatcharr_client
+        try:
+            stream_channel_map = client.channels.get_stream_channel_map()
+            epg_data_list = client.channels.get_epg_data_list()
+        except Exception as e:
+            logger.warning("[CHANNEL_SOURCE] Failed to load channel/EPG data: %s", e)
+            return []
+
+        active_source_ids = self._active_epg_source_ids()
+        epg_by_id = {e["id"]: e for e in epg_data_list if e.get("id") is not None}
+
+        # Teamarr's own managed channels are OUTPUT — never treat them as a source.
+        # Also collect the M3U group ids already covered by an EPG-match-enabled
+        # group: streams in those groups are matched by the per-group path (whose
+        # tier-1 resolution uses the same channel EPG), so including them here would
+        # double-process the identical match. Consolidation would dedupe the result
+        # anyway, but skipping avoids wasted work and inflated source-group stats.
+        managed_ids: set[int] = set()
+        epg_group_m3u_ids: set[int] = set()
+        try:
+            from teamarr.database.channels import get_all_managed_channels
+            from teamarr.database.groups import get_all_groups
+
+            with self._db_factory() as conn:
+                managed_ids = {
+                    mc.dispatcharr_channel_id
+                    for mc in get_all_managed_channels(conn, include_deleted=False)
+                    if mc.dispatcharr_channel_id
+                }
+                epg_group_m3u_ids = {
+                    g.m3u_group_id
+                    for g in get_all_groups(conn, include_disabled=False)
+                    if g.epg_match_enabled and not g.is_channel_source and g.m3u_group_id
+                }
+        except Exception as e:
+            logger.warning("[CHANNEL_SOURCE] Failed to load managed/group ids: %s", e)
+
+        # Stream detail (name, account) keyed by id — listed once.
+        try:
+            detail_by_id = {s.id: s for s in client.m3u.list_streams()}
+        except Exception as e:
+            logger.warning("[CHANNEL_SOURCE] Failed to list streams: %s", e)
+            detail_by_id = {}
+
+        candidates: list[dict] = []
+        seen: set[int] = set()
+        skipped_teamarr = 0
+        skipped_overlap = 0
+        for stream_id, ch in stream_channel_map.items():
+            if ch.get("id") in managed_ids:
+                skipped_teamarr += 1
+                continue
+            eid = ch.get("effective_epg_data_id") or ch.get("epg_data_id")
+            ed = epg_by_id.get(eid)
+            if not ed or not ed.get("tvg_id"):
+                continue
+            if active_source_ids is not None and ed.get("epg_source") not in active_source_ids:
+                continue
+            if stream_id in seen:
+                continue
+            detail = detail_by_id.get(stream_id)
+            # Dedupe: an EPG-match-enabled M3U group already handles this stream.
+            if (
+                epg_group_m3u_ids
+                and detail is not None
+                and getattr(detail, "channel_group_id", None) in epg_group_m3u_ids
+            ):
+                skipped_overlap += 1
+                continue
+            seen.add(stream_id)
+            candidates.append(
+                {
+                    "id": stream_id,
+                    "name": (getattr(detail, "name", None) if detail else None)
+                    or ch.get("name")
+                    or "",
+                    # Tag with the channel's own EPG tvg_id so resolve/index use its guide.
+                    "tvg_id": ed["tvg_id"],
+                    "tvg_name": getattr(detail, "tvg_name", None) if detail else None,
+                    "channel_group": getattr(detail, "channel_group", None) if detail else None,
+                    "channel_group_id": getattr(detail, "channel_group_id", None)
+                    if detail
+                    else None,
+                    "m3u_account_id": getattr(detail, "m3u_account_id", None) if detail else None,
+                    "is_stale": getattr(detail, "is_stale", False) if detail else False,
+                }
+            )
+
+        candidates.sort(key=lambda s: s["id"])
+        logger.info(
+            "[CHANNEL_SOURCE] built %d candidate stream(s) from curated DP channels "
+            "(excluded %d Teamarr-managed, %d already in EPG-match groups)",
+            len(candidates),
+            skipped_teamarr,
+            skipped_overlap,
+        )
+        return candidates
 
     def _filter_streams(
         self,

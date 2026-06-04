@@ -118,6 +118,8 @@ class EventEPGGroup:
     bypass_filter_for_playoffs: bool | None = None  # NULL=use default, True/False=override
     team_streams_enabled: bool = False
     epg_match_enabled: bool = False  # (183.6) opt this group into EPG program-data matching
+    # (183.9) system group sourcing candidates from curated Dispatcharr channels
+    is_channel_source: bool = False
     # Per-group subscription overrides (NULL = inherit global)
     subscription_leagues: list[str] | None = None
     subscription_soccer_mode: str | None = None
@@ -254,6 +256,9 @@ def _row_to_group(row) -> EventEPGGroup:
         epg_match_enabled=(
             bool(row["epg_match_enabled"]) if "epg_match_enabled" in row.keys() else False
         ),
+        is_channel_source=(
+            bool(row["is_channel_source"]) if "is_channel_source" in row.keys() else False
+        ),
         # Per-group subscription overrides
         subscription_leagues=(
             json.loads(row["subscription_leagues"])
@@ -312,24 +317,76 @@ def _row_to_group(row) -> EventEPGGroup:
 # =============================================================================
 
 
-def get_all_groups(conn: Connection, include_disabled: bool = False) -> list[EventEPGGroup]:
+def get_all_groups(
+    conn: Connection,
+    include_disabled: bool = False,
+    exclude_channel_source: bool = False,
+) -> list[EventEPGGroup]:
     """Get all event EPG groups.
 
     Args:
         conn: Database connection
         include_disabled: Include disabled groups
+        exclude_channel_source: Omit the system-managed channel-source group (183.9)
+            from the result. The UI list uses this so the auto-managed source does
+            not appear as a user-editable Event Group; processing leaves it False.
 
     Returns:
         List of EventEPGGroup objects
     """
-    if include_disabled:
-        cursor = conn.execute("SELECT * FROM event_epg_groups ORDER BY sort_order, name")
-    else:
-        cursor = conn.execute(
-            "SELECT * FROM event_epg_groups WHERE enabled = 1 ORDER BY sort_order, name"
-        )
+    clauses = []
+    if not include_disabled:
+        clauses.append("enabled = 1")
+    if exclude_channel_source:
+        clauses.append("COALESCE(is_channel_source, 0) = 0")
+    where = f"WHERE {' AND '.join(clauses)}" if clauses else ""
+    cursor = conn.execute(
+        f"SELECT * FROM event_epg_groups {where} ORDER BY sort_order, name"
+    )
 
     return [_row_to_group(row) for row in cursor.fetchall()]
+
+
+def ensure_channel_source_group(conn: Connection, enabled: bool) -> int:
+    """Idempotently create/sync the system-managed "Dispatcharr Channels" source group.
+
+    Epic 183.9: when the global ``epg_channel_source_enabled`` setting is on, EPG
+    matching also runs over streams curated onto Dispatcharr channels. That source
+    is modeled as a real (but hidden) event group so it reuses the full per-group
+    pipeline — matching, channel creation, XMLTV, and stats — with no FK hazards.
+
+    The group's ``enabled`` flag mirrors the setting, so disabling the toggle lets
+    the normal disabled-group cleanup remove its channels on the next run. Returns
+    the group id.
+    """
+    row = conn.execute(
+        "SELECT id FROM event_epg_groups WHERE is_channel_source = 1 LIMIT 1"
+    ).fetchone()
+
+    if row:
+        group_id = row["id"]
+        conn.execute(
+            "UPDATE event_epg_groups SET enabled = ?, epg_match_enabled = 1, "
+            "skip_builtin_filter = 1, team_streams_enabled = 1 WHERE id = ?",
+            (int(enabled), group_id),
+        )
+        conn.commit()
+        return group_id
+
+    group_id = create_group(
+        conn,
+        name="Dispatcharr Channels",
+        display_name="Dispatcharr Channels (EPG source)",
+        leagues=[],
+        duplicate_event_handling="consolidate",
+        epg_match_enabled=True,
+        team_streams_enabled=True,
+        skip_builtin_filter=True,
+        is_channel_source=True,
+        enabled=enabled,
+    )
+    conn.commit()
+    return group_id
 
 
 def get_group(conn: Connection, group_id: int) -> EventEPGGroup | None:
@@ -458,6 +515,7 @@ def create_group(
     skip_builtin_filter: bool = False,
     team_streams_enabled: bool = False,
     epg_match_enabled: bool = False,
+    is_channel_source: bool = False,
     # Team filtering
     include_teams: list[dict] | None = None,
     exclude_teams: list[dict] | None = None,
@@ -517,11 +575,11 @@ def create_group(
             custom_regex_league, custom_regex_league_enabled,
             custom_regex_fighters, custom_regex_fighters_enabled,
             custom_regex_event_name, custom_regex_event_name_enabled,
-            skip_builtin_filter, team_streams_enabled, epg_match_enabled,
+            skip_builtin_filter, team_streams_enabled, epg_match_enabled, is_channel_source,
             include_teams, exclude_teams, team_filter_mode,
             channel_sort_order, overlap_handling, enabled,
             subscription_leagues, subscription_soccer_mode, subscription_soccer_followed_teams
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",  # noqa: E501
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",  # noqa: E501
         (
             name,
             display_name,
@@ -562,6 +620,7 @@ def create_group(
             int(skip_builtin_filter),
             int(team_streams_enabled),
             int(epg_match_enabled),
+            int(is_channel_source),
             json.dumps(include_teams) if include_teams else None,
             json.dumps(exclude_teams) if exclude_teams else None,
             team_filter_mode,
