@@ -65,6 +65,32 @@ def compute_stream_window(
     )
 
 
+def is_stream_in_window(
+    attach_at: str | None,
+    detach_at: str | None,
+    now: str | None = None,
+) -> bool:
+    """Whether a time-windowed stream is active right now.
+
+    Mirrors the SQL gate in ``get_ordered_stream_ids``: a stream with no window
+    (``attach_at`` IS NULL — full-life, the default) is always active; otherwise
+    it is active only when ``attach_at <= now < detach_at``. All three values are
+    SQLite-native UTC strings ("YYYY-MM-DD HH:MM:SS"), which are lexicographically
+    comparable. ``now`` defaults to the current UTC instant.
+
+    Used by the channel-creation path so a brand-new channel whose sole source is
+    an out-of-window EPG stream is not pushed live to Dispatcharr before its
+    attach window opens (bead teamarrv2-uye).
+    """
+    if not attach_at:
+        return True
+    if now is None:
+        now = datetime.now(UTC).strftime(_SQLITE_UTC_FMT)
+    if not detach_at:
+        return now >= attach_at
+    return attach_at <= now < detach_at
+
+
 class ChannelLifecycleManager:
     """Manages event channel creation and deletion timing.
 

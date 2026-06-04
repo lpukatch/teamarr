@@ -10,7 +10,7 @@ from datetime import UTC, datetime, timedelta, timezone
 
 import pytest
 
-from teamarr.consumers.lifecycle.timing import compute_stream_window
+from teamarr.consumers.lifecycle.timing import compute_stream_window, is_stream_in_window
 from teamarr.database.channels.streams import (
     get_ordered_stream_ids,
     update_stream_window,
@@ -58,6 +58,52 @@ def test_window_buffers_apply_unclipped_through_overlap():
     attach, detach = compute_stream_window(start, end, 1440, 1440)
     assert attach == "2026-05-31 18:00:00"  # 24h before start, no clipping
     assert detach == "2026-06-02 20:00:00"  # 24h after end, no clipping
+
+
+# ============================================================ is_stream_in_window
+
+
+def test_in_window_null_attach_always_active():
+    # Full-life (name-matched) streams have no window → always active.
+    assert is_stream_in_window(None, None) is True
+    assert is_stream_in_window(None, "2026-06-01 21:00:00") is True
+
+
+def test_in_window_inside_slot():
+    assert (
+        is_stream_in_window(
+            "2026-06-01 17:00:00", "2026-06-01 21:00:00", now="2026-06-01 18:00:00"
+        )
+        is True
+    )
+
+
+def test_in_window_before_slot_excluded():
+    # The "Attach before" buffer: out-of-window before attach_at → inactive.
+    assert (
+        is_stream_in_window(
+            "2026-06-01 17:00:00", "2026-06-01 21:00:00", now="2026-06-01 16:59:00"
+        )
+        is False
+    )
+
+
+def test_in_window_after_slot_excluded():
+    assert (
+        is_stream_in_window(
+            "2026-06-01 17:00:00", "2026-06-01 21:00:00", now="2026-06-01 21:00:00"
+        )
+        is False
+    )
+
+
+def test_in_window_attach_boundary_inclusive():
+    assert (
+        is_stream_in_window(
+            "2026-06-01 17:00:00", "2026-06-01 21:00:00", now="2026-06-01 17:00:00"
+        )
+        is True
+    )
 
 
 # ======================================================== get_ordered_stream_ids gating

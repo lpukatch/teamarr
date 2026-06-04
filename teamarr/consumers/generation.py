@@ -830,20 +830,30 @@ def _apply_stream_ordering(
     from teamarr.database.settings import get_stream_ordering_settings
     from teamarr.services.stream_ordering import StreamOrderingService
 
-    reorder_result: dict = {"channels_reordered": 0, "streams_reordered": 0}
+    reorder_result: dict = {
+        "channels_reordered": 0,
+        "streams_reordered": 0,
+        "windows_synced": 0,
+    }
     try:
         with db_factory() as conn:
             ordering_settings = get_stream_ordering_settings(conn)
-            if not ordering_settings.rules:
-                logger.debug("[ORDERING] No stream ordering rules configured, skipping")
-                return reorder_result
-
-            ordering_service = StreamOrderingService(
-                rules=ordering_settings.rules, conn=conn
+            # No early return when rules are absent: time-windowed (EPG-matched)
+            # streams still need their membership synced each run so they attach
+            # when their window opens and detach when it closes (bead teamarrv2-uye).
+            ordering_service = (
+                StreamOrderingService(rules=ordering_settings.rules, conn=conn)
+                if ordering_settings.rules
+                else None
             )
-            logger.info(
-                "[ORDERING] Applying %d ordering rule(s)", len(ordering_settings.rules)
-            )
+            if ordering_service:
+                logger.info(
+                    "[ORDERING] Applying %d ordering rule(s)", len(ordering_settings.rules)
+                )
+            else:
+                logger.debug(
+                    "[ORDERING] No ordering rules configured; running window sync only"
+                )
 
             # Setup Dispatcharr channel manager once if available
             channel_mgr = None
@@ -867,36 +877,48 @@ def _apply_stream_ordering(
                     continue
 
                 reordered_count = 0
-                for stream in streams:
-                    new_priority = ordering_service.compute_priority(stream)
-                    if stream.priority != new_priority:
-                        update_stream_priority(conn, stream.id, new_priority)
-                        reordered_count += 1
+                if ordering_service:
+                    for stream in streams:
+                        new_priority = ordering_service.compute_priority(stream)
+                        if stream.priority != new_priority:
+                            update_stream_priority(conn, stream.id, new_priority)
+                            reordered_count += 1
 
                 if reordered_count > 0:
                     reorder_result["channels_reordered"] += 1
                     reorder_result["streams_reordered"] += reordered_count
 
-                    if channel_mgr and channel.dispatcharr_channel_id:
-                        ordered_ids = get_ordered_stream_ids(conn, channel.id)
-                        if ordered_ids:
-                            logger.info(
-                                "[STREAM_AUDIT] ordering: ch='%s' (d_id=%s) "
-                                "setting streams=%s count=%d",
-                                channel.channel_name,
-                                channel.dispatcharr_channel_id,
-                                ordered_ids,
-                                len(ordered_ids),
-                            )
-                            sync_result = channel_mgr.update_channel(
-                                channel.dispatcharr_channel_id, {"streams": ordered_ids}
-                            )
-                            if not sync_result.success:
-                                logger.warning(
-                                    "[ORDERING] Failed to sync channel %s to Dispatcharr: %s",
-                                    channel.channel_name,
-                                    sync_result.error,
-                                )
+                # Push the window-gated active set to Dispatcharr when priorities
+                # changed OR the channel has any time-windowed stream (whose
+                # membership flips as its attach/detach window opens and closes).
+                # An empty set IS pushed — a channel whose sole source is currently
+                # out-of-window must be cleared (it re-attaches on a later run).
+                has_windowed = any(s.attach_at for s in streams)
+                if (reordered_count > 0 or has_windowed) and (
+                    channel_mgr and channel.dispatcharr_channel_id
+                ):
+                    ordered_ids = get_ordered_stream_ids(conn, channel.id)
+                    if has_windowed:
+                        reorder_result["windows_synced"] += 1
+                    logger.info(
+                        "[STREAM_AUDIT] sync: ch='%s' (d_id=%s) setting streams=%s "
+                        "count=%d (reordered=%d windowed=%s)",
+                        channel.channel_name,
+                        channel.dispatcharr_channel_id,
+                        ordered_ids,
+                        len(ordered_ids),
+                        reordered_count,
+                        has_windowed,
+                    )
+                    sync_result = channel_mgr.update_channel(
+                        channel.dispatcharr_channel_id, {"streams": ordered_ids}
+                    )
+                    if not sync_result.success:
+                        logger.warning(
+                            "[ORDERING] Failed to sync channel %s to Dispatcharr: %s",
+                            channel.channel_name,
+                            sync_result.error,
+                        )
 
                 if (idx + 1) % 10 == 0 or idx == total_channels - 1:
                     pct = 93 + int(((idx + 1) / total_channels) * 2)
@@ -909,11 +931,13 @@ def _apply_stream_ordering(
                         channel.channel_name,
                     )
 
-            if reorder_result["channels_reordered"] > 0:
+            if reorder_result["channels_reordered"] > 0 or reorder_result["windows_synced"] > 0:
                 logger.info(
-                    "[ORDERING] Reordered %d streams across %d channels",
+                    "[ORDERING] Reordered %d streams across %d channels; "
+                    "window-synced %d channel(s)",
                     reorder_result["streams_reordered"],
                     reorder_result["channels_reordered"],
+                    reorder_result["windows_synced"],
                 )
     except Exception as e:
         logger.warning("[ORDERING] Stream ordering failed: %s", e)

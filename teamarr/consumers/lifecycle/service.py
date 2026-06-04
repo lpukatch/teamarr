@@ -16,7 +16,7 @@ from teamarr.core import Event
 from teamarr.templates import ContextBuilder, TemplateResolver
 
 from .dynamic_resolver import DynamicResolver
-from .timing import ChannelLifecycleManager, compute_stream_window
+from .timing import ChannelLifecycleManager, compute_stream_window, is_stream_in_window
 from .types import (
     ChannelCreationResult,
     CreateTiming,
@@ -1200,10 +1200,32 @@ class ChannelLifecycleService:
                     channel_name,
                     stream_profile_id,
                 )
+                # Window-gate the INITIAL stream membership (bead teamarrv2-uye).
+                # An EPG-matched linear stream carries an attach_at/detach_at slot;
+                # channel creation is event-anchored (create_threshold) and usually
+                # fires hours before the attach window opens. Pushing the stream
+                # live now would ignore the "Attach before" buffer — most visibly
+                # when this is the channel's ONLY source. Create with no streams
+                # when out-of-window; the per-run window sync attaches it once the
+                # window opens. Full-life (name-matched) streams have attach_at=None
+                # and are always included.
+                initial_stream_ids = (
+                    [stream_id] if is_stream_in_window(attach_at, detach_at) else []
+                )
+                if not initial_stream_ids:
+                    logger.info(
+                        "[EPG_WINDOW] ch='%s' event=%s: sole stream %s out of window "
+                        "[%s .. %s] at create — deferring attach until window opens",
+                        channel_name,
+                        event_id,
+                        stream_id,
+                        attach_at,
+                        detach_at,
+                    )
                 create_result = self._channel_manager.create_channel(
                     name=channel_name,
                     channel_number=channel_number,
-                    stream_ids=[stream_id],
+                    stream_ids=initial_stream_ids,
                     tvg_id=tvg_id,
                     channel_group_id=channel_group_id,
                     logo_id=dispatcharr_logo_id,
