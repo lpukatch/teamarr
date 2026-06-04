@@ -257,14 +257,16 @@ const RULE_TYPES = [
   { value: "m3u", label: "M3U Account", description: "Match streams by M3U account name" },
   { value: "group", label: "Event Group", description: "Match streams by event group name" },
   { value: "regex", label: "Regex Pattern", description: "Match streams by regex against stream name" },
-  { value: "stream_type", label: "Stream Type", description: "Match by stream type: event stream or team stream" },
+  { value: "stream_type", label: "Stream Type", description: "Match by how the stream was recognized: event, team, or EPG-matched (time-shared linear)" },
   { value: "team_feed", label: "Home/Away Feed", description: "Match streams that appear to be a team's own broadcast (home or away feed) for any enabled team" },
-  { value: "epg_match", label: "EPG Matched", description: "Match streams attached via EPG program-data matching (time-shared linear channels)" },
 ] as const
 
 const STREAM_TYPE_OPTIONS = [
   { value: "event", label: "Event stream" },
   { value: "team", label: "Team stream" },
+  // EPG-matched is a provenance peer of event/team (came via EPG-guide resolution).
+  // Selecting it stores the rule as backend type "epg_match" (see handleStreamTypeChange).
+  { value: "epg", label: "EPG matched stream" },
 ]
 
 function parseStreamTypeValue(value: string) {
@@ -289,6 +291,10 @@ interface RuleFormData {
 }
 
 const TEAM_FEED_FAMILY = new Set<RuleFormData["type"]>(["team_feed", "not_team_feed"])
+// stream_type and epg_match share one UI control (the Stream Type select). epg_match
+// is the backend type emitted when "EPG matched stream" is chosen — the outer rule-type
+// dropdown collapses both to "stream_type".
+const STREAM_TYPE_FAMILY = new Set<RuleFormData["type"]>(["stream_type", "epg_match"])
 
 function PriorityInput({
   value,
@@ -387,7 +393,13 @@ function RuleRow({
       <div className="flex-1 grid grid-cols-12 gap-2 items-center">
         <div className="col-span-2">
           <Select
-            value={TEAM_FEED_FAMILY.has(rule.type) ? "team_feed" : rule.type}
+            value={
+              TEAM_FEED_FAMILY.has(rule.type)
+                ? "team_feed"
+                : STREAM_TYPE_FAMILY.has(rule.type)
+                  ? "stream_type"
+                  : rule.type
+            }
             onChange={(e) => handleTypeChange(e.target.value as RuleFormData["type"])}
           >
             {RULE_TYPES.map(type => (
@@ -417,21 +429,25 @@ function RuleRow({
                 <option key={name} value={name}>{name}</option>
               ))}
             </Select>
-          ) : rule.type === "stream_type" ? (() => {
-            const { streamType, teamIds } = parseStreamTypeValue(rule.value)
+          ) : STREAM_TYPE_FAMILY.has(rule.type) ? (() => {
+            const isEpg = rule.type === "epg_match"
+            // epg_match carries no value; for stream_type parse event/team(+teams) out of value.
+            const { streamType, teamIds } = isEpg
+              ? { streamType: "epg", teamIds: [] as string[] }
+              : parseStreamTypeValue(rule.value)
+            const handleStreamTypeChange = (next: string) => {
+              // "epg" flips the backend type to epg_match (no value); event/team stay stream_type.
+              if (next === "epg") {
+                onUpdate(index, { ...rule, type: "epg_match", value: "" })
+              } else if (next === "team") {
+                onUpdate(index, { ...rule, type: "stream_type", value: teamIds.length ? `team|${teamIds.join(",")}` : "team" })
+              } else {
+                // "event" or empty: drop any team portion
+                onUpdate(index, { ...rule, type: "stream_type", value: next })
+              }
+            }
             const typeSelect = (
-              <Select
-                value={streamType}
-                onChange={(e) => {
-                  const next = e.target.value
-                  // Switching to event: drop team portion; to team: keep existing team ids
-                  if (next === "event") {
-                    onUpdate(index, { ...rule, value: "event" })
-                  } else {
-                    onUpdate(index, { ...rule, value: teamIds.length ? `team|${teamIds.join(",")}` : "team" })
-                  }
-                }}
-              >
+              <Select value={streamType} onChange={(e) => handleStreamTypeChange(e.target.value)}>
                 <option value="">Select stream type...</option>
                 {STREAM_TYPE_OPTIONS.map(opt => (
                   <option key={opt.value} value={opt.value}>{opt.label}</option>
@@ -473,10 +489,6 @@ function RuleRow({
                 onChange={(ids) => onUpdate(index, { ...rule, value: ids.join(",") })}
               />
             </div>
-          ) : rule.type === "epg_match" ? (
-            <span className="text-sm text-muted-foreground italic">
-              No value needed — matches EPG-matched streams
-            </span>
           ) : (
             <Input
               value={rule.value}

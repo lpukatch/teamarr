@@ -111,9 +111,9 @@ Groups with EPG matching enabled show a violet **EPG Matched** badge in the Even
 
 Use **Preview stream matches** on a group to see EPG matches before a real generation run — the preview exercises the same EPG path (it carries the stream `tvg_id` through to the matcher).
 
-### Stream ordering — the "EPG Matched" rule
+### Stream ordering — the "EPG matched stream" type
 
-In **Settings → Channels → Stream Ordering**, the **EPG Matched** rule type prioritizes streams that were attached via EPG matching (no value needed). Use it to push time-shared linear streams ahead of — or behind — name-matched streams within a consolidated channel. See [Channels settings](settings/channels.md#stream-ordering).
+In **Settings → Channels → Stream Ordering**, add a **Stream Type** rule and choose **EPG matched stream** to prioritize streams that were attached via EPG matching. Use it to push time-shared linear streams ahead of — or behind — name-matched (event/team) streams within a consolidated channel. See [Channels settings](settings/channels.md#stream-ordering).
 
 {: .note }
 The ordering rule reads a `match_method` tag stored on each attached stream. Streams attached *before* this feature existed carry no tag until they're re-matched on the next generation run, so the rule applies going forward.
@@ -144,6 +144,6 @@ Work down this list:
 ## Related
 
 - [EPG Settings](settings/epg.md) — the global switch and buffers
-- [Channels settings → Stream Ordering](settings/channels.md#stream-ordering) — the EPG Matched ordering rule
+- [Channels settings → Stream Ordering](settings/channels.md#stream-ordering) — the EPG matched stream ordering option
 - [Consumer layer architecture](../reference/architecture/consumer-layer.md#epg-title-matching-matchingepg_matcherpy-matchingepg_indexpy) — internals
 - [Dispatcharr layer architecture](../reference/architecture/dispatcharr-layer.md#program-data-search-epg-matching) — the program-search client
