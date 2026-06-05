@@ -57,27 +57,33 @@ import type { TeamFilterEntry } from "@/api/types"
 // Tab types - detection keyword categories plus team_aliases
 type TabType = CategoryType | "team_aliases"
 
-// Detection Library tabs: Classification concerns only
-// Extraction patterns (placeholders, card_segments, exclusions, separators)
-// moved to Custom Regex section in Event Group form
+// Detection Library tabs: classification concerns plus matchup separators.
+// Separators are global (detection_keywords category 'separators') and let users
+// teach the classifier locale-specific matchup delimiters — e.g. " - " for
+// "España - Inglaterra" — without us shipping risky defaults (a bare hyphen
+// over-splits English titles). The remaining extraction categories
+// (placeholders, card_segments, exclusions) aren't exposed as tabs yet; they
+// are managed via import/export or the API.
 const TAB_ORDER: TabType[] = [
   "team_aliases",
   "event_type_keywords",
   "league_hints",
   "sport_hints",
+  "separators",
 ]
 
-// Full mapping for type safety (includes categories shown in Custom Regex UI)
+// Full mapping for type safety. Categories not in TAB_ORDER above are not
+// surfaced in the UI yet (import/export or API only).
 const TAB_NAMES: Record<TabType, string> = {
   team_aliases: "Team Aliases",
   event_type_keywords: "Event Type Detection",
   league_hints: "League Hints",
   sport_hints: "Sport Hints",
-  // Extraction categories (shown in Custom Regex, not Detection Library)
+  separators: "Separators",
+  // Not yet exposed as tabs (managed via import/export or API)
   placeholders: "Placeholders",
   card_segments: "Card Segments",
   exclusions: "Combat Exclusions",
-  separators: "Separators",
 }
 
 /** Parse a sport hint target_value, which may be a JSON array or plain string. */
@@ -99,6 +105,16 @@ function serializeSportTarget(sports: string[]): string {
   if (sports.length === 0) return ""
   if (sports.length === 1) return sports[0]
   return JSON.stringify(sports)
+}
+
+/**
+ * Prepare a keyword for storage. Separators carry semantically meaningful
+ * leading/trailing spaces (" - ", " vs ") that keep substring matching from
+ * splitting mid-word, so they are preserved verbatim. Every other category is
+ * trimmed to drop accidental whitespace.
+ */
+function prepareKeyword(category: TabType, raw: string): string {
+  return category === "separators" ? raw : raw.trim()
 }
 
 export function DetectionLibrary() {
@@ -230,7 +246,7 @@ export function DetectionLibrary() {
       }
       const data: DetectionKeywordCreate = {
         category: activeTab as CategoryType,
-        keyword: formData.keyword.trim(),
+        keyword: prepareKeyword(activeTab, formData.keyword),
         is_regex: formData.is_regex,
         target_value: targetValue,
         enabled: formData.enabled,
@@ -273,7 +289,7 @@ export function DetectionLibrary() {
       await updateMutation.mutateAsync({
         id: editingKeyword.id,
         data: {
-          keyword: formData.keyword.trim(),
+          keyword: prepareKeyword(activeTab, formData.keyword),
           is_regex: formData.is_regex,
           target_value: targetValue,
           enabled: formData.enabled,
