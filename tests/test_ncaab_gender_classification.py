@@ -132,3 +132,47 @@ class TestEndToEndClassification:
         assert isinstance(result.league_hint, list)
         assert "mens-college-basketball" in result.league_hint
         assert "womens-college-basketball" in result.league_hint
+
+
+class TestSpanishGenderMarkers:
+    """Spanish/Portuguese gender markers narrow umbrella hints like English ones.
+
+    Non-English EPGs label gender as femenino/femenina/feminino (women) and
+    masculino/masculina (men), or the (F) marker — not Women/Men/(W).
+    """
+
+    PAIR = ["mens-college-basketball", "womens-college-basketball"]
+
+    def test_femenino_narrows_to_womens(self):
+        assert _narrow_by_gender(self.PAIR, "Fútbol Femenino: España vs Italia") == (
+            "womens-college-basketball"
+        )
+
+    def test_femenina_narrows_to_womens(self):
+        assert _narrow_by_gender(self.PAIR, "Liga Femenina") == "womens-college-basketball"
+
+    def test_portuguese_feminino_narrows_to_womens(self):
+        assert _narrow_by_gender(self.PAIR, "Brasil Feminino") == "womens-college-basketball"
+
+    def test_f_marker_narrows_to_womens(self):
+        assert _narrow_by_gender(self.PAIR, "España (F)") == "womens-college-basketball"
+
+    def test_masculino_narrows_to_mens(self):
+        assert _narrow_by_gender(self.PAIR, "Liga Masculina") == "mens-college-basketball"
+
+    def test_english_feminine_does_not_match(self):
+        # "feminine" lacks the trailing o/a, so it must not trigger women's.
+        assert _narrow_by_gender(self.PAIR, "Feminine Hygiene Show") == self.PAIR
+
+    def test_menorca_does_not_match_mens(self):
+        # "Men" inside "Menorca" must not trigger men's narrowing.
+        assert _narrow_by_gender(self.PAIR, "Menorca CF vs Ibiza") == self.PAIR
+
+    def test_strips_f_marker_from_team_name(self):
+        assert _clean_team_name("España (F)") == "España"
+
+    def test_strips_femenino_marker_from_team_name(self):
+        assert _clean_team_name("Boca (Femenino)") == "Boca"
+
+    def test_strips_masculino_marker_from_team_name(self):
+        assert _clean_team_name("Madrid (Masculino)") == "Madrid"

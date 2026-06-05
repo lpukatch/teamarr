@@ -773,9 +773,15 @@ def _clean_team_name(name: str) -> str:
     # Remove channel numbers like "(1)" or "[2]"
     name = re.sub(r"\s*[\(\[]\d+[\)\]]\s*$", "", name)
 
-    # Remove gender markers like (W), (M), (Women), (Men)
-    # Common in NCAAB streams: "LSU (W)", "Duke (M)"
-    name = re.sub(r"\s*\((?:W|M|Women|Men)\)", "", name, flags=re.IGNORECASE)
+    # Remove parenthetical gender markers: English (W)/(M)/(Women)/(Men) seen in
+    # NCAAB streams ("LSU (W)", "Duke (M)") and Spanish/Portuguese (F)/(Femenino)/
+    # (Masculino) seen in non-English feeds ("España (F)").
+    name = re.sub(
+        r"\s*\((?:W|M|F|Women|Men|Fem[ei]nin[oa]|Masculin[oa])\)",
+        "",
+        name,
+        flags=re.IGNORECASE,
+    )
 
     # Remove HD, SD, 4K, UHD quality indicators (at start or end)
     name = re.sub(r"^\s*\b(HD|SD|FHD|4K|UHD)\b\s*", "", name, flags=re.IGNORECASE)
@@ -922,10 +928,13 @@ def detect_league_hint(text: str) -> str | list[str] | None:
     return DetectionKeywordService.detect_league(text)
 
 
-# Gender keywords that indicate women's leagues
-_WOMENS_KEYWORDS = re.compile(r"\(W\)|\bWomen", re.IGNORECASE)
-# Gender keywords that indicate men's leagues
-_MENS_KEYWORDS = re.compile(r"\(M\)|\bMen(?:'s|s)?\b", re.IGNORECASE)
+# Gender keywords that indicate women's leagues. English (W)/Women plus
+# Spanish/Portuguese femenino/femenina/feminino/feminina and the (F) marker.
+# fem[ei]nin[oa] requires the trailing o/a so English "feminine" never matches.
+_WOMENS_KEYWORDS = re.compile(r"\(W\)|\(F\)|\bWomen|\bfem[ei]nin[oa]\b", re.IGNORECASE)
+# Gender keywords that indicate men's leagues. English (M)/Men plus
+# Spanish/Portuguese masculino/masculina ((M) already doubles as Masculino).
+_MENS_KEYWORDS = re.compile(r"\(M\)|\bMen(?:'s|s)?\b|\bmasculin[oa]\b", re.IGNORECASE)
 # Regex to identify gendered league codes
 _WOMENS_LEAGUE_RE = re.compile(r"\bwomens?\b", re.IGNORECASE)
 _MENS_LEAGUE_RE = re.compile(r"\bmens?\b", re.IGNORECASE)
@@ -936,9 +945,9 @@ def _narrow_by_gender(
 ) -> str | list[str]:
     """Narrow an umbrella league hint using gender markers in the stream name.
 
-    If the stream contains (W) or Women, keep only women's leagues.
-    If (M) or Men, keep only men's leagues.
-    If neither, return the full list.
+    If the stream contains a women's marker ((W), Women, (F), femenino/femenina),
+    keep only women's leagues. If a men's marker ((M), Men, masculino/masculina),
+    keep only men's leagues. If neither, return the full list.
 
     Examples:
         ["mens-college-basketball", "womens-college-basketball"] + "(W)"
