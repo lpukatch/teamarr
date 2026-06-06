@@ -85,6 +85,8 @@ class EPGSettings:
     epg_match_enabled: bool = False
     # XC provider EPG fallback (epic crs) — opt-in backup when DP has no mapping
     epg_xtream_fallback_enabled: bool = False
+    # How long a downloaded XC provider EPG is reused before re-fetching (hours)
+    epg_xtream_cache_hours: int = 24
     # Dispatcharr-channels as EPG source (epic 183.9) — additive source from curated channels
     epg_channel_source_enabled: bool = False
     epg_stream_pre_buffer_minutes: int = 60

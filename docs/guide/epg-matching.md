@@ -56,7 +56,7 @@ Strategies 1–3 require a valid stream-to-EPG mapping **inside Dispatcharr**. M
 
 As a backup, enable **Settings → EPG → "Fall back to Xtream (XC) provider EPG"**. When a group's M3U account is an Xtream Codes panel, Teamarr fetches that provider's own EPG (`{server}/xmltv.php`) directly and matches the still-unresolved streams against it. Because the provider's guide is **source-matched** to its own M3U, the stream `tvg-id` *is* the guide channel id — an exact match, no guessing.
 
-- **Off by default** (opt-in). It downloads the provider's guide once per XC account per generation (cached for several hours).
+- **Off by default** (opt-in). It downloads the provider's guide once per XC account and caches it on disk, re-fetching only when the cache is older than **Cache for (hours)** (default 24). Provider guides change slowly, so a long cache keeps generations fast.
 - It only **fills gaps** — your curated Dispatcharr guide always takes priority.
 - Provider guides vary in quality; some carry the generic network schedule rather than the live sports override.
 

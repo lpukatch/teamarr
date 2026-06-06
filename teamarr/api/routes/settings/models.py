@@ -208,6 +208,7 @@ class EPGSettingsModel(BaseModel):
     cron_expression: str = "0 * * * *"
     epg_match_enabled: bool = False
     epg_xtream_fallback_enabled: bool = False
+    epg_xtream_cache_hours: int = 24
     epg_channel_source_enabled: bool = False
     epg_stream_pre_buffer_minutes: int = 60
     epg_stream_post_buffer_minutes: int = 60

@@ -1507,7 +1507,7 @@ class EventGroupProcessor:
         with self._db_factory() as conn:
             row = conn.execute(
                 "SELECT include_final_events, epg_match_enabled, "
-                "epg_xtream_fallback_enabled, "
+                "epg_xtream_fallback_enabled, epg_xtream_cache_hours, "
                 "event_match_days_back, event_match_days_ahead "
                 "FROM settings WHERE id = 1"
             ).fetchone()
@@ -1516,6 +1516,7 @@ class EventGroupProcessor:
             )
             global_epg_match = bool(row["epg_match_enabled"]) if row else False
             xtream_fallback = bool(row["epg_xtream_fallback_enabled"]) if row else False
+            xtream_cache_hours = (row["epg_xtream_cache_hours"] if row else 24) or 24
             match_days_back = (row["event_match_days_back"] if row else 7) or 7
             match_days_ahead = (row["event_match_days_ahead"] if row else 3) or 3
 
@@ -1532,6 +1533,7 @@ class EventGroupProcessor:
         epg_index = self._build_epg_index(
             group, streams, target_date, global_epg_match,
             match_days_back, match_days_ahead, xtream_fallback,
+            xtream_cache_hours,
         )
 
         # Search all known leagues (broad match), include only subscribed.
@@ -1595,6 +1597,7 @@ class EventGroupProcessor:
         match_days_back: int,
         match_days_ahead: int,
         xtream_fallback: bool = False,
+        xtream_cache_hours: int = 24,
     ):
         """Build a scoped EPGProgramIndex for EPG matching, or None if disabled.
 
@@ -1665,7 +1668,9 @@ class EventGroupProcessor:
         # Xtream. Source-matched, so the stream tvg_id IS the guide channel id.
         # Opt-in via the global epg_xtream_fallback_enabled setting.
         if xtream_fallback:
-            self._add_xtream_epg_fallback(index, group, streams, window_start, window_end)
+            self._add_xtream_epg_fallback(
+                index, group, streams, window_start, window_end, xtream_cache_hours
+            )
 
         if not index:
             logger.info("[EPG-MATCH] group=%s no programs indexed (DP guide + xtream)", group.id)
@@ -1696,7 +1701,9 @@ class EventGroupProcessor:
         }
         return active or None
 
-    def _add_xtream_epg_fallback(self, index, group, streams, window_start, window_end) -> None:
+    def _add_xtream_epg_fallback(
+        self, index, group, streams, window_start, window_end, cache_hours: int = 24
+    ) -> None:
         """Fill EPG-index gaps from the group's Xtream provider's own xmltv (crs).
 
         No-op unless the group's M3U account is an Xtream panel. Fetches the
@@ -1733,6 +1740,7 @@ class EventGroupProcessor:
             wanted_tvg_ids=wanted,
             window_start=window_start,
             window_end=window_end,
+            ttl_seconds=max(1, cache_hours) * 3600,
         )
         if programs:
             added = index.merge(programs)

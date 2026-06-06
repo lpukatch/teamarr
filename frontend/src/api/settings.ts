@@ -56,6 +56,7 @@ export interface EPGSettings {
   cron_expression: string
   epg_match_enabled: boolean
   epg_xtream_fallback_enabled: boolean
+  epg_xtream_cache_hours: number
   epg_channel_source_enabled: boolean
   epg_stream_pre_buffer_minutes: number
   epg_stream_post_buffer_minutes: number

@@ -2763,9 +2763,31 @@ export function Settings() {
                   (a curated channel link or an imported-guide name match). As a backup, for
                   Xtream Codes (XC) providers, Teamarr can independently fetch the provider's
                   own EPG and match against it — covering channels Dispatcharr has no guide for
-                  (e.g. regional sports networks). Downloads the provider's guide once per XC
-                  account per run (cached).
+                  (e.g. regional sports networks). The provider's guide is cached on disk per XC
+                  account and only re-downloaded when older than the cache duration below.
                 </p>
+                {epg?.epg_xtream_fallback_enabled && (
+                  <div className="max-w-xs pt-1">
+                    <Label htmlFor="epg-xtream-cache">Cache for (hours)</Label>
+                    <Input
+                      id="epg-xtream-cache"
+                      type="number"
+                      min={1}
+                      value={epg?.epg_xtream_cache_hours ?? 24}
+                      onChange={(e) =>
+                        epg &&
+                        setEPG({
+                          ...epg,
+                          epg_xtream_cache_hours: parseInt(e.target.value) || 1,
+                        })
+                      }
+                    />
+                    <p className="text-xs text-muted-foreground pt-1">
+                      How long to reuse a downloaded XC guide before fetching it again.
+                      Provider guides change slowly; 24h is a good default.
+                    </p>
+                  </div>
+                )}
               </div>
             )}
           </div>

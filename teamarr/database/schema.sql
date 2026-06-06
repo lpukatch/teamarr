@@ -178,6 +178,10 @@ CREATE TABLE IF NOT EXISTS settings (
     -- the provider's own xmltv.php independently and match against it. Costs a
     -- (cached) provider-EPG download per XC account per run.
     epg_xtream_fallback_enabled BOOLEAN DEFAULT 0,
+    -- How long a downloaded XC provider EPG is reused before re-fetching (hours).
+    -- The provider's xmltv.php is cached on disk per M3U account; a re-download
+    -- happens only when the cache is older than this. Default 24h.
+    epg_xtream_cache_hours INTEGER DEFAULT 24,
 
     -- EPG channel-source mode (epic teamarrv2-183.9). When enabled, an additional
     -- system-managed source ("Dispatcharr Channels") feeds EPG matching from the
