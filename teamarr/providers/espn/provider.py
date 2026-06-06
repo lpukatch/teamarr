@@ -53,6 +53,13 @@ class ESPNProvider(UFCParserMixin, TournamentParserMixin, SportsProvider):
         if self._league_mapping_source:
             if self._league_mapping_source.supports_league(league, "espn"):
                 return True
+            # If the league is configured in the leagues table for a DIFFERENT
+            # provider, honor that — don't let the dotted-soccer heuristic below
+            # override an explicit assignment (e.g. uru.2 → tsdb, whose ESPN data
+            # is stale). Discovered soccer leagues aren't in the leagues table, so
+            # this guard never blocks genuine dynamic discovery (#218).
+            if self._league_mapping_source.get_mapping_by_league(league) is not None:
+                return False
         # Soccer leagues use dot notation - can be discovered dynamically
         if "." in league:
             return True
