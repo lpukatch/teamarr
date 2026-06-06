@@ -145,6 +145,48 @@ def test_keeps_streams_in_non_epg_group(monkeypatch):
     assert [s["id"] for s in out] == [500]
 
 
+def _two_group_processor(monkeypatch):
+    # Channel 100 in DP group 7 (US Sports), channel 101 in group 9 (UK Sports).
+    return _make_processor(
+        stream_channel_map={
+            500: {"id": 100, "epg_data_id": 1, "name": "ESPN",
+                  "channel_group_id": 7, "channel_group_name": "US Sports"},
+            501: {"id": 101, "epg_data_id": 1, "name": "FS1",
+                  "channel_group_id": 9, "channel_group_name": "UK Sports"},
+        },
+        epg_data_list=[{"id": 1, "tvg_id": "ESPN.us", "epg_source": 10}],
+        streams=[_stream(500, "ESPN HD"), _stream(501, "FS1 HD")],
+        managed=[],
+        epg_groups=[],
+        monkeypatch=monkeypatch,
+    )
+
+
+def test_scopes_candidates_to_selected_dp_groups(monkeypatch):
+    # Only DP group 7 is selected → only its channel's stream is a candidate (ybt.2).
+    proc = _two_group_processor(monkeypatch)
+    monkeypatch.setattr(
+        "teamarr.database.settings.get_epg_settings",
+        lambda conn: SimpleNamespace(epg_channel_source_groups=[7]),
+    )
+    out = proc._fetch_channel_source_streams()
+    assert [s["id"] for s in out] == [500]
+    # The DP channel group is stashed for the ordering rule (ybt.3).
+    assert out[0]["dp_channel_group_id"] == 7
+    assert out[0]["dp_channel_group"] == "US Sports"
+
+
+def test_empty_selection_includes_all_groups(monkeypatch):
+    # Back-compat: empty selection = include all DP groups.
+    proc = _two_group_processor(monkeypatch)
+    monkeypatch.setattr(
+        "teamarr.database.settings.get_epg_settings",
+        lambda conn: SimpleNamespace(epg_channel_source_groups=[]),
+    )
+    out = proc._fetch_channel_source_streams()
+    assert sorted(s["id"] for s in out) == [500, 501]
+
+
 @pytest.fixture
 def db(tmp_path: Path):
     db_path = tmp_path / "t.db"

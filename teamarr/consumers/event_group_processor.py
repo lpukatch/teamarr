@@ -1240,9 +1240,14 @@ class EventGroupProcessor:
         # anyway, but skipping avoids wasted work and inflated source-group stats.
         managed_ids: set[int] = set()
         epg_group_m3u_ids: set[int] = set()
+        # User-selected DP channel groups to scope the scan (ybt.2). Empty = all.
+        # Scoping skips the expensive EPG-resolution/matching for channels in
+        # groups the user didn't pick — a generation-time saving.
+        selected_groups: set[int] = set()
         try:
             from teamarr.database.channels import get_all_managed_channels
             from teamarr.database.groups import get_all_groups
+            from teamarr.database.settings import get_epg_settings
 
             with self._db_factory() as conn:
                 managed_ids = {
@@ -1254,6 +1259,9 @@ class EventGroupProcessor:
                     g.m3u_group_id
                     for g in get_all_groups(conn, include_disabled=False)
                     if g.epg_match_enabled and not g.is_channel_source and g.m3u_group_id
+                }
+                selected_groups = {
+                    int(gid) for gid in get_epg_settings(conn).epg_channel_source_groups
                 }
         except Exception as e:
             logger.warning("[CHANNEL_SOURCE] Failed to load managed/group ids: %s", e)
@@ -1269,9 +1277,16 @@ class EventGroupProcessor:
         seen: set[int] = set()
         skipped_teamarr = 0
         skipped_overlap = 0
+        skipped_group = 0
         for stream_id, ch in stream_channel_map.items():
             if ch.get("id") in managed_ids:
                 skipped_teamarr += 1
+                continue
+            # Scope to user-selected DP channel groups (ybt.2). Checked early so we
+            # skip the EPG lookups/matching for undesired groups entirely.
+            dp_group_id = ch.get("channel_group_id")
+            if selected_groups and dp_group_id not in selected_groups:
+                skipped_group += 1
                 continue
             eid = ch.get("effective_epg_data_id") or ch.get("epg_data_id")
             ed = epg_by_id.get(eid)
@@ -1304,6 +1319,10 @@ class EventGroupProcessor:
                     "channel_group_id": getattr(detail, "channel_group_id", None)
                     if detail
                     else None,
+                    # The DP CHANNEL's own group (channel organization), distinct from
+                    # the M3U stream group above — drives scoping + the sorting rule.
+                    "dp_channel_group_id": dp_group_id,
+                    "dp_channel_group": ch.get("channel_group_name"),
                     "m3u_account_id": getattr(detail, "m3u_account_id", None) if detail else None,
                     "is_stale": getattr(detail, "is_stale", False) if detail else False,
                 }
@@ -1312,10 +1331,12 @@ class EventGroupProcessor:
         candidates.sort(key=lambda s: s["id"])
         logger.info(
             "[CHANNEL_SOURCE] built %d candidate stream(s) from curated DP channels "
-            "(excluded %d Teamarr-managed, %d already in EPG-match groups)",
+            "(excluded %d Teamarr-managed, %d already in EPG-match groups, "
+            "%d outside selected groups)",
             len(candidates),
             skipped_teamarr,
             skipped_overlap,
+            skipped_group,
         )
         return candidates
 

@@ -89,6 +89,9 @@ class EPGSettings:
     epg_xtream_cache_hours: int = 24
     # Dispatcharr-channels as EPG source (epic 183.9) — additive source from curated channels
     epg_channel_source_enabled: bool = False
+    # Which DP channel groups to include as channel-source candidates (group ids).
+    # Empty = include all (ybt.2). Scopes the scan and drives the sorting rule.
+    epg_channel_source_groups: list[int] = field(default_factory=list)
     epg_stream_pre_buffer_minutes: int = 60
     epg_stream_post_buffer_minutes: int = 60
 

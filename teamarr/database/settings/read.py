@@ -155,6 +155,11 @@ def get_all_settings(conn: Connection) -> AllSettings:
             epg_channel_source_enabled=bool(row["epg_channel_source_enabled"])
             if "epg_channel_source_enabled" in row.keys()
             else False,
+            epg_channel_source_groups=json.loads(
+                row["epg_channel_source_groups"] or "[]"
+            )
+            if "epg_channel_source_groups" in row.keys()
+            else [],
             epg_stream_pre_buffer_minutes=(
                 row["epg_stream_pre_buffer_minutes"]
                 if "epg_stream_pre_buffer_minutes" in row.keys()
@@ -371,7 +376,7 @@ def get_epg_settings(conn: Connection) -> EPGSettings:
                   cron_expression, prepend_postponed_label,
                   epg_match_enabled, epg_xtream_fallback_enabled,
                   epg_xtream_cache_hours,
-                  epg_channel_source_enabled,
+                  epg_channel_source_enabled, epg_channel_source_groups,
                   epg_stream_pre_buffer_minutes,
                   epg_stream_post_buffer_minutes
            FROM settings WHERE id = 1"""
@@ -399,6 +404,7 @@ def get_epg_settings(conn: Connection) -> EPGSettings:
         epg_xtream_fallback_enabled=bool(row["epg_xtream_fallback_enabled"]),
         epg_xtream_cache_hours=row["epg_xtream_cache_hours"] or 24,
         epg_channel_source_enabled=bool(row["epg_channel_source_enabled"]),
+        epg_channel_source_groups=json.loads(row["epg_channel_source_groups"] or "[]"),
         epg_stream_pre_buffer_minutes=row["epg_stream_pre_buffer_minutes"] or 60,
         epg_stream_post_buffer_minutes=row["epg_stream_post_buffer_minutes"] or 60,
     )

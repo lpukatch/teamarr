@@ -228,6 +228,7 @@ def update_epg_settings(conn: Connection, **kwargs) -> bool:
         "epg_xtream_fallback_enabled": "epg_xtream_fallback_enabled",
         "epg_xtream_cache_hours": "epg_xtream_cache_hours",
         "epg_channel_source_enabled": "epg_channel_source_enabled",
+        "epg_channel_source_groups": "epg_channel_source_groups",
         "epg_stream_pre_buffer_minutes": "epg_stream_pre_buffer_minutes",
         "epg_stream_post_buffer_minutes": "epg_stream_post_buffer_minutes",
     }
@@ -241,6 +242,8 @@ def update_epg_settings(conn: Connection, **kwargs) -> bool:
             value = kwargs[key]
             if isinstance(value, bool):
                 value = int(value)
+            elif isinstance(value, (list, dict)):
+                value = json.dumps(value)
             values.append(value)
 
     if not updates:
@@ -283,6 +286,8 @@ def update_reconciliation_settings(conn: Connection, **kwargs) -> bool:
             value = kwargs[key]
             if isinstance(value, bool):
                 value = int(value)
+            elif isinstance(value, (list, dict)):
+                value = json.dumps(value)
             values.append(value)
 
     if not updates:
@@ -370,6 +375,8 @@ def update_display_settings(conn: Connection, **kwargs) -> bool:
             value = kwargs[key]
             if isinstance(value, bool):
                 value = int(value)
+            elif isinstance(value, (list, dict)):
+                value = json.dumps(value)
             values.append(value)
 
     if not updates:

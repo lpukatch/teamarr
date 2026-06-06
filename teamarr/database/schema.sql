@@ -189,6 +189,12 @@ CREATE TABLE IF NOT EXISTS settings (
     -- channel's own EPG), alongside the per-group M3U-group EPG matching. Teamarr's
     -- own output channels are excluded (they are OUTPUT, not INPUT).
     epg_channel_source_enabled BOOLEAN DEFAULT 0,
+    -- Which Dispatcharr channel groups to include as channel-source candidates
+    -- (JSON array of channel_group ids). Empty array = include all groups
+    -- (back-compatible). Scoping to selected groups skips EPG-matching work for
+    -- undesired groups (faster generation) and drives the "Dispatcharr Group"
+    -- stream-ordering rule. (epic teamarrv2-ybt.2)
+    epg_channel_source_groups TEXT DEFAULT '[]',
 
     -- EPG stream time-windowing buffers (epic teamarrv2-183.5).
     -- SEPARATE from the channel create/delete buffers above: these apply to the

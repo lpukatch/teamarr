@@ -125,6 +125,7 @@ def get_settings():
             epg_xtream_fallback_enabled=settings.epg.epg_xtream_fallback_enabled,
             epg_xtream_cache_hours=settings.epg.epg_xtream_cache_hours,
             epg_channel_source_enabled=settings.epg.epg_channel_source_enabled,
+            epg_channel_source_groups=settings.epg.epg_channel_source_groups,
             epg_stream_pre_buffer_minutes=settings.epg.epg_stream_pre_buffer_minutes,
             epg_stream_post_buffer_minutes=settings.epg.epg_stream_post_buffer_minutes,
         ),
