@@ -1737,10 +1737,16 @@ class ChannelLifecycleService:
                 ch_streams = current_channel.streams
                 current_stream_ids = list(ch_streams) if ch_streams else []
                 if stream_id not in current_stream_ids:
-                    # Stream drift — Dispatcharr is missing a stream the DB expects
+                    # Stream drift — Dispatcharr is missing a stream the DB expects.
+                    # The fix is Dispatcharr-side (push the stream back via update_data);
+                    # DB stream membership lives in managed_channel_streams (written by
+                    # add_stream_to_channel during matching), NOT a column on
+                    # managed_channels. A V1-parity leftover used to write
+                    # db_updates["dispatcharr_stream_id"] here, but that column only
+                    # exists on managed_channel_streams — it raised "no such column" on
+                    # every drift fix and aborted the sync (bead 91l).
                     new_streams = current_stream_ids + [stream_id]
                     update_data["streams"] = new_streams
-                    db_updates["dispatcharr_stream_id"] = stream_id
                     changes_made.append(f"streams: added {stream_id}")
                     self._stream_drift_fix_count += 1
                     logger.info(
