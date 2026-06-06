@@ -190,6 +190,43 @@ def test_priority_order_preserved(conn):
     assert get_ordered_stream_ids(conn, 1, now="2026-06-01 18:00:00") == [100, 200, 300]
 
 
+def test_same_stream_rotates_across_channels_one_day(conn):
+    # The defining behavior of time-shared linear (183.5, checklist #5): ONE
+    # physical stream (e.g. "ESPN", dispatcharr_stream_id=500) attached to THREE
+    # different event channels across a single day — active in each only during
+    # that program's window, detached from the first, RE-ATTACHED to the next,
+    # including a window that crosses midnight.
+    def add_to(channel_id, attach_at, detach_at):
+        conn.execute(
+            "INSERT INTO managed_channel_streams "
+            "(managed_channel_id, dispatcharr_stream_id, priority, attach_at, detach_at) "
+            "VALUES (?, 500, 0, ?, ?)",
+            (channel_id, attach_at, detach_at),
+        )
+
+    add_to(10, "2026-06-01 18:00:00", "2026-06-01 21:00:00")  # game 1
+    add_to(20, "2026-06-01 22:00:00", "2026-06-01 23:30:00")  # game 2
+    add_to(30, "2026-06-01 23:45:00", "2026-06-02 02:30:00")  # game 3, crosses midnight
+    conn.commit()
+
+    # 19:00 — stream lives only in channel 10
+    assert get_ordered_stream_ids(conn, 10, now="2026-06-01 19:00:00") == [500]
+    assert get_ordered_stream_ids(conn, 20, now="2026-06-01 19:00:00") == []
+    assert get_ordered_stream_ids(conn, 30, now="2026-06-01 19:00:00") == []
+
+    # 21:30 — game 1 over, game 2 not yet started: detached everywhere (the gap)
+    assert get_ordered_stream_ids(conn, 10, now="2026-06-01 21:30:00") == []
+    assert get_ordered_stream_ids(conn, 20, now="2026-06-01 21:30:00") == []
+
+    # 22:30 — re-attached to channel 20, gone from 10
+    assert get_ordered_stream_ids(conn, 20, now="2026-06-01 22:30:00") == [500]
+    assert get_ordered_stream_ids(conn, 10, now="2026-06-01 22:30:00") == []
+
+    # 00:30 next day — re-attached to channel 30 (window spans midnight)
+    assert get_ordered_stream_ids(conn, 30, now="2026-06-02 00:30:00") == [500]
+    assert get_ordered_stream_ids(conn, 20, now="2026-06-02 00:30:00") == []
+
+
 # ======================================================== update_stream_window (bead 095)
 
 

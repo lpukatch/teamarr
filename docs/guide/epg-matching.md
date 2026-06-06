@@ -2,7 +2,7 @@
 title: EPG Program Matching
 parent: User Guide
 nav_order: 10
-docs_version: "2.5.7"
+docs_version: "2.6.0"
 ---
 
 # EPG Program Matching
