@@ -1048,14 +1048,15 @@ export function Settings() {
     return all
       .filter((l) => {
         if (showSubscribedOnly && !subscribedLeagueSlugs.has(l.slug)) return false
-        if (searchLower && !l.name.toLowerCase().includes(searchLower)
-            && !l.sport.toLowerCase().includes(searchLower)) return false
+        if (searchLower && !(l.name ?? "").toLowerCase().includes(searchLower)
+            && !(l.sport ?? "").toLowerCase().includes(searchLower)) return false
         return true
       })
       .sort((a, b) => {
-        const sportCmp = a.sport.localeCompare(b.sport)
+        // Coalesce: a single null name/sport must not blank the Settings page (5t6).
+        const sportCmp = (a.sport ?? "").localeCompare(b.sport ?? "")
         if (sportCmp !== 0) return sportCmp
-        return a.name.localeCompare(b.name)
+        return (a.name ?? "").localeCompare(b.name ?? "")
       })
   }, [leaguesData, leagueSearch, showSubscribedOnly, subscribedLeagueSlugs])
 

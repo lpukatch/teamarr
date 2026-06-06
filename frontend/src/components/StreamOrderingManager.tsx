@@ -79,7 +79,8 @@ function TeamMultiSelect({
             abbrev: ct.team_abbrev,
             logo: ct.logo_url,
           }))
-          .sort((a: { name: string }, b: { name: string }) => a.name.localeCompare(b.name)),
+          .sort((a: { name: string }, b: { name: string }) =>
+            (a.name ?? "").localeCompare(b.name ?? "")),
       }))
       .filter(g => g.teams.length > 0)
   }, [leaguesData, teamQueries])
