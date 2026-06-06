@@ -978,6 +978,7 @@ class ChannelLifecycleService:
                     source_group_id=source_group_id,
                     match_type=match_type,
                     match_method=match_method,
+                    dispatcharr_channel_group=stream.get("dp_channel_group"),
                     attach_at=attach_at,
                     detach_at=detach_at,
                 )
@@ -1292,6 +1293,7 @@ class ChannelLifecycleService:
                 source_group_id=group_id,
                 match_type=match_type,
                 match_method=match_method,
+                dispatcharr_channel_group=stream.get("dp_channel_group"),
                 attach_at=attach_at,
                 detach_at=detach_at,
             )

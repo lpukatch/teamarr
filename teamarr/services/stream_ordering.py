@@ -183,6 +183,8 @@ class StreamOrderingService:
             return self._match_not_team_feed(stream, rule.value)
         elif rule.type == "epg_match":
             return self._match_epg_match(stream)
+        elif rule.type == "dispatcharr_group":
+            return self._match_dispatcharr_group(stream, rule.value)
         return False
 
     def _match_m3u(self, stream: ManagedChannelStream, account_name: str) -> bool:
@@ -255,6 +257,16 @@ class StreamOrderingService:
         matches carry other methods (fuzzy/cache/…) or None. No value needed.
         """
         return stream.match_method == "epg"
+
+    def _match_dispatcharr_group(self, stream: ManagedChannelStream, group_name: str) -> bool:
+        """Match a channel-source stream by its Dispatcharr channel group (ybt.3).
+
+        Only channel-source streams carry dispatcharr_channel_group (the DP
+        channel's own group); all others have None and never match. Case-insensitive.
+        """
+        if not stream.dispatcharr_channel_group:
+            return False
+        return stream.dispatcharr_channel_group.lower() == group_name.lower()
 
     def _match_stream_type(self, stream: ManagedChannelStream, rule_value: str) -> bool:
         """Match stream by type, with optional team filter (value may be 'team|key1,key2')."""

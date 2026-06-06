@@ -36,6 +36,7 @@ import { StreamProfileSelector } from "@/components/StreamProfileSelector"
 import { useGenerationProgress } from "@/contexts/GenerationContext"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { CheckboxListPicker } from "@/components/ui/checkbox-list-picker"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select } from "@/components/ui/select"
@@ -2745,6 +2746,32 @@ export function Settings() {
                   versions you've mapped, instead of every stream in a provider group.
                   Teamarr's own generated channels are excluded.
                 </p>
+                {epg?.epg_channel_source_enabled && (
+                  <div className="pt-1 max-w-md">
+                    <CheckboxListPicker
+                      label="Dispatcharr groups to include"
+                      selected={(epg?.epg_channel_source_groups ?? []).map(String)}
+                      onChange={(vals) =>
+                        epg &&
+                        setEPG({
+                          ...epg,
+                          epg_channel_source_groups: vals.map(Number),
+                        })
+                      }
+                      items={(channelGroupsQuery.data ?? []).map((g) => ({
+                        value: String(g.id),
+                        label: g.name,
+                      }))}
+                      searchPlaceholder="Search Dispatcharr groups..."
+                    />
+                    <p className="text-xs text-muted-foreground pt-1">
+                      Only channels in these groups are scanned for EPG matching — fewer
+                      groups means faster generation. Leave empty to include all groups.
+                      The selected groups also become sort options under Channels → Stream
+                      Ordering.
+                    </p>
+                  </div>
+                )}
               </div>
             )}
             {epg?.epg_match_enabled && (

@@ -25,6 +25,7 @@ import {
 import { useGroups } from "@/hooks/useGroups"
 import { getLeagueTeams, getTeamPickerLeagues } from "@/api/teams"
 import type { CachedTeam } from "@/api/teams"
+import { getSettings, getDispatcharrChannelGroups } from "@/api/settings"
 
 function TeamMultiSelect({
   selected,
@@ -259,6 +260,7 @@ const RULE_TYPES = [
   { value: "regex", label: "Regex Pattern", description: "Match streams by regex against stream name" },
   { value: "stream_type", label: "Stream Type", description: "Match by how the stream was recognized: event, team, or EPG-matched (time-shared linear)" },
   { value: "team_feed", label: "Home/Away Feed", description: "Match streams that appear to be a team's own broadcast (home or away feed) for any enabled team" },
+  { value: "dispatcharr_group", label: "Dispatcharr Group", description: "Match channel-source streams by the Dispatcharr channel group you selected as an EPG source" },
 ] as const
 
 const STREAM_TYPE_OPTIONS = [
@@ -285,7 +287,7 @@ interface RuleFormData {
   // Without this, keying by array index causes focus to follow DOM position
   // instead of the rule, breaking double-digit priority entry (#198).
   _id: number
-  type: "m3u" | "group" | "regex" | "stream_type" | "team_feed" | "not_team_feed" | "epg_match" | "catch_all"
+  type: "m3u" | "group" | "regex" | "stream_type" | "team_feed" | "not_team_feed" | "epg_match" | "dispatcharr_group" | "catch_all"
   value: string
   priority: number
 }
@@ -347,6 +349,7 @@ function RuleRow({
   onDelete,
   m3uAccounts,
   groupNames,
+  dpGroupNames,
 }: {
   rule: RuleFormData
   index: number
@@ -354,6 +357,7 @@ function RuleRow({
   onDelete: (index: number) => void
   m3uAccounts: string[]
   groupNames: string[]
+  dpGroupNames: string[]
 }) {
   const isCatchAll = rule.type === "catch_all"
 
@@ -429,6 +433,24 @@ function RuleRow({
                 <option key={name} value={name}>{name}</option>
               ))}
             </Select>
+          ) : rule.type === "dispatcharr_group" ? (
+            <div className="flex items-center gap-2">
+              <Select
+                value={rule.value}
+                onChange={(e) => onUpdate(index, { ...rule, value: e.target.value })}
+              >
+                <option value="">Select Dispatcharr group...</option>
+                {dpGroupNames.map(name => (
+                  <option key={name} value={name}>{name}</option>
+                ))}
+              </Select>
+              <RichTooltip
+                content="Sorts streams brought in via Settings → EPG → 'Use Dispatcharr channels as an EPG source'. The list shows the Dispatcharr channel groups you selected there. Only channel-source streams carry a Dispatcharr group; regular matched streams are unaffected."
+                side="top"
+              >
+                <Info className="h-3 w-3 text-muted-foreground/50 cursor-help shrink-0" />
+              </RichTooltip>
+            </div>
           ) : STREAM_TYPE_FAMILY.has(rule.type) ? (() => {
             const isEpg = rule.type === "epg_match"
             // epg_match carries no value; for stream_type parse event/team(+teams) out of value.
@@ -554,6 +576,20 @@ export function StreamOrderingManager() {
     }
   }, [groupsData])
 
+  // "Dispatcharr Group" rule: the dropdown lists the DP channel groups the user
+  // selected as an EPG source (ybt.3) — resolve the saved group ids to names.
+  const { data: appSettings } = useQuery({ queryKey: ["settings"], queryFn: getSettings })
+  const { data: dpChannelGroups } = useQuery({
+    queryKey: ["dispatcharrChannelGroups"],
+    queryFn: getDispatcharrChannelGroups,
+    staleTime: 5 * 60 * 1000,
+  })
+  const dpGroupNames = useMemo(() => {
+    const selected = new Set(appSettings?.epg?.epg_channel_source_groups ?? [])
+    if (!selected.size || !dpChannelGroups) return []
+    return dpChannelGroups.filter(g => selected.has(g.id)).map(g => g.name).sort()
+  }, [appSettings, dpChannelGroups])
+
   // Initialize rules from settings; auto-inject catch_all if absent
   useEffect(() => {
     if (settings?.rules) {
@@ -677,6 +713,7 @@ export function StreamOrderingManager() {
                   onDelete={handleDeleteRule}
                   m3uAccounts={m3uAccounts}
                   groupNames={groupNames}
+                  dpGroupNames={dpGroupNames}
                 />
               ))}
           </div>

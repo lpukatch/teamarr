@@ -47,6 +47,7 @@ def add_stream_to_channel(
         "exception_keyword",
         "match_type",
         "match_method",  # how matched ('epg', 'fuzzy', …); drives the epg_match ordering rule
+        "dispatcharr_channel_group",  # DP channel group; drives dispatcharr_group rule (ybt.3)
         "attach_at",   # time-windowed membership (183.5); None = full-life
         "detach_at",
     ]

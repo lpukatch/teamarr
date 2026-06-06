@@ -110,6 +110,27 @@ class TestEPGMatch:
         assert svc.compute_priority(self._epg_stream("fuzzy")) == 50
 
 
+class TestDispatcharrGroup:
+    def _stream(self, dp_group):
+        return ManagedChannelStream(
+            id=1, managed_channel_id=1, dispatcharr_stream_id=1,
+            stream_name="ESPN", dispatcharr_channel_group=dp_group,
+        )
+
+    def test_matches_dispatcharr_group_case_insensitive(self):
+        svc = StreamOrderingService([StreamOrderingRule("dispatcharr_group", "US Sports", 1)])
+        assert svc.compute_priority(self._stream("us sports")) == 1
+
+    def test_ignores_other_group(self):
+        svc = StreamOrderingService([StreamOrderingRule("dispatcharr_group", "US Sports", 1)])
+        assert svc.compute_priority(self._stream("UK Sports")) == NO_MATCH_PRIORITY
+
+    def test_non_channel_source_stream_never_matches(self):
+        # Streams without a DP channel group (normal M3U-matched streams) never match.
+        svc = StreamOrderingService([StreamOrderingRule("dispatcharr_group", "US Sports", 1)])
+        assert svc.compute_priority(self._stream(None)) == NO_MATCH_PRIORITY
+
+
 # ---------------------------------------------------------------------------
 # catch_all fallback
 # ---------------------------------------------------------------------------

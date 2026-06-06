@@ -58,6 +58,7 @@ export interface EPGSettings {
   epg_xtream_fallback_enabled: boolean
   epg_xtream_cache_hours: number
   epg_channel_source_enabled: boolean
+  epg_channel_source_groups: number[]
   epg_stream_pre_buffer_minutes: number
   epg_stream_post_buffer_minutes: number
 }
@@ -136,7 +137,7 @@ export interface ChannelNumberingSettingsUpdate {
 }
 
 export interface StreamOrderingRule {
-  type: "m3u" | "group" | "regex" | "stream_type" | "team_feed" | "not_team_feed" | "epg_match" | "catch_all"
+  type: "m3u" | "group" | "regex" | "stream_type" | "team_feed" | "not_team_feed" | "epg_match" | "dispatcharr_group" | "catch_all"
   value: string
   priority: number  // 1-99, lower = higher priority
 }
@@ -338,6 +339,17 @@ export interface EPGSourcesResponse {
 // API Functions
 export async function getSettings(): Promise<AllSettings> {
   return api.get("/settings")
+}
+
+export interface DispatcharrChannelGroup {
+  id: number
+  name: string
+  from_m3u: boolean
+}
+
+/** List Dispatcharr channel groups (for the channel-source picker + sorting rule). */
+export async function getDispatcharrChannelGroups(): Promise<DispatcharrChannelGroup[]> {
+  return api.get("/dispatcharr/channel-groups")
 }
 
 export async function getDispatcharrSettings(): Promise<DispatcharrSettings> {

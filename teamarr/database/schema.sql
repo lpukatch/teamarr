@@ -1291,6 +1291,7 @@ CREATE TABLE IF NOT EXISTS managed_channel_streams (
     match_type TEXT DEFAULT 'event'          -- 'event' (TEAM_VS_TEAM) or 'team' (TEAM_ONLY)
         CHECK(match_type IN ('event', 'team')),
     match_method TEXT,                        -- how the stream was matched: 'epg', 'fuzzy', 'cache', etc. (drives the epg_match stream-ordering rule)
+    dispatcharr_channel_group TEXT,           -- (ybt.3) the DP channel's own group name, for channel-source streams; drives the 'dispatcharr_group' stream-ordering rule. NULL for non-channel-source streams.
 
     -- Priority (0 = primary, higher = failover)
     priority INTEGER DEFAULT 0,
