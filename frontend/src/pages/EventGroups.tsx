@@ -21,6 +21,7 @@ import {
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
+import { RichTooltip } from "@/components/ui/rich-tooltip"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Switch } from "@/components/ui/switch"
 import {
@@ -931,23 +932,36 @@ export function EventGroups() {
                           {group.stream_count ?? 0} streams
                         </span>
                       ) : group.stream_count && group.stream_count > 0 ? (
-                        <div className="flex flex-col items-center gap-0.5" title={`Last: ${group.last_refresh ? new Date(group.last_refresh).toLocaleString() : 'Never'}`}>
-                          <div className="w-full h-1.5 bg-secondary rounded-full overflow-hidden">
-                            <div
-                              className={`h-full rounded-full transition-all ${
-                                (group.matched_count || 0) / group.stream_count >= 0.8
-                                  ? 'bg-green-500'
-                                  : (group.matched_count || 0) / group.stream_count >= 0.5
-                                    ? 'bg-yellow-500'
-                                    : 'bg-red-500'
-                              }`}
-                              style={{ width: `${Math.round(((group.matched_count || 0) / group.stream_count) * 100)}%` }}
-                            />
+                        <RichTooltip
+                          side="top"
+                          content={
+                            <div className="space-y-1 text-xs">
+                              <div>{group.match_result_count ?? 0} match{(group.match_result_count ?? 0) === 1 ? "" : "es"} produced</div>
+                              {(group.match_result_count ?? 0) > (group.matched_count ?? 0) && (
+                                <div className="text-muted-foreground">EPG time-sharing: streams matched to multiple events</div>
+                              )}
+                              <div className="text-muted-foreground">Last: {group.last_refresh ? new Date(group.last_refresh).toLocaleString() : 'Never'}</div>
+                            </div>
+                          }
+                        >
+                          <div className="flex flex-col items-center gap-0.5">
+                            <div className="w-full h-1.5 bg-secondary rounded-full overflow-hidden">
+                              <div
+                                className={`h-full rounded-full transition-all ${
+                                  (group.matched_count || 0) / group.stream_count >= 0.8
+                                    ? 'bg-green-500'
+                                    : (group.matched_count || 0) / group.stream_count >= 0.5
+                                      ? 'bg-yellow-500'
+                                      : 'bg-red-500'
+                                }`}
+                                style={{ width: `${Math.min(100, Math.round(((group.matched_count || 0) / group.stream_count) * 100))}%` }}
+                              />
+                            </div>
+                            <span className="text-[0.65rem]">
+                              {group.matched_count}/{group.stream_count} ({Math.round(((group.matched_count || 0) / group.stream_count) * 100)}%)
+                            </span>
                           </div>
-                          <span className="text-[0.65rem]">
-                            {group.matched_count}/{group.stream_count} ({Math.round(((group.matched_count || 0) / group.stream_count) * 100)}%)
-                          </span>
-                        </div>
+                        </RichTooltip>
                       ) : (
                         <span className="text-muted-foreground text-xs italic">—</span>
                       )}

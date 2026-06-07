@@ -91,8 +91,9 @@ class ProcessingResult:
     filtered_team: int = 0  # Team not in include/exclude filter
 
     # Stream matching
-    streams_matched: int = 0
-    streams_unmatched: int = 0
+    streams_matched: int = 0  # Distinct streams that matched ≥1 event (coverage)
+    streams_unmatched: int = 0  # Distinct streams with no match (coverage)
+    match_result_count: int = 0  # Total matched results produced (volume; EPG fans out)
     streams_excluded: int = 0  # Matched but excluded by timing (past/final/early)
 
     # Excluded breakdown by reason
@@ -134,6 +135,7 @@ class ProcessingResult:
                 "filtered_exclude": self.filtered_exclude_regex,
                 "matched": self.streams_matched,
                 "unmatched": self.streams_unmatched,
+                "match_results": self.match_result_count,
             },
             "channels": {
                 "created": self.channels_created,
@@ -566,8 +568,10 @@ class EventGroupProcessor:
 
             # Step 3: Match streams to events
             match_result = self._match_streams(streams, group, target_date)
-            result.matched_count = match_result.matched_count
-            result.unmatched_count = match_result.unmatched_count
+            # Coverage (distinct streams) so matched + unmatched relates to total streams,
+            # rather than result count which fans out under EPG/TEAM_ONLY matching.
+            result.matched_count = match_result.matched_stream_count
+            result.unmatched_count = match_result.unmatched_stream_count
             result.cache_hits = match_result.cache_hits
             result.cache_misses = match_result.cache_misses
 
@@ -980,10 +984,15 @@ class EventGroupProcessor:
                 status_callback=status_callback,
                 resolved_leagues=effective_leagues,
             )
-            result.streams_matched = match_result.matched_count
-            result.streams_unmatched = match_result.unmatched_count
-            stats_run.streams_matched = match_result.matched_count
-            stats_run.streams_unmatched = match_result.unmatched_count
+            # Coverage = distinct streams; volume = total matched results (EPG/TEAM_ONLY
+            # fan one stream out to many results, which is why the old result-count
+            # numerator pushed match rate over 100%).
+            result.streams_matched = match_result.matched_stream_count
+            result.streams_unmatched = match_result.unmatched_stream_count
+            result.match_result_count = match_result.matched_count
+            stats_run.streams_matched = match_result.matched_stream_count
+            stats_run.streams_unmatched = match_result.unmatched_stream_count
+            stats_run.extra_metrics["match_results"] = match_result.matched_count
             stats_run.streams_cached = match_result.cache_hits
 
             # Count matcher-level exclusions (matched but excluded by league/event_final)
@@ -1140,6 +1149,7 @@ class EventGroupProcessor:
                 group.id,
                 stream_count=result.streams_after_filter,
                 matched_count=result.streams_matched,
+                match_result_count=result.match_result_count,
                 filtered_stale=result.filtered_stale,
                 filtered_include_regex=result.filtered_include_regex,
                 filtered_exclude_regex=result.filtered_exclude_regex,

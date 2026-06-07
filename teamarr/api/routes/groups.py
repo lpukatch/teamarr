@@ -239,7 +239,8 @@ class GroupResponse(BaseModel):
     # Processing stats
     last_refresh: str | None = None
     stream_count: int = 0
-    matched_count: int = 0
+    matched_count: int = 0  # Distinct streams matched (coverage)
+    match_result_count: int = 0  # Total matched results produced (volume; EPG fans out)
     # Processing stats by category (FILTERED / FAILED / EXCLUDED)
     filtered_stale: int = 0  # FILTERED: Stream marked as stale in Dispatcharr
     filtered_include_regex: int = 0  # FILTERED: Didn't match include regex
@@ -591,6 +592,7 @@ def list_groups(
                 last_refresh=g.last_refresh.isoformat() if g.last_refresh else None,
                 stream_count=g.stream_count,
                 matched_count=g.matched_count,
+                match_result_count=g.match_result_count,
                 filtered_stale=g.filtered_stale,
                 filtered_include_regex=g.filtered_include_regex,
                 filtered_exclude_regex=g.filtered_exclude_regex,

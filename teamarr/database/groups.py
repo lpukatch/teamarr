@@ -87,7 +87,8 @@ class EventEPGGroup:
     # Processing stats
     last_refresh: datetime | None = None
     stream_count: int = 0
-    matched_count: int = 0
+    matched_count: int = 0  # Distinct streams matched (coverage)
+    match_result_count: int = 0  # Total matched results produced (volume; EPG fans out)
     # Stream filtering (Phase 2)
     stream_include_regex: str | None = None
     stream_include_regex_enabled: bool = False
@@ -195,6 +196,7 @@ def _row_to_group(row) -> EventEPGGroup:
         last_refresh=last_refresh,
         stream_count=row["stream_count"] or 0,
         matched_count=row["matched_count"] or 0,
+        match_result_count=row["match_result_count"] if "match_result_count" in row.keys() else 0,
         # Stream filtering
         stream_include_regex=row["stream_include_regex"],
         stream_include_regex_enabled=bool(row["stream_include_regex_enabled"]),
@@ -863,6 +865,7 @@ def update_group_stats(
     group_id: int,
     stream_count: int,
     matched_count: int,
+    match_result_count: int = 0,
     filtered_stale: int = 0,
     filtered_include_regex: int = 0,
     filtered_exclude_regex: int = 0,
@@ -888,7 +891,8 @@ def update_group_stats(
         conn: Database connection
         group_id: Group ID
         stream_count: Number of streams after filtering (eligible for matching)
-        matched_count: Number of streams successfully matched to events
+        matched_count: Distinct streams matched to ≥1 event (coverage numerator)
+        match_result_count: Total matched results produced (volume; EPG fans out)
         filtered_stale: FILTERED - Stream marked as stale in Dispatcharr
         filtered_include_regex: FILTERED - Didn't match include regex
         filtered_exclude_regex: FILTERED - Matched exclude regex
@@ -911,6 +915,7 @@ def update_group_stats(
                SET last_refresh = datetime('now'),
                    stream_count = ?,
                    matched_count = ?,
+                   match_result_count = ?,
                    filtered_stale = ?,
                    filtered_include_regex = ?,
                    filtered_exclude_regex = ?,
@@ -927,6 +932,7 @@ def update_group_stats(
             (
                 stream_count,
                 matched_count,
+                match_result_count,
                 filtered_stale,
                 filtered_include_regex,
                 filtered_exclude_regex,
@@ -948,6 +954,7 @@ def update_group_stats(
                SET last_refresh = datetime('now'),
                    stream_count = ?,
                    matched_count = ?,
+                   match_result_count = ?,
                    filtered_stale = ?,
                    filtered_include_regex = ?,
                    filtered_exclude_regex = ?,
@@ -963,6 +970,7 @@ def update_group_stats(
             (
                 stream_count,
                 matched_count,
+                match_result_count,
                 filtered_stale,
                 filtered_include_regex,
                 filtered_exclude_regex,

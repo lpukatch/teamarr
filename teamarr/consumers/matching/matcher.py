@@ -138,8 +138,31 @@ class BatchMatchResult:
 
     @property
     def matched_count(self) -> int:
-        """Count of streams that matched to an event (includes excluded)."""
+        """Count of matched *results* — match VOLUME, not stream coverage.
+
+        One source stream can yield many matched results (a linear/EPG stream
+        legitimately matches many events/day; TEAM_ONLY templates also fan out),
+        so this can exceed the number of streams. Use ``matched_stream_count``
+        for a 0–100% coverage rate; use this for "matches produced".
+        """
         return sum(1 for r in self.results if r.matched)
+
+    @property
+    def matched_stream_count(self) -> int:
+        """Count of distinct source streams that matched ≥1 event (coverage numerator)."""
+        return len({r.stream_id for r in self.results if r.matched})
+
+    @property
+    def unmatched_stream_count(self) -> int:
+        """Distinct source streams with no match (coverage; excludes exceptions).
+
+        A stream whose name failed but whose EPG program matched counts as
+        matched, so it is excluded here via set difference — a stream is never
+        counted in both matched and unmatched.
+        """
+        matched_ids = {r.stream_id for r in self.results if r.matched}
+        candidate_ids = {r.stream_id for r in self.results if not r.is_exception}
+        return len(candidate_ids - matched_ids)
 
     @property
     def included_count(self) -> int:

@@ -63,7 +63,8 @@ export interface EventGroup {
   // Processing stats
   last_refresh: string | null
   stream_count: number
-  matched_count: number
+  matched_count: number  // Distinct streams matched (coverage)
+  match_result_count: number  // Total matched results produced (volume; EPG fans out)
   // Filtering stats (pre-match)
   filtered_include_regex: number
   filtered_exclude_regex: number

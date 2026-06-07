@@ -484,7 +484,8 @@ CREATE TABLE IF NOT EXISTS event_epg_groups (
     -- Processing Stats (updated by EPG generation)
     last_refresh TIMESTAMP,                  -- Last successful EPG refresh
     stream_count INTEGER DEFAULT 0,          -- Streams after filtering
-    matched_count INTEGER DEFAULT 0,         -- Successfully matched to events
+    matched_count INTEGER DEFAULT 0,         -- Distinct streams matched to ≥1 event (coverage)
+    match_result_count INTEGER DEFAULT 0,    -- Total matched results produced (volume; EPG fans out)
 
     -- Stream Filtering (Phase 2)
     stream_include_regex TEXT,               -- Only include streams matching this pattern
