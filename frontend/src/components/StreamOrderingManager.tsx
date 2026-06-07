@@ -9,6 +9,8 @@ import {
   AlertCircle,
   ChevronDown,
   Info,
+  Download,
+  Upload,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -283,6 +285,12 @@ function parseStreamTypeValue(value: string) {
 
 const NO_VALUE_TYPES = new Set(["team_feed", "not_team_feed", "epg_match", "catch_all"])
 
+// Mirrors backend VALID_RULE_TYPES (database/settings/types.py) — used to validate imports.
+const VALID_RULE_TYPES = new Set([
+  "m3u", "group", "regex", "stream_type",
+  "team_feed", "not_team_feed", "epg_match", "dispatcharr_group", "catch_all",
+])
+
 interface RuleFormData {
   // Stable client-side id so rows keep their identity across re-sorts.
   // Without this, keying by array index causes focus to follow DOM position
@@ -550,6 +558,8 @@ export function StreamOrderingManager() {
 
   const [rules, setRules] = useState<RuleFormData[]>([])
   const [hasChanges, setHasChanges] = useState(false)
+  const [isImporting, setIsImporting] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
   const nextIdRef = useRef(0)
   const allocateId = () => ++nextIdRef.current
 
@@ -660,6 +670,82 @@ export function StreamOrderingManager() {
     }
   }
 
+  const handleExport = () => {
+    const payload = {
+      rules: rules.map((r) => ({
+        type: r.type,
+        value: r.value,
+        priority: r.priority,
+      })),
+    }
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement("a")
+    a.href = url
+    a.download = "stream-ordering-rules.json"
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    URL.revokeObjectURL(url)
+    toast.success("Exported stream ordering rules")
+  }
+
+  const handleImportClick = () => {
+    fileInputRef.current?.click()
+  }
+
+  const handleImportFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    setIsImporting(true)
+    try {
+      const text = await file.text()
+      const parsed = JSON.parse(text)
+      // Accept either a bare rules array or a { rules: [...] } envelope.
+      const importedRules = Array.isArray(parsed) ? parsed : parsed?.rules
+      if (!Array.isArray(importedRules)) {
+        throw new Error("Invalid format: expected a rules array")
+      }
+
+      // Validate against the same constraints the backend PUT enforces.
+      const clean: { type: RuleFormData["type"]; value: string; priority: number }[] = []
+      for (const r of importedRules) {
+        if (!r || typeof r.type !== "string" || !VALID_RULE_TYPES.has(r.type)) continue
+        const priority = Number(r.priority)
+        if (!Number.isInteger(priority) || priority < 1 || priority > 99) continue
+        const value = typeof r.value === "string" ? r.value.trim() : ""
+        if (!NO_VALUE_TYPES.has(r.type) && !value) continue
+        clean.push({ type: r.type as RuleFormData["type"], value, priority })
+      }
+
+      if (clean.length === 0) {
+        throw new Error("No valid rules found in file")
+      }
+
+      const accepted = clean.length
+      const skipped = importedRules.length - accepted
+      // Always keep a catch_all so unmatched streams have a defined priority.
+      if (!clean.some((r) => r.type === "catch_all")) {
+        clean.push({ type: "catch_all", value: "", priority: 99 })
+      }
+
+      await updateSettings.mutateAsync({ rules: clean })
+      const message = skipped > 0
+        ? `Imported ${accepted} rules (${skipped} skipped - invalid)`
+        : `Imported ${accepted} rules`
+      toast.success(message)
+      setHasChanges(false)
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to import rules")
+    } finally {
+      setIsImporting(false)
+      if (fileInputRef.current) {
+        fileInputRef.current.value = ""
+      }
+    }
+  }
+
   if (isLoading) {
     return (
       <Card>
@@ -684,11 +770,36 @@ export function StreamOrderingManager() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Stream Ordering</CardTitle>
-        <CardDescription>
-          Prioritize streams within channels based on M3U account, event group, or custom patterns.
-          Lower priority numbers appear first. Streams not matching any rule are sorted to the end.
-        </CardDescription>
+        <div className="flex items-start justify-between gap-4">
+          <div className="space-y-1.5">
+            <CardTitle>Stream Ordering</CardTitle>
+            <CardDescription>
+              Prioritize streams within channels based on M3U account, event group, or custom patterns.
+              Lower priority numbers appear first. Streams not matching any rule are sorted to the end.
+            </CardDescription>
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            <Button variant="outline" size="sm" onClick={handleExport} disabled={rules.length === 0}>
+              <Download className="h-4 w-4 mr-1" />
+              Export
+            </Button>
+            <Button variant="outline" size="sm" onClick={handleImportClick} disabled={isImporting}>
+              {isImporting ? (
+                <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+              ) : (
+                <Upload className="h-4 w-4 mr-1" />
+              )}
+              Import
+            </Button>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".json"
+              className="hidden"
+              onChange={handleImportFile}
+            />
+          </div>
+        </div>
       </CardHeader>
       <CardContent className="space-y-4">
         {rules.length > 0 && (
