@@ -14,6 +14,14 @@ import {
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Input } from "@/components/ui/input"
 import { Select } from "@/components/ui/select"
@@ -559,6 +567,7 @@ export function StreamOrderingManager() {
   const [rules, setRules] = useState<RuleFormData[]>([])
   const [hasChanges, setHasChanges] = useState(false)
   const [isImporting, setIsImporting] = useState(false)
+  const [exportWarning, setExportWarning] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const nextIdRef = useRef(0)
   const allocateId = () => ++nextIdRef.current
@@ -670,9 +679,10 @@ export function StreamOrderingManager() {
     }
   }
 
-  const handleExport = () => {
+  // Always exports the last *saved* rules, never unsaved editor edits.
+  const doExport = () => {
     const payload = {
-      rules: rules.map((r) => ({
+      rules: (settings?.rules ?? []).map((r) => ({
         type: r.type,
         value: r.value,
         priority: r.priority,
@@ -688,6 +698,15 @@ export function StreamOrderingManager() {
     document.body.removeChild(a)
     URL.revokeObjectURL(url)
     toast.success("Exported stream ordering rules")
+  }
+
+  const handleExport = () => {
+    // Warn that unsaved edits won't be included, since export uses saved state.
+    if (hasChanges) {
+      setExportWarning(true)
+      return
+    }
+    doExport()
   }
 
   const handleImportClick = () => {
@@ -768,6 +787,7 @@ export function StreamOrderingManager() {
   }
 
   return (
+    <>
     <Card>
       <CardHeader>
         <div className="flex items-start justify-between gap-4">
@@ -779,7 +799,7 @@ export function StreamOrderingManager() {
             </CardDescription>
           </div>
           <div className="flex items-center gap-2 shrink-0">
-            <Button variant="outline" size="sm" onClick={handleExport} disabled={rules.length === 0}>
+            <Button variant="outline" size="sm" onClick={handleExport} disabled={!settings?.rules?.length}>
               <Download className="h-4 w-4 mr-1" />
               Export
             </Button>
@@ -862,5 +882,31 @@ export function StreamOrderingManager() {
         </p>
       </CardContent>
     </Card>
+
+    <Dialog open={exportWarning} onOpenChange={(open) => !open && setExportWarning(false)}>
+      <DialogContent onClose={() => setExportWarning(false)}>
+        <DialogHeader>
+          <DialogTitle>Unsaved changes</DialogTitle>
+          <DialogDescription>
+            Export uses your last saved rules — the changes you haven't saved yet won't be
+            included. Save first if you want them in the file.
+          </DialogDescription>
+        </DialogHeader>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => setExportWarning(false)}>
+            Cancel
+          </Button>
+          <Button
+            onClick={() => {
+              setExportWarning(false)
+              doExport()
+            }}
+          >
+            Export saved rules
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+    </>
   )
 }

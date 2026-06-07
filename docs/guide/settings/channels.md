@@ -164,7 +164,7 @@ Teamarr builds a name-matching pattern from your selected teams' names and abbre
 
 Use the **Export** and **Import** buttons in the Stream Ordering header to back up your rules or move them between instances.
 
-- **Export** downloads your current rules (including the catch-all) as a `stream-ordering-rules.json` file.
+- **Export** downloads your last **saved** rules (including the catch-all) as a `stream-ordering-rules.json` file. If you have unsaved edits in the editor, Teamarr warns you first — save before exporting if you want those edits included.
 - **Import** reads a rules file and **replaces** your entire current rule set. Rules with an invalid type, value, or priority are skipped, and a catch-all is added automatically if the file doesn't include one.
 
 Rules that reference an M3U account, event group, or Dispatcharr group match by **name**, so they carry over cleanly to another instance as long as the same names exist there. Team-based rules (Stream Type and Home/Away Feed) reference provider team IDs and only apply to teams present on the target instance.
