@@ -853,7 +853,14 @@ CREATE TABLE IF NOT EXISTS leagues (
 
     -- Cache Metadata (updated by cache refresh)
     cached_team_count INTEGER DEFAULT 0,
-    last_cache_refresh TIMESTAMP
+    last_cache_refresh TIMESTAMP,
+
+    -- Custom League Flag
+    -- 1: user-added via the UI (TSDB-only, premium-gated; see epic teamarrv2-eqz).
+    --    Lives only in the DB, not schema.sql. The CRUD API only ever mutates or
+    --    deletes rows with is_custom=1, so built-in leagues can't be touched.
+    -- 0: built-in league seeded from schema.sql.
+    is_custom INTEGER DEFAULT 0
 );
 
 CREATE INDEX IF NOT EXISTS idx_leagues_provider ON leagues(provider);

@@ -25,6 +25,12 @@ from __future__ import annotations
 
 import sqlite3
 
+from teamarr.database.leagues import (
+    delete_custom_league_row,
+    get_league_row,
+    insert_custom_league,
+    update_custom_league_row,
+)
 from teamarr.database.settings.read import get_tsdb_api_key
 
 # ---------------------------------------------------------------------------
@@ -88,6 +94,14 @@ class CustomLeagueValidationError(ValueError):
 
 class CustomLeagueGateError(PermissionError):
     """The custom-league feature is locked (no premium key; maps to HTTP 403)."""
+
+
+class CustomLeagueNotFoundError(LookupError):
+    """No league exists for the given code (maps to HTTP 404)."""
+
+
+class CustomLeagueProtectedError(PermissionError):
+    """The target league is a built-in and can't be edited/deleted (HTTP 403)."""
 
 
 # ---------------------------------------------------------------------------
@@ -190,3 +204,281 @@ def validate_tsdb_sport_matches(tsdb_str_sport: str | None, chosen_sport: str) -
             f"Sport mismatch: you selected '{chosen_sport}' but TheSportsDB "
             f"classifies this league as '{mapped}' (strSport '{tsdb_str_sport}')."
         )
+
+
+# ---------------------------------------------------------------------------
+# Write path (eqz.2)
+#
+# These wrap the raw row I/O in database/leagues.py with the full policy stack:
+# premium gate, TSDB-only, field/sport/event_type validation, code-collision
+# guard, and built-in protection (edits/deletes only ever touch is_custom=1
+# rows). Routes call these and translate the exception types to HTTP codes.
+# ---------------------------------------------------------------------------
+
+_ALLOWED_TSDB_TIERS: frozenset[str] = frozenset({"free", "premium"})
+
+
+def _require_tsdb(provider: str) -> None:
+    """Reject any non-TSDB provider (the epic's #1 non-negotiable constraint)."""
+    if provider != "tsdb":
+        raise CustomLeagueValidationError(
+            f"Custom leagues are TheSportsDB-only; provider '{provider}' is not "
+            "allowed. Only 'tsdb' is supported."
+        )
+
+
+def _clean_required(value: str | None, field: str) -> str:
+    """Return a stripped non-empty string or raise a validation error."""
+    cleaned = (value or "").strip()
+    if not cleaned:
+        raise CustomLeagueValidationError(f"{field} is required.")
+    return cleaned
+
+
+def _validate_tier(tsdb_tier: str | None) -> str | None:
+    """Normalize/validate the optional tsdb_tier ('free' | 'premium' | None)."""
+    if tsdb_tier is None or not tsdb_tier.strip():
+        return None
+    tier = tsdb_tier.strip().lower()
+    if tier not in _ALLOWED_TSDB_TIERS:
+        raise CustomLeagueValidationError(
+            f"tsdb_tier '{tsdb_tier}' is invalid. Must be 'free' or 'premium'."
+        )
+    return tier
+
+
+def _resolve_event_type(event_type: str | None, sport: str) -> str:
+    """Default the event_type from the sport when omitted, then validate it."""
+    resolved = (event_type or "").strip() or default_event_type(sport)
+    validate_event_type(resolved)
+    return resolved
+
+
+def create_custom_league(
+    conn: sqlite3.Connection,
+    *,
+    league_code: str,
+    provider: str = "tsdb",
+    provider_league_id: str,
+    provider_league_name: str,
+    display_name: str,
+    sport: str,
+    event_type: str | None = None,
+    tsdb_tier: str | None = None,
+    allow_empty: bool = False,
+) -> dict:
+    """Create a user-added custom league after enforcing all policy.
+
+    Before writing the row, this re-runs the live TSDB validation server-side
+    (eqz.3) — the UI's pre-save check is advisory, this is the authoritative
+    guardrail. It confirms the id resolves and the sport matches, and blocks the
+    save when TSDB returns zero upcoming events (the silent-empty-guide failure
+    mode). ``allow_empty=True`` is the deliberate override for a genuinely
+    off-season league.
+
+    Raises:
+        CustomLeagueGateError: feature locked (no premium key) → 403.
+        CustomLeagueValidationError: bad provider/field/sport/collision, an
+            unresolvable id, a sport mismatch, or zero events without override.
+    """
+    require_custom_leagues_enabled(conn)
+    _require_tsdb(provider)
+
+    code = _clean_required(league_code, "league_code").lower()
+    provider_id = _clean_required(provider_league_id, "provider_league_id")
+    provider_name = _clean_required(provider_league_name, "provider_league_name")
+    name = _clean_required(display_name, "display_name")
+    validate_custom_league_sport(sport)
+    resolved_event_type = _resolve_event_type(event_type, sport)
+    tier = _validate_tier(tsdb_tier)
+
+    # Collision guard: never let a custom row shadow an existing code (built-in
+    # OR an already-created custom). INSERT OR REPLACE would clobber built-ins.
+    if get_league_row(conn, code) is not None:
+        raise CustomLeagueValidationError(
+            f"League code '{code}' already exists. Choose a different code."
+        )
+
+    # Authoritative live guardrail (eqz.3): resolves the id, cross-checks the
+    # sport, and refuses to persist a league that returns no events unless the
+    # caller explicitly overrides for an off-season league.
+    report = run_custom_league_test_fetch(
+        conn,
+        provider_league_id=provider_id,
+        chosen_sport=sport,
+        provider_league_name=provider_name,
+    )
+    if report["event_count"] == 0 and not allow_empty:
+        raise CustomLeagueValidationError(
+            f"TheSportsDB returned no upcoming events for league id '{provider_id}' "
+            f"(resolved as '{report['tsdb_league_name']}'). This usually means a "
+            "wrong idLeague or an off-season league. Re-submit with allow_empty=true "
+            "to save anyway."
+        )
+
+    insert_custom_league(
+        conn,
+        league_code=code,
+        provider_league_id=provider_id,
+        provider_league_name=provider_name,
+        display_name=name,
+        sport=sport,
+        event_type=resolved_event_type,
+        tsdb_tier=tier,
+    )
+    return get_league_row(conn, code)
+
+
+def _load_custom_or_raise(conn: sqlite3.Connection, league_code: str) -> dict:
+    """Fetch a league row and assert it's an editable custom row.
+
+    Raises:
+        CustomLeagueNotFoundError: no such code → 404.
+        CustomLeagueProtectedError: code exists but is a built-in → 403.
+    """
+    row = get_league_row(conn, league_code.lower())
+    if row is None:
+        raise CustomLeagueNotFoundError(f"No league with code '{league_code}'.")
+    if not row.get("is_custom"):
+        raise CustomLeagueProtectedError(
+            f"League '{league_code}' is a built-in and cannot be modified or "
+            "deleted via the custom-league API."
+        )
+    return row
+
+
+def update_custom_league(
+    conn: sqlite3.Connection,
+    league_code: str,
+    *,
+    provider_league_id: str,
+    provider_league_name: str,
+    display_name: str,
+    sport: str,
+    event_type: str | None = None,
+    tsdb_tier: str | None = None,
+) -> dict:
+    """Update an existing custom league (built-ins rejected with 403)."""
+    require_custom_leagues_enabled(conn)
+    code = league_code.lower()
+    _load_custom_or_raise(conn, code)
+
+    provider_id = _clean_required(provider_league_id, "provider_league_id")
+    provider_name = _clean_required(provider_league_name, "provider_league_name")
+    name = _clean_required(display_name, "display_name")
+    validate_custom_league_sport(sport)
+    resolved_event_type = _resolve_event_type(event_type, sport)
+    tier = _validate_tier(tsdb_tier)
+
+    update_custom_league_row(
+        conn,
+        code,
+        provider_league_id=provider_id,
+        provider_league_name=provider_name,
+        display_name=name,
+        sport=sport,
+        event_type=resolved_event_type,
+        tsdb_tier=tier,
+    )
+    return get_league_row(conn, code)
+
+
+def delete_custom_league(conn: sqlite3.Connection, league_code: str) -> None:
+    """Delete an existing custom league (built-ins rejected with 403)."""
+    require_custom_leagues_enabled(conn)
+    code = league_code.lower()
+    _load_custom_or_raise(conn, code)
+    delete_custom_league_row(conn, code)
+
+
+# ---------------------------------------------------------------------------
+# Live test-fetch / validation (eqz.3)
+#
+# The epic's central risk: a custom-league form that just writes a row turns a
+# wrong provider_league_name into a silent empty guide that *looks* like a
+# Teamarr bug. This validator hits TSDB live BEFORE save: it confirms the id
+# resolves, cross-checks the sport, and pulls upcoming events so the UI can show
+# the user real fixtures (or an explicit "no events found") to confirm against.
+# ---------------------------------------------------------------------------
+
+# How many upcoming events to surface back to the UI as a sanity check.
+_TEST_FETCH_SAMPLE_LIMIT = 5
+
+
+def _sample_event(event: dict) -> dict:
+    """Project a raw TSDB event down to the fields the UI shows for confirmation."""
+    return {
+        "name": event.get("strEvent"),
+        "home": event.get("strHomeTeam"),
+        "away": event.get("strAwayTeam"),
+        "date": event.get("dateEvent"),
+        "timestamp": event.get("strTimestamp"),
+    }
+
+
+def run_custom_league_test_fetch(
+    conn: sqlite3.Connection,
+    *,
+    provider_league_id: str,
+    chosen_sport: str,
+    provider_league_name: str | None = None,
+) -> dict:
+    """Live-validate a prospective custom league against TheSportsDB.
+
+    Builds a premium TSDB client (the feature is gated on a premium key), looks
+    the league up by id, cross-checks its sport, and fetches upcoming events.
+    Returns a UI-friendly report rather than raising on "no events" — an empty
+    upcoming slate is a legitimate state the user should see (off-season), not an
+    error; the create guardrail decides whether to block on it.
+
+    When ``provider_league_name`` is supplied it is compared (case-insensitively)
+    against TSDB's canonical ``strLeague`` and surfaced as ``name_matches`` — the
+    signal that helps a user tell a wrong *id* from a wrong *name*, since the TSDB
+    provider uses the id for some endpoints and the exact name for others.
+
+    Raises:
+        CustomLeagueGateError: feature locked (no premium key) → 403.
+        CustomLeagueValidationError: id missing/unresolvable, or sport mismatch.
+    """
+    require_custom_leagues_enabled(conn)
+    league_id = _clean_required(provider_league_id, "provider_league_id")
+    validate_custom_league_sport(chosen_sport)
+
+    # Imported lazily so the policy module stays import-light and test-friendly.
+    from teamarr.providers.tsdb import TSDBClient
+
+    client = TSDBClient(api_key=get_tsdb_api_key(conn))
+
+    league = client.lookup_league_raw(league_id)
+    if league is None:
+        raise CustomLeagueValidationError(
+            f"TheSportsDB has no league with id '{league_id}'. Check the idLeague."
+        )
+
+    tsdb_str_sport = league.get("strSport")
+    # Surfaces the precise mismatch message; re-raised as a validation error.
+    validate_tsdb_sport_matches(tsdb_str_sport, chosen_sport)
+
+    tsdb_name = league.get("strLeague")
+    name_matches: bool | None = None
+    if provider_league_name and provider_league_name.strip():
+        name_matches = provider_league_name.strip().casefold() == (tsdb_name or "").casefold()
+
+    raw = client.get_next_events_raw(league_id)
+    events = (raw or {}).get("events") or []
+    samples = [_sample_event(e) for e in events[:_TEST_FETCH_SAMPLE_LIMIT]]
+
+    return {
+        "ok": True,
+        # Which endpoint produced the result, so a user can debug id vs name:
+        # the league identity comes from lookupleague(id) and the fixtures from
+        # eventsnextleague(id). Both are id-keyed; name_matches flags a bad name.
+        "resolved_via": "eventsnextleague",
+        "provider_league_id": league_id,
+        "tsdb_league_name": tsdb_name,
+        "name_matches": name_matches,
+        "tsdb_sport": tsdb_str_sport,
+        "chosen_sport": chosen_sport,
+        "event_count": len(events),
+        "sample_events": samples,
+    }

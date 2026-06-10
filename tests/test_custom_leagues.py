@@ -15,13 +15,19 @@ from teamarr.services.custom_leagues import (
     ALLOWED_EVENT_TYPES,
     FUNCTIONAL_SPORTS,
     CustomLeagueGateError,
+    CustomLeagueNotFoundError,
+    CustomLeagueProtectedError,
     CustomLeagueValidationError,
+    create_custom_league,
     custom_leagues_enabled,
     default_event_type,
+    delete_custom_league,
     is_supported_sport,
     require_custom_leagues_enabled,
+    run_custom_league_test_fetch,
     supported_custom_league_sports,
     tsdb_sport_to_teamarr,
+    update_custom_league,
     validate_custom_league_sport,
     validate_event_type,
     validate_tsdb_sport_matches,
@@ -182,4 +188,388 @@ def test_capability_endpoint_shape():
     codes = {s["sport_code"] for s in body["supported_sports"]}
     assert codes == set(FUNCTIONAL_SPORTS)
     assert "tennis" not in codes  # placeholder sport never offered
+
+
+# ---------------------------------------------------------------------------
+# Write path (eqz.2)
+# ---------------------------------------------------------------------------
+
+_VALID = dict(
+    league_code="swe.1",
+    provider_league_id="4379",
+    provider_league_name="Swedish Allsvenskan",
+    display_name="Allsvenskan",
+    sport="soccer",
+)
+
+
+def _premium_db() -> sqlite3.Connection:
+    conn = _db()
+    _set_key(conn, "premium-abc123")
+    return conn
+
+
+def test_create_requires_premium_key():
+    conn = _db()  # no key
+    with pytest.raises(CustomLeagueGateError):
+        create_custom_league(conn, **_VALID)
+
+
+def test_create_rejects_non_tsdb_provider():
+    conn = _premium_db()
+    with pytest.raises(CustomLeagueValidationError):
+        create_custom_league(conn, provider="espn", **_VALID)
+
+
+def test_create_persists_custom_row(monkeypatch):
+    conn = _premium_db()
+    _patch_client(monkeypatch)  # create now live-validates before insert
+    row = create_custom_league(conn, **_VALID)
+    assert row["is_custom"] == 1
+    assert row["provider"] == "tsdb"
+    assert row["enabled"] == 1
+    # event_type defaulted from sport (soccer → team_vs_team)
+    assert row["event_type"] == "team_vs_team"
+    # Persisted and readable back.
+    stored = conn.execute(
+        "SELECT provider_league_name, is_custom FROM leagues WHERE league_code = 'swe.1'"
+    ).fetchone()
+    assert stored["provider_league_name"] == "Swedish Allsvenskan"
+    assert stored["is_custom"] == 1
+
+
+def test_create_defaults_event_card_for_combat_sport(monkeypatch):
+    conn = _premium_db()
+
+    class _Boxing(_FakeTSDBClient):
+        league = {"strLeague": "Some Boxing Series", "strSport": "Boxing"}
+
+    _patch_client(monkeypatch, _Boxing)
+    row = create_custom_league(
+        conn,
+        league_code="custom.box",
+        provider_league_id="4445",
+        provider_league_name="Some Boxing Series",
+        display_name="Boxing Series",
+        sport="boxing",
+    )
+    assert row["event_type"] == "event_card"
+
+
+def test_create_rejects_collision_with_builtin():
+    conn = _premium_db()
+    # 'nfl' is a built-in seeded by schema.sql.
+    with pytest.raises(CustomLeagueValidationError) as exc:
+        create_custom_league(
+            conn,
+            league_code="nfl",
+            provider_league_id="4391",
+            provider_league_name="NFL",
+            display_name="My NFL",
+            sport="football",
+        )
+    assert "already exists" in str(exc.value).lower()
+    # The built-in is untouched (still ESPN, still not custom).
+    builtin = conn.execute(
+        "SELECT provider, is_custom FROM leagues WHERE league_code = 'nfl'"
+    ).fetchone()
+    assert builtin["provider"] == "espn"
+    assert builtin["is_custom"] == 0
+
+
+def test_create_rejects_unsupported_sport():
+    conn = _premium_db()
+    with pytest.raises(CustomLeagueValidationError):
+        create_custom_league(conn, **{**_VALID, "sport": "tennis"})
+
+
+@pytest.mark.parametrize("field", ["provider_league_id", "provider_league_name", "display_name"])
+def test_create_rejects_blank_required_field(field):
+    conn = _premium_db()
+    with pytest.raises(CustomLeagueValidationError):
+        create_custom_league(conn, **{**_VALID, field: "  "})
+
+
+def test_update_only_touches_custom_rows(monkeypatch):
+    conn = _premium_db()
+    _patch_client(monkeypatch)
+    create_custom_league(conn, **_VALID)
+    updated = update_custom_league(
+        conn,
+        "swe.1",
+        provider_league_id="4379",
+        provider_league_name="Allsvenskan (renamed)",
+        display_name="Allsvenskan",
+        sport="soccer",
+    )
+    assert updated["provider_league_name"] == "Allsvenskan (renamed)"
+
+
+def test_update_rejects_builtin():
+    conn = _premium_db()
+    with pytest.raises(CustomLeagueProtectedError):
+        update_custom_league(
+            conn,
+            "nfl",
+            provider_league_id="x",
+            provider_league_name="x",
+            display_name="x",
+            sport="football",
+        )
+
+
+def test_update_missing_league_is_404():
+    conn = _premium_db()
+    with pytest.raises(CustomLeagueNotFoundError):
+        update_custom_league(
+            conn,
+            "does.not.exist",
+            provider_league_id="x",
+            provider_league_name="x",
+            display_name="x",
+            sport="soccer",
+        )
+
+
+def test_delete_removes_custom_row(monkeypatch):
+    conn = _premium_db()
+    _patch_client(monkeypatch)
+    create_custom_league(conn, **_VALID)
+    delete_custom_league(conn, "swe.1")
+    assert (
+        conn.execute("SELECT 1 FROM leagues WHERE league_code = 'swe.1'").fetchone() is None
+    )
+
+
+def test_delete_rejects_builtin():
+    conn = _premium_db()
+    with pytest.raises(CustomLeagueProtectedError):
+        delete_custom_league(conn, "nfl")
+    # Built-in still present.
+    assert conn.execute("SELECT 1 FROM leagues WHERE league_code = 'nfl'").fetchone() is not None
+
+
+def test_create_survives_restart(monkeypatch):
+    """A novel custom code must survive re-running schema.sql (the restart path).
+
+    schema.sql uses CREATE TABLE IF NOT EXISTS + INSERT OR REPLACE on built-in
+    codes only, so a custom row's code is never in the REPLACE set.
+    """
+    conn = _premium_db()
+    _patch_client(monkeypatch)
+    create_custom_league(conn, **_VALID)
+    conn.executescript(SCHEMA.read_text())  # simulate startup re-seed
+    row = conn.execute(
+        "SELECT is_custom, provider_league_name FROM leagues WHERE league_code = 'swe.1'"
+    ).fetchone()
+    assert row is not None
+    assert row["is_custom"] == 1
+    assert row["provider_league_name"] == "Swedish Allsvenskan"
+
+
+# ---------------------------------------------------------------------------
+# Live test-fetch / validation (eqz.3)
+# ---------------------------------------------------------------------------
+
+
+class _FakeTSDBClient:
+    """Stand-in for TSDBClient that records the key and returns canned data."""
+
+    league: dict | None = {"strLeague": "Swedish Allsvenskan", "strSport": "Soccer"}
+    events: dict | None = {
+        "events": [
+            {
+                "strEvent": "AIK vs Hammarby",
+                "strHomeTeam": "AIK",
+                "strAwayTeam": "Hammarby",
+                "dateEvent": "2026-07-01",
+                "strTimestamp": "2026-07-01T17:00:00",
+            }
+        ]
+    }
+
+    def __init__(self, api_key=None):
+        self.api_key = api_key
+
+    def lookup_league_raw(self, league_id):
+        return self.league
+
+    def get_next_events_raw(self, league_id):
+        return self.events
+
+
+def _patch_client(monkeypatch, cls=_FakeTSDBClient):
+    import teamarr.providers.tsdb as tsdb_pkg
+
+    monkeypatch.setattr(tsdb_pkg, "TSDBClient", cls)
+
+
+def test_test_fetch_requires_premium(monkeypatch):
+    conn = _db()  # no key
+    with pytest.raises(CustomLeagueGateError):
+        run_custom_league_test_fetch(conn, provider_league_id="4379", chosen_sport="soccer")
+
+
+def test_test_fetch_returns_sample_events(monkeypatch):
+    conn = _premium_db()
+    _patch_client(monkeypatch)
+    result = run_custom_league_test_fetch(conn, provider_league_id="4379", chosen_sport="soccer")
+    assert result["ok"] is True
+    assert result["tsdb_league_name"] == "Swedish Allsvenskan"
+    assert result["event_count"] == 1
+    assert result["sample_events"][0]["home"] == "AIK"
+
+
+def test_test_fetch_uses_premium_key(monkeypatch):
+    conn = _premium_db()
+    captured = {}
+
+    class _Capturing(_FakeTSDBClient):
+        def __init__(self, api_key=None):
+            super().__init__(api_key)
+            captured["key"] = api_key
+
+    _patch_client(monkeypatch, _Capturing)
+    run_custom_league_test_fetch(conn, provider_league_id="4379", chosen_sport="soccer")
+    assert captured["key"] == "premium-abc123"
+
+
+def test_test_fetch_unresolvable_id_is_validation_error(monkeypatch):
+    conn = _premium_db()
+
+    class _NoLeague(_FakeTSDBClient):
+        league = None
+
+    _patch_client(monkeypatch, _NoLeague)
+    with pytest.raises(CustomLeagueValidationError):
+        run_custom_league_test_fetch(conn, provider_league_id="999999", chosen_sport="soccer")
+
+
+def test_test_fetch_sport_mismatch_rejected(monkeypatch):
+    conn = _premium_db()
+
+    class _Cricket(_FakeTSDBClient):
+        league = {"strLeague": "Some Cricket", "strSport": "Cricket"}
+
+    _patch_client(monkeypatch, _Cricket)
+    with pytest.raises(CustomLeagueValidationError) as exc:
+        run_custom_league_test_fetch(conn, provider_league_id="4379", chosen_sport="soccer")
+    assert "mismatch" in str(exc.value).lower()
+
+
+def test_test_fetch_no_events_is_ok_not_error(monkeypatch):
+    conn = _premium_db()
+
+    class _Empty(_FakeTSDBClient):
+        events = {"events": []}
+
+    _patch_client(monkeypatch, _Empty)
+    result = run_custom_league_test_fetch(conn, provider_league_id="4379", chosen_sport="soccer")
+    assert result["ok"] is True
+    assert result["event_count"] == 0
+    assert result["sample_events"] == []
+
+
+# ---------------------------------------------------------------------------
+# Route exception → HTTP mapping (eqz.2/eqz.3) — DB-free, no real writes
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    "exc,status",
+    [
+        (CustomLeagueGateError("locked"), 403),
+        (CustomLeagueProtectedError("builtin"), 403),
+        (CustomLeagueNotFoundError("missing"), 404),
+        (CustomLeagueValidationError("bad"), 400),
+    ],
+)
+def test_route_exception_mapping(exc, status):
+    from fastapi import HTTPException
+
+    from teamarr.api.routes.leagues import _raise_http
+
+    with pytest.raises(HTTPException) as caught:
+        _raise_http(exc)
+    assert caught.value.status_code == status
+    assert caught.value.detail == str(exc)
+
+
+def test_route_mapping_reraises_unknown():
+    from teamarr.api.routes.leagues import _raise_http
+
+    sentinel = RuntimeError("boom")
+    with pytest.raises(RuntimeError):
+        _raise_http(sentinel)
+
+
+# ---------------------------------------------------------------------------
+# Create-time live guardrail (eqz.3 wired into eqz.2)
+# ---------------------------------------------------------------------------
+
+
+def test_create_blocks_when_zero_events(monkeypatch):
+    conn = _premium_db()
+
+    class _Empty(_FakeTSDBClient):
+        events = {"events": []}
+
+    _patch_client(monkeypatch, _Empty)
+    with pytest.raises(CustomLeagueValidationError) as exc:
+        create_custom_league(conn, **_VALID)
+    assert "no upcoming events" in str(exc.value).lower()
+    # Nothing was written.
+    assert conn.execute("SELECT 1 FROM leagues WHERE league_code = 'swe.1'").fetchone() is None
+
+
+def test_create_allow_empty_override(monkeypatch):
+    conn = _premium_db()
+
+    class _Empty(_FakeTSDBClient):
+        events = {"events": []}
+
+    _patch_client(monkeypatch, _Empty)
+    row = create_custom_league(conn, **_VALID, allow_empty=True)
+    assert row["is_custom"] == 1
+
+
+def test_create_enforces_tsdb_sport_cross_check(monkeypatch):
+    conn = _premium_db()
+
+    class _Cricket(_FakeTSDBClient):
+        league = {"strLeague": "Swedish Allsvenskan", "strSport": "Cricket"}
+
+    _patch_client(monkeypatch, _Cricket)
+    # User selected soccer but TSDB classifies the id as cricket → blocked.
+    with pytest.raises(CustomLeagueValidationError) as exc:
+        create_custom_league(conn, **_VALID)
+    assert "mismatch" in str(exc.value).lower()
+    assert conn.execute("SELECT 1 FROM leagues WHERE league_code = 'swe.1'").fetchone() is None
+
+
+def test_validator_reports_resolution_metadata(monkeypatch):
+    conn = _premium_db()
+    _patch_client(monkeypatch)
+    # Matching name → name_matches True; resolved_via surfaced for id/name debug.
+    ok = run_custom_league_test_fetch(
+        conn,
+        provider_league_id="4379",
+        chosen_sport="soccer",
+        provider_league_name="swedish allsvenskan",  # case-insensitive match
+    )
+    assert ok["resolved_via"] == "eventsnextleague"
+    assert ok["name_matches"] is True
+
+    # Wrong name → name_matches False (helps distinguish a bad name from a bad id).
+    bad = run_custom_league_test_fetch(
+        conn,
+        provider_league_id="4379",
+        chosen_sport="soccer",
+        provider_league_name="Totally Wrong Name",
+    )
+    assert bad["name_matches"] is False
+
+    # No name supplied → name_matches stays None (not checked).
+    none = run_custom_league_test_fetch(conn, provider_league_id="4379", chosen_sport="soccer")
+    assert none["name_matches"] is None
 

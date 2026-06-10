@@ -482,6 +482,28 @@ class TSDBClient:
             self._cache.set(cache_key, result, TSDB_CACHE_TTL_NEXT_EVENTS)
         return result
 
+    # ------------------------------------------------------------------
+    # Raw lookups (no DB mapping) — used by custom-league validation (eqz.3),
+    # where the league is not yet a saved row so there is no canonical code to
+    # map. These take the provider's own id/name directly. Not cached: the
+    # test-fetch is a one-shot validation, and caching an unsaved league would
+    # be keyed on nothing useful.
+    # ------------------------------------------------------------------
+
+    def lookup_league_raw(self, league_id: str) -> dict | None:
+        """Look up a league by TSDB id (lookupleague.php) → league dict or None.
+
+        The returned dict carries ``strLeague`` and ``strSport``, used to verify
+        the id resolves and to cross-check the user-selected sport.
+        """
+        result = self._request("lookupleague.php", {"id": league_id})
+        leagues = (result or {}).get("leagues") or []
+        return leagues[0] if leagues else None
+
+    def get_next_events_raw(self, league_id: str) -> dict | None:
+        """eventsnextleague.php by raw league ID, no DB mapping."""
+        return self._request("eventsnextleague.php", {"id": league_id})
+
     def get_events_by_season(self, league: str, season: str | None = None) -> dict | None:
         """Fetch all events for a league season.
 
