@@ -7,7 +7,7 @@ docs_version: "2.3.1"
 
 # Supported Sports & Leagues
 
-Teamarr supports **117 pre-configured leagues** across 13 sports, plus **~250 dynamically discovered soccer leagues** from ESPN. Pre-configured leagues have full support (team import + event matching). Discovered leagues support event matching only.
+Teamarr supports **127 pre-configured leagues** across 13 sports, plus **~250 dynamically discovered soccer leagues** from ESPN. Pre-configured leagues have full support (team import + event matching). Discovered leagues support event matching only.
 
 ## Support Levels
 
@@ -151,6 +151,7 @@ Teamarr automatically discovers **~250 soccer leagues** from ESPN's API during c
 | NCAA Men's Soccer | `ncaas` | ESPN |
 | NCAA Women's Soccer | `ncaaws` | ESPN |
 | Liga MX | `ligamx` | ESPN |
+| Canadian Premier League | `can.1` | TSDB **P** |
 
 ### England
 
@@ -184,6 +185,7 @@ Teamarr automatically discovers **~250 soccer leagues** from ESPN's API during c
 | Turkish Süper Lig | `super-lig` | ESPN |
 | Greek Super League | `greek-super-league` | ESPN |
 | Saudi Pro League | `spl` | ESPN |
+| Northern Irish Premiership | `nifl.1` | TSDB **P** |
 
 ### UEFA Competitions
 
@@ -202,6 +204,7 @@ Teamarr automatically discovers **~250 soccer leagues** from ESPN's API during c
 | Colombian Primera A | `dimayor` | ESPN |
 | Copa Libertadores | `libertadores` | ESPN |
 | Copa Sudamericana | `sudamericana` | ESPN |
+| Venezuelan Segunda División | `ven.2` | TSDB **P** |
 
 ### International
 
@@ -219,7 +222,19 @@ Teamarr automatically discovers **~250 soccer leagues** from ESPN's API during c
 | League | ID | Provider |
 |--------|-----|----------|
 | Svenska Cupen (Sweden) | `svenska-cupen` | TSDB **P** |
+| Swedish Superettan | `swe.2` | TSDB **P** |
+| Swedish Division 1 North | `swe.3.n` | TSDB **P** |
+| Swedish Division 1 South | `swe.3.s` | TSDB **P** |
+| Icelandic Úrvalsdeild karla | `ice.1` | TSDB **P** |
+| Icelandic 1. deild karla | `ice.2` | TSDB **P** |
 | Uruguayan Segunda División | `uru.2` | TSDB **P** |
+
+### Other Regions
+
+| League | ID | Provider |
+|--------|-----|----------|
+| Gambia GFA League | `gam.1` | TSDB **P** |
+| Aruban Division di Honor | `arb.1` | TSDB **P** |
 
 ### Asia/Pacific
 

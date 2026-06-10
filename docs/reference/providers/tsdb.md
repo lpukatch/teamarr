@@ -41,7 +41,7 @@ These leagues have high event volume or unreliable free-tier data and require a 
 
 - AFL (Australian football)
 - IPL, BBL, SA20 (cricket)
-- Svenska Cupen (soccer)
+- Svenska Cupen and other regional soccer leagues (Canadian Premier League, Swedish Superettan / Division 1, Icelandic, Venezuelan, Gambian, Aruban, Northern Irish)
 
 The `tsdb_tier` column in `schema.sql` classifies each league as `free` or `premium`.
 
@@ -64,6 +64,16 @@ Get a key at [thesportsdb.com/pricing](https://www.thesportsdb.com/pricing).
 | Big Bash League | `bbl` | 4461 | Cricket | Premium |
 | SA20 | `sa20` | 5532 | Cricket | Premium |
 | Svenska Cupen | `svenska-cupen` | 4756 | Soccer | Premium |
+| Canadian Premier League | `can.1` | 4820 | Soccer | Premium |
+| Swedish Superettan | `swe.2` | 4403 | Soccer | Premium |
+| Swedish Division 1 North | `swe.3.n` | 4674 | Soccer | Premium |
+| Swedish Division 1 South | `swe.3.s` | 4845 | Soccer | Premium |
+| Icelandic Úrvalsdeild karla | `ice.1` | 4642 | Soccer | Premium |
+| Icelandic 1. deild karla | `ice.2` | 4906 | Soccer | Premium |
+| Venezuelan Segunda División | `ven.2` | 5659 | Soccer | Premium |
+| Gambia GFA League | `gam.1` | 5238 | Soccer | Premium |
+| Aruban Division di Honor | `arb.1` | 5230 | Soccer | Premium |
+| Northern Irish Premiership | `nifl.1` | 4659 | Soccer | Premium |
 
 ## Event Resolution
 

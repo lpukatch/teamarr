@@ -998,6 +998,17 @@ INSERT OR REPLACE INTO leagues (league_code, provider, provider_league_id, provi
     -- uru.2: ESPN data is severely stale (2011 roster, 2010 scoreboard) — TSDB only
     ('uru.2', 'tsdb', '5072', 'Uruguayan Segunda División', 'AUF Segunda', 'soccer', 'https://r2.thesportsdb.com/images/media/league/badge/htc3kb1740672581.png', NULL, 1, NULL, 'uru.2', 'team_vs_team', NULL, NULL, NULL, 'premium'),
     ('svenska-cupen', 'tsdb', '4756', 'Svenska Cupen', 'Svenska Cupen', 'soccer', 'https://r2.thesportsdb.com/images/media/league/badge/p37u1n1694211430.png', NULL, 1, NULL, 'svenska-cupen', 'team_vs_team', NULL, NULL, NULL, 'premium'),
+    -- Community league requests (#220-229) — provider_league_name validated against TSDB lookupleague.php (strLeague exact)
+    ('can.1', 'tsdb', '4820', 'Canadian Premier League', 'Canadian Premier League', 'soccer', 'https://r2.thesportsdb.com/images/media/league/logo/7jqvqs1589104556.png', NULL, 1, NULL, 'can.1', 'team_vs_team', NULL, NULL, NULL, 'premium'),
+    ('swe.2', 'tsdb', '4403', 'Swedish Superettan', 'Swedish Superettan', 'soccer', 'https://r2.thesportsdb.com/images/media/league/badge/uvzmu21707459258.png', NULL, 1, NULL, 'swe.2', 'team_vs_team', NULL, NULL, NULL, 'premium'),
+    ('swe.3.n', 'tsdb', '4674', 'Swedish Division 1 North', 'Swedish Division 1 North', 'soccer', 'https://r2.thesportsdb.com/images/media/league/badge/w8f05c1579901188.png', NULL, 1, NULL, 'swe.3.n', 'team_vs_team', NULL, NULL, NULL, 'premium'),
+    ('swe.3.s', 'tsdb', '4845', 'Swedish Division 1 South', 'Swedish Division 1 South', 'soccer', 'https://r2.thesportsdb.com/images/media/league/badge/w8f05c1579901188.png', NULL, 1, NULL, 'swe.3.s', 'team_vs_team', NULL, NULL, NULL, 'premium'),
+    ('ven.2', 'tsdb', '5659', 'Venezuelan Segunda Division', 'Venezuelan Segunda División', 'soccer', 'https://r2.thesportsdb.com/images/media/league/logo/9tgsja1754302332.png', NULL, 1, NULL, 'ven.2', 'team_vs_team', NULL, NULL, NULL, 'premium'),
+    ('gam.1', 'tsdb', '5238', 'Gambia GFA League', 'Gambia GFA League', 'soccer', 'https://r2.thesportsdb.com/images/media/league/badge/tqdf9k1645215996.png', NULL, 1, NULL, 'gam.1', 'team_vs_team', NULL, NULL, NULL, 'premium'),
+    ('ice.1', 'tsdb', '4642', 'Icelandic Úrvalsdeild karla', 'Icelandic Úrvalsdeild karla', 'soccer', 'https://r2.thesportsdb.com/images/media/league/logo/7z7rcg1686156462.png', NULL, 1, NULL, 'ice.1', 'team_vs_team', NULL, NULL, NULL, 'premium'),
+    ('ice.2', 'tsdb', '4906', 'Icelandic 1 deild karla', 'Icelandic 1 deild karla', 'soccer', 'https://r2.thesportsdb.com/images/media/league/logo/ent23s1614355568.png', NULL, 1, NULL, 'ice.2', 'team_vs_team', NULL, NULL, NULL, 'premium'),
+    ('arb.1', 'tsdb', '5230', 'Aruban Division di Honor', 'Aruban Division di Honor', 'soccer', 'https://r2.thesportsdb.com/images/media/league/logo/1uwxfa1645196203.png', NULL, 1, NULL, 'arb.1', 'team_vs_team', NULL, NULL, NULL, 'premium'),
+    ('nifl.1', 'tsdb', '4659', 'Northern Irish Premiership', 'Northern Irish Premiership', 'soccer', 'https://r2.thesportsdb.com/images/media/league/logo/at2i0n1625851036.png', NULL, 1, NULL, 'nifl.1', 'team_vs_team', NULL, NULL, NULL, 'premium'),
 
     -- MMA (ESPN) - Combat sport with event cards
     ('ufc', 'espn', 'mma/ufc', NULL, 'Ultimate Fighting Championship', 'mma', 'https://a.espncdn.com/i/teamlogos/leagues/500/ufc.png', NULL, 0, 'UFC', 'ufc', 'event_card', NULL, NULL, NULL, NULL),
