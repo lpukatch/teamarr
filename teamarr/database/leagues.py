@@ -240,6 +240,23 @@ def get_league_row(conn: sqlite3.Connection, league_code: str) -> dict | None:
     return dict(row) if row else None
 
 
+def list_custom_leagues(conn: sqlite3.Connection) -> list[dict]:
+    """Return all user-added (``is_custom=1``) leagues for the management UI.
+
+    Only the fields the custom-league UI renders/edits, ordered by display name.
+    """
+    cursor = conn.execute(
+        """
+        SELECT league_code, provider, provider_league_id, provider_league_name,
+               display_name, sport, event_type, tsdb_tier, enabled
+        FROM leagues
+        WHERE is_custom = 1
+        ORDER BY display_name
+        """
+    )
+    return [dict(row) for row in cursor.fetchall()]
+
+
 def insert_custom_league(
     conn: sqlite3.Connection,
     *,

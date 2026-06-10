@@ -17,6 +17,7 @@ import {
   ArrowUpDown,
   RotateCcw,
   Library,
+  Trophy,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
@@ -525,6 +526,10 @@ export function EventGroups() {
           <Button variant="outline" size="sm" onClick={() => navigate("/detection-library")}>
             <Library className="h-4 w-4 mr-1" />
             Detection Library
+          </Button>
+          <Button variant="outline" size="sm" onClick={() => navigate("/custom-leagues")}>
+            <Trophy className="h-4 w-4 mr-1" />
+            Custom Leagues
           </Button>
           <Button size="sm" onClick={() => navigate("/event-groups/import")}>
             <Download className="h-4 w-4 mr-1" />

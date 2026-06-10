@@ -522,6 +522,21 @@ def test_create_blocks_when_zero_events(monkeypatch):
     assert conn.execute("SELECT 1 FROM leagues WHERE league_code = 'swe.1'").fetchone() is None
 
 
+def test_list_custom_leagues_returns_only_custom(monkeypatch):
+    from teamarr.database.leagues import list_custom_leagues
+
+    conn = _premium_db()
+    _patch_client(monkeypatch)
+    assert list_custom_leagues(conn) == []  # none yet; built-ins excluded
+    create_custom_league(conn, **_VALID)
+    rows = list_custom_leagues(conn)
+    assert len(rows) == 1
+    assert rows[0]["league_code"] == "swe.1"
+    assert rows[0]["provider"] == "tsdb"
+    # Built-ins (is_custom=0) are never listed.
+    assert all(r["league_code"] != "nfl" for r in rows)
+
+
 def test_create_allow_empty_override(monkeypatch):
     conn = _premium_db()
 

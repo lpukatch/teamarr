@@ -16,6 +16,7 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
 from teamarr.database import get_db
+from teamarr.database.leagues import list_custom_leagues
 from teamarr.services.custom_leagues import (
     CustomLeagueGateError,
     CustomLeagueNotFoundError,
@@ -118,6 +119,19 @@ def get_custom_league_capability() -> dict:
         sports = supported_custom_league_sports(conn)
 
     return {"enabled": enabled, "supported_sports": sports}
+
+
+@router.get("/custom")
+def get_custom_leagues() -> dict:
+    """List all user-added (``is_custom=1``) leagues for the management UI.
+
+    Returns:
+        ``{custom_leagues: [{league_code, provider, provider_league_id,
+        provider_league_name, display_name, sport, event_type, tsdb_tier,
+        enabled}]}``
+    """
+    with get_db() as conn:
+        return {"custom_leagues": list_custom_leagues(conn)}
 
 
 @router.post("/custom/test-fetch")

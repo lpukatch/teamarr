@@ -5,6 +5,7 @@ import { GenerationProvider } from "@/contexts/GenerationContext"
 import { StartupOverlay } from "@/components/StartupOverlay"
 import {
   Dashboard,
+  CustomLeagues,
   DetectionLibrary,
   Templates,
   TemplateForm,
@@ -45,6 +46,7 @@ function AppContent() {
             <Route path="event-groups/:groupId" element={<EventGroupForm />} />
             <Route path="event-groups/import" element={<EventGroupImport />} />
             <Route path="detection-library" element={<DetectionLibrary />} />
+            <Route path="custom-leagues" element={<CustomLeagues />} />
             <Route path="epg" element={<EPG />} />
             <Route path="channels" element={<Channels />} />
             <Route path="settings" element={<Settings />} />
