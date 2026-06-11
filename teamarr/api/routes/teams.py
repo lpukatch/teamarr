@@ -149,6 +149,7 @@ def get_team(team_id: int):
 def get_team_channel_status(team_id: int):
     """Get Dispatcharr mapping and next live window for a static team channel."""
     from teamarr.database.teams import get_team as db_get_team
+    from teamarr.database.teams import get_team_xmltv
     from teamarr.dispatcharr import ChannelManager, get_dispatcharr_client
     from teamarr.services.team_channel_status import build_team_channel_status
 
@@ -157,10 +158,7 @@ def get_team_channel_status(team_id: int):
         if not team:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Team not found")
 
-        xmltv_row = conn.execute(
-            "SELECT xmltv_content, updated_at FROM team_epg_xmltv WHERE team_id = ?",
-            (team_id,),
-        ).fetchone()
+        xmltv_row = get_team_xmltv(conn, team_id)
 
     dispatcharr_channel = None
     dispatcharr_error = None

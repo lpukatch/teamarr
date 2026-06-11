@@ -38,8 +38,22 @@ def _text(element: ET.Element, name: str) -> str | None:
     return text or None
 
 
-def _is_live_programme(element: ET.Element) -> bool:
-    if element.find("live") is not None:
+def _has_live_tag(element: ET.Element) -> bool:
+    """True if the programme carries an explicit XMLTV ``<live/>`` tag."""
+    return element.find("live") is not None
+
+
+# Categories that mark a real game/event programme (as opposed to filler, which
+# carries no category by default). "sports" is Teamarr's DEFAULT category
+# (database/templates.py xmltv_categories=["Sports"]) and the live tag is OFF by
+# default, so without recognising "sports" the endpoint would never find a
+# window on a stock setup. The remaining entries cover common custom variants.
+_EVENT_CATEGORIES = {"sports", "sport", "sports event", "live-sport", "live sport"}
+
+
+def _is_event_programme(element: ET.Element) -> bool:
+    """True if the programme is an actual game window (live tag or sports category)."""
+    if _has_live_tag(element):
         return True
 
     categories = {
@@ -47,7 +61,7 @@ def _is_live_programme(element: ET.Element) -> bool:
         for category in element.findall("category")
         if category.text
     }
-    return bool(categories & {"sports event", "live-sport", "live sport"})
+    return bool(categories & _EVENT_CATEGORIES)
 
 
 def find_next_live_window(
@@ -75,7 +89,7 @@ def find_next_live_window(
         stop = parse_xmltv_timestamp(programme.attrib.get("stop"))
         if stop is not None and stop < now:
             continue
-        if not _is_live_programme(programme):
+        if not _is_event_programme(programme):
             continue
 
         candidates.append(
@@ -85,7 +99,7 @@ def find_next_live_window(
                 "stop": stop,
                 "title": _text(programme, "title"),
                 "sub_title": _text(programme, "sub-title"),
-                "is_live": True,
+                "is_live": _has_live_tag(programme),
                 "source": "team_epg_xmltv",
             }
         )

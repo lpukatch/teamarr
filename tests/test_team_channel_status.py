@@ -3,7 +3,7 @@
 import sqlite3
 from contextlib import contextmanager
 from dataclasses import dataclass
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
 import pytest
 
@@ -101,6 +101,27 @@ def test_find_next_live_window_requires_live_signal():
     assert find_next_live_window(xmltv, "team", now=datetime(2026, 6, 9, tzinfo=UTC)) is None
 
 
+def test_find_next_live_window_matches_default_sports_category():
+    """Teamarr's DEFAULT output (category 'Sports', no <live> tag) must be found.
+
+    Default templates set xmltv_categories=['Sports'] and live=False, so requiring
+    a <live> tag or 'Sports Event' category would make the endpoint never reach
+    'ready' on a stock setup. The window is found; is_live reflects the (absent) tag.
+    """
+    xmltv = """<tv>
+      <programme start="20260610014500 +0000" stop="20260610051500 +0000"
+          channel="team">
+        <title>MLB Baseball</title>
+        <category>Sports</category>
+      </programme>
+    </tv>"""
+
+    window = find_next_live_window(xmltv, "team", now=datetime(2026, 6, 9, tzinfo=UTC))
+    assert window is not None
+    assert window["title"] == "MLB Baseball"
+    assert window["is_live"] is False  # no <live> tag, but still a real game window
+
+
 def test_build_team_channel_status_ready():
     status = build_team_channel_status(
         team=TEAM,
@@ -132,6 +153,26 @@ def test_build_team_channel_status_missing_dispatcharr_and_xmltv():
     assert status["dispatcharr_channel"]["found"] is False
     assert status["dispatcharr_channel"]["error"] == "Dispatcharr connection not available"
     assert status["next_live_window"]["found"] is False
+
+
+def _live_now_xmltv() -> str:
+    """XMLTV with a programme live *right now* (relative to real time).
+
+    The endpoint doesn't accept an injected ``now``, so endpoint tests must use
+    dates relative to the actual clock — fixed dates turn the tests into
+    time-bombs that fail once the hardcoded day passes.
+    """
+    fmt = "%Y%m%d%H%M%S +0000"
+    start = (datetime.now(UTC) - timedelta(hours=1)).strftime(fmt)
+    stop = (datetime.now(UTC) + timedelta(hours=2)).strftime(fmt)
+    return f"""<tv>
+      <programme start="{start}" stop="{stop}" channel="{TEAM["channel_id"]}">
+        <title>MLB Baseball</title>
+        <sub-title>Washington Nationals at San Francisco Giants</sub-title>
+        <category>Sports Event</category>
+        <live/>
+      </programme>
+    </tv>"""
 
 
 def _team_status_db(xmltv: str | None = XMLTV):
@@ -202,7 +243,7 @@ def _patch_team_status_db(monkeypatch, conn):
 
 
 def test_team_channel_status_endpoint_ready(monkeypatch):
-    conn = _team_status_db()
+    conn = _team_status_db(_live_now_xmltv())
     _patch_team_status_db(monkeypatch, conn)
 
     import teamarr.dispatcharr as dispatcharr
@@ -227,7 +268,7 @@ def test_team_channel_status_endpoint_ready(monkeypatch):
 
 
 def test_team_channel_status_endpoint_missing_dispatcharr(monkeypatch):
-    conn = _team_status_db()
+    conn = _team_status_db(_live_now_xmltv())
     _patch_team_status_db(monkeypatch, conn)
 
     import teamarr.dispatcharr as dispatcharr
