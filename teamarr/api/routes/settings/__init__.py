@@ -121,7 +121,6 @@ def get_settings():
             include_final_events=settings.epg.include_final_events,
             midnight_crossover_mode=settings.epg.midnight_crossover_mode,
             cron_expression=settings.epg.cron_expression,
-            epg_match_enabled=settings.epg.epg_match_enabled,
             epg_xtream_fallback_enabled=settings.epg.epg_xtream_fallback_enabled,
             epg_xtream_cache_hours=settings.epg.epg_xtream_cache_hours,
             epg_channel_source_enabled=settings.epg.epg_channel_source_enabled,

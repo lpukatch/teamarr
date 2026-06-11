@@ -224,7 +224,6 @@ def update_epg_settings(conn: Connection, **kwargs) -> bool:
         "include_final_events": "include_final_events",
         "midnight_crossover_mode": "midnight_crossover_mode",
         "cron_expression": "cron_expression",
-        "epg_match_enabled": "epg_match_enabled",
         "epg_xtream_fallback_enabled": "epg_xtream_fallback_enabled",
         "epg_xtream_cache_hours": "epg_xtream_cache_hours",
         "epg_channel_source_enabled": "epg_channel_source_enabled",

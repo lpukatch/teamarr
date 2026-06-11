@@ -81,8 +81,6 @@ class EPGSettings:
     midnight_crossover_mode: str = "postgame"
     cron_expression: str = "0 * * * *"
     prepend_postponed_label: bool = True
-    # EPG program-data matching (epic 183.6)
-    epg_match_enabled: bool = False
     # XC provider EPG fallback (epic crs) — opt-in backup when DP has no mapping
     epg_xtream_fallback_enabled: bool = False
     # How long a downloaded XC provider EPG is reused before re-fetching (hours)

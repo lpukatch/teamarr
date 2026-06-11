@@ -645,18 +645,16 @@ class EventGroupProcessor:
             # Sync the system-managed "Dispatcharr Channels" source group (183.9) to
             # the global setting before loading groups. When enabled it joins the
             # normal processing loop; when disabled it stays out and its channels are
-            # reaped by the disabled-group cleanup.
+            # reaped by the disabled-group cleanup. (EPG matching is always available;
+            # only the channel-source toggle gates this system group.)
             try:
                 from teamarr.database.groups import ensure_channel_source_group
 
                 _cs_row = conn.execute(
-                    "SELECT epg_match_enabled, epg_channel_source_enabled "
-                    "FROM settings WHERE id = 1"
+                    "SELECT epg_channel_source_enabled FROM settings WHERE id = 1"
                 ).fetchone()
                 _channel_source_on = bool(
-                    _cs_row
-                    and _cs_row["epg_match_enabled"]
-                    and _cs_row["epg_channel_source_enabled"]
+                    _cs_row and _cs_row["epg_channel_source_enabled"]
                 )
                 ensure_channel_source_group(conn, _channel_source_on)
             except Exception as e:
@@ -1537,7 +1535,7 @@ class EventGroupProcessor:
         # Load settings for event filtering
         with self._db_factory() as conn:
             row = conn.execute(
-                "SELECT include_final_events, epg_match_enabled, "
+                "SELECT include_final_events, "
                 "epg_xtream_fallback_enabled, epg_xtream_cache_hours, "
                 "event_match_days_back, event_match_days_ahead "
                 "FROM settings WHERE id = 1"
@@ -1545,7 +1543,6 @@ class EventGroupProcessor:
             include_final_events = (
                 bool(row["include_final_events"]) if row else False
             )
-            global_epg_match = bool(row["epg_match_enabled"]) if row else False
             xtream_fallback = bool(row["epg_xtream_fallback_enabled"]) if row else False
             xtream_cache_hours = (row["epg_xtream_cache_hours"] if row else 24) or 24
             match_days_back = (row["event_match_days_back"] if row else 7) or 7
@@ -1559,10 +1556,10 @@ class EventGroupProcessor:
         sport_durations = self._load_sport_durations_cached()
 
         # EPG program-data matching (epic 183.6): build a scoped program index
-        # ONLY when both the global switch and this group opted in. Default off →
+        # ONLY when this group opted in (group.epg_match_enabled). Default off →
         # epg_index is None → matcher behaves exactly as before.
         epg_index = self._build_epg_index(
-            group, streams, target_date, global_epg_match,
+            group, streams, target_date,
             match_days_back, match_days_ahead, xtream_fallback,
             xtream_cache_hours,
         )
@@ -1624,7 +1621,6 @@ class EventGroupProcessor:
         group,
         streams: list[dict],
         target_date: date,
-        global_epg_match: bool,
         match_days_back: int,
         match_days_ahead: int,
         xtream_fallback: bool = False,
@@ -1632,7 +1628,7 @@ class EventGroupProcessor:
     ):
         """Build a scoped EPGProgramIndex for EPG matching, or None if disabled.
 
-        Gated on: global switch + per-group opt-in + a connected Dispatcharr.
+        Gated on: per-group opt-in + a connected Dispatcharr.
 
         A raw M3U stream's tvg_id is usually a different namespace from EPG
         program tvg_ids, so we resolve each candidate stream to its EPG-source
@@ -1642,7 +1638,7 @@ class EventGroupProcessor:
         by the resolved tvg_id but indexed by the stream tvg_id for matcher
         lookup.
         """
-        if not (global_epg_match and group.epg_match_enabled):
+        if not group.epg_match_enabled:
             return None
         if not self._dispatcharr_client:
             return None

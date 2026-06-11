@@ -54,7 +54,6 @@ export interface EPGSettings {
   include_final_events: boolean
   midnight_crossover_mode: string
   cron_expression: string
-  epg_match_enabled: boolean
   epg_xtream_fallback_enabled: boolean
   epg_xtream_cache_hours: number
   epg_channel_source_enabled: boolean

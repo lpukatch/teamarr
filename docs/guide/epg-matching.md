@@ -83,15 +83,21 @@ It runs **alongside** your per-group M3U matching (not instead of it); matches a
 - A stream resolvable to that guide by one of strategies 1–3 above — or, with the opt-in Xtream fallback, an XC provider whose own EPG covers it. Streams that resolve to nothing are left to normal name matching.
 
 {: .note }
-EPG matching is **opt-in and off by default** — both globally and per group.
+EPG matching is **opt-in and off by default** — enabled per event group. There is no global on/off switch.
 
 ---
 
 ## Enabling it
 
-### 1. Global switch — Settings → EPG
+### 1. Per-group switch — Event Group settings
 
-Turn on **Match streams using Dispatcharr EPG data** (the master switch). When enabled, two buffer fields appear:
+On each Event Group, enable **EPG program matching**. Only groups that opt in are scanned. This is the right switch for groups that contain linear channels (e.g. a "US \| Sports" group of ESPN/FS1/SEC Network feeds). There is **no global switch** — each group opts in on its own.
+
+Enabling it on a group automatically **bypasses built-in stream filtering** for that group, because static linear names (`ESPN`, `NBA1`) have no `vs`/`@` separator and would otherwise be dropped before matching.
+
+### 2. Buffers — Settings → EPG
+
+Two global buffer fields tune the attach/detach window for every group that opts in:
 
 | Setting | Default | Description |
 |---------|---------|-------------|
@@ -99,15 +105,6 @@ Turn on **Match streams using Dispatcharr EPG data** (the master switch). When e
 | **Detach after (minutes)** | 60 | How long *after* a program's end the stream detaches. |
 
 Buffers give viewers lead-in/lead-out time and absorb schedule slippage. They apply in full — the buffers you set drive the whole window. If a large buffer makes two adjacent programs on the same channel overlap, the stream is simply attached to **both** event channels during the overlap; nothing is trimmed. Buffer changes take effect on the next generation run, including for already-attached streams.
-
-### 2. Per-group switch — Event Group settings
-
-On each Event Group, enable **EPG program matching**. Only groups that opt in are scanned. This is the right switch for groups that contain linear channels (e.g. a "US \| Sports" group of ESPN/FS1/SEC Network feeds).
-
-Enabling it on a group automatically **bypasses built-in stream filtering** for that group, because static linear names (`ESPN`, `NBA1`) have no `vs`/`@` separator and would otherwise be dropped before matching.
-
-{: .note }
-Both switches are required: the global master switch **and** the per-group switch. The global switch with no opted-in groups does nothing; a per-group switch with the global switch off does nothing.
 
 ### Bulk enabling
 
@@ -147,7 +144,7 @@ The ordering rule reads a `match_method` tag stored on each attached stream. Str
 
 Work down this list:
 
-1. **Both switches on?** Global (Settings → EPG) *and* per-group.
+1. **Group opted in?** Enable **EPG program matching** on the Event Group (there is no global switch).
 2. **Program-search supported?** It needs a Dispatcharr build with `/api/epg/programs/search/` (0.24.0+). On older builds the feature is silently off.
 3. **Do the streams resolve to a guide?** They must match by a linked Dispatcharr channel, direct tvg_id, or an exact normalized name against an **active** imported EPG. Channels with no EPG coverage can't match — unless the provider is Xtream and you enable the **XC provider EPG fallback** (Settings → EPG).
 4. **Is anything actually on?** Check the channel's guide — overnight/offseason slots are mostly replays and studio shows, which are skipped by design.
@@ -157,7 +154,7 @@ Work down this list:
 
 ## Related
 
-- [EPG Settings](settings/epg.md) — the global switch and buffers
+- [EPG Settings](settings/epg.md) — attach/detach buffers, channel-source, and XC fallback
 - [Channels settings → Stream Ordering](settings/channels.md#stream-ordering) — the EPG matched stream ordering option
 - [Consumer layer architecture](../reference/architecture/consumer-layer.md#epg-title-matching-matchingepg_matcherpy-matchingepg_indexpy) — internals
 - [Dispatcharr layer architecture](../reference/architecture/dispatcharr-layer.md#program-data-search-epg-matching) — the program-search client

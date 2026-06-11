@@ -206,7 +206,6 @@ class EPGSettingsModel(BaseModel):
     include_final_events: bool = False
     midnight_crossover_mode: str = "postgame"
     cron_expression: str = "0 * * * *"
-    epg_match_enabled: bool = False
     epg_xtream_fallback_enabled: bool = False
     epg_xtream_cache_hours: int = 24
     epg_channel_source_enabled: bool = False

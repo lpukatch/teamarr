@@ -2678,146 +2678,139 @@ export function Settings() {
 
           {/* EPG program-data matching (epic 183.6) */}
           <div className="space-y-3 pt-2 border-t">
-            <div className="flex items-center gap-2">
-              <Switch
-                checked={epg?.epg_match_enabled ?? false}
-                onCheckedChange={(checked) =>
-                  epg && setEPG({ ...epg, epg_match_enabled: checked })
-                }
-              />
-              <Label>Match streams using Dispatcharr EPG data</Label>
+            <div>
+              <Label className="text-base">EPG program-data matching</Label>
+              <p className="text-sm text-muted-foreground pt-1">
+                Match static-named linear channels (ESPN, NBA1) to events via Dispatcharr's
+                program guide, then time-share one stream across multiple event channels.
+                Turn this on per event group in each Event Group's settings — there is no
+                global switch. Requires a Dispatcharr build with the program-search API; has
+                no effect otherwise. The settings below tune EPG matching for every group
+                that opts in.
+              </p>
             </div>
-            <p className="text-sm text-muted-foreground">
-              Master switch for matching static-named linear channels (ESPN, NBA1) to events
-              via Dispatcharr's program guide, then time-sharing one stream across multiple
-              event channels. Enable per group in each Event Group's settings. Requires a
-              Dispatcharr build with the program-search API; has no effect otherwise.
-            </p>
-            {epg?.epg_match_enabled && (
-              <div className="grid grid-cols-2 gap-4 max-w-md">
-                <div>
-                  <Label htmlFor="epg-pre-buffer">Attach before (minutes)</Label>
+
+            <div className="grid grid-cols-2 gap-4 max-w-md">
+              <div>
+                <Label htmlFor="epg-pre-buffer">Attach before (minutes)</Label>
+                <Input
+                  id="epg-pre-buffer"
+                  type="number"
+                  min={0}
+                  value={epg?.epg_stream_pre_buffer_minutes ?? 60}
+                  onChange={(e) =>
+                    epg &&
+                    setEPG({
+                      ...epg,
+                      epg_stream_pre_buffer_minutes: parseInt(e.target.value) || 0,
+                    })
+                  }
+                />
+              </div>
+              <div>
+                <Label htmlFor="epg-post-buffer">Detach after (minutes)</Label>
+                <Input
+                  id="epg-post-buffer"
+                  type="number"
+                  min={0}
+                  value={epg?.epg_stream_post_buffer_minutes ?? 60}
+                  onChange={(e) =>
+                    epg &&
+                    setEPG({
+                      ...epg,
+                      epg_stream_post_buffer_minutes: parseInt(e.target.value) || 0,
+                    })
+                  }
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2 pt-1">
+              <div className="flex items-center gap-2">
+                <Switch
+                  checked={epg?.epg_channel_source_enabled ?? false}
+                  onCheckedChange={(checked) =>
+                    epg && setEPG({ ...epg, epg_channel_source_enabled: checked })
+                  }
+                />
+                <Label>Use Dispatcharr channels as an EPG source</Label>
+              </div>
+              <p className="text-sm text-muted-foreground">
+                In addition to per-group M3U matching, pull candidate streams from the
+                channels you've already curated in Dispatcharr — using each channel's own
+                EPG to match its assigned streams to events. Lets you match only the channel
+                versions you've mapped, instead of every stream in a provider group.
+                Teamarr's own generated channels are excluded.
+              </p>
+              {epg?.epg_channel_source_enabled && (
+                <div className="pt-1 max-w-md">
+                  <CheckboxListPicker
+                    label="Dispatcharr groups to include"
+                    selected={(epg?.epg_channel_source_groups ?? []).map(String)}
+                    onChange={(vals) =>
+                      epg &&
+                      setEPG({
+                        ...epg,
+                        epg_channel_source_groups: vals.map(Number),
+                      })
+                    }
+                    items={(channelGroupsQuery.data ?? []).map((g) => ({
+                      value: String(g.id),
+                      label: g.name,
+                    }))}
+                    searchPlaceholder="Search Dispatcharr groups..."
+                  />
+                  <p className="text-xs text-muted-foreground pt-1">
+                    Only channels in these groups are scanned for EPG matching — fewer
+                    groups means faster generation. Leave empty to include all groups.
+                    The selected groups also become sort options under Channels → Stream
+                    Ordering.
+                  </p>
+                </div>
+              )}
+            </div>
+
+            <div className="space-y-2 pt-1">
+              <div className="flex items-center gap-2">
+                <Switch
+                  checked={epg?.epg_xtream_fallback_enabled ?? false}
+                  onCheckedChange={(checked) =>
+                    epg && setEPG({ ...epg, epg_xtream_fallback_enabled: checked })
+                  }
+                />
+                <Label>Fall back to Xtream (XC) provider EPG</Label>
+              </div>
+              <p className="text-sm text-muted-foreground">
+                EPG matching normally requires a valid stream-to-EPG mapping in Dispatcharr
+                (a curated channel link or an imported-guide name match). As a backup, for
+                Xtream Codes (XC) providers, Teamarr can independently fetch the provider's
+                own EPG and match against it — covering channels Dispatcharr has no guide for
+                (e.g. regional sports networks). The provider's guide is cached on disk per XC
+                account and only re-downloaded when older than the cache duration below.
+              </p>
+              {epg?.epg_xtream_fallback_enabled && (
+                <div className="max-w-xs pt-1">
+                  <Label htmlFor="epg-xtream-cache">Cache for (hours)</Label>
                   <Input
-                    id="epg-pre-buffer"
+                    id="epg-xtream-cache"
                     type="number"
-                    min={0}
-                    value={epg?.epg_stream_pre_buffer_minutes ?? 60}
+                    min={1}
+                    value={epg?.epg_xtream_cache_hours ?? 24}
                     onChange={(e) =>
                       epg &&
                       setEPG({
                         ...epg,
-                        epg_stream_pre_buffer_minutes: parseInt(e.target.value) || 0,
+                        epg_xtream_cache_hours: parseInt(e.target.value) || 1,
                       })
                     }
                   />
+                  <p className="text-xs text-muted-foreground pt-1">
+                    How long to reuse a downloaded XC guide before fetching it again.
+                    Provider guides change slowly; 24h is a good default.
+                  </p>
                 </div>
-                <div>
-                  <Label htmlFor="epg-post-buffer">Detach after (minutes)</Label>
-                  <Input
-                    id="epg-post-buffer"
-                    type="number"
-                    min={0}
-                    value={epg?.epg_stream_post_buffer_minutes ?? 60}
-                    onChange={(e) =>
-                      epg &&
-                      setEPG({
-                        ...epg,
-                        epg_stream_post_buffer_minutes: parseInt(e.target.value) || 0,
-                      })
-                    }
-                  />
-                </div>
-              </div>
-            )}
-            {epg?.epg_match_enabled && (
-              <div className="space-y-2 pt-1">
-                <div className="flex items-center gap-2">
-                  <Switch
-                    checked={epg?.epg_channel_source_enabled ?? false}
-                    onCheckedChange={(checked) =>
-                      epg && setEPG({ ...epg, epg_channel_source_enabled: checked })
-                    }
-                  />
-                  <Label>Use Dispatcharr channels as an EPG source</Label>
-                </div>
-                <p className="text-sm text-muted-foreground">
-                  In addition to per-group M3U matching, pull candidate streams from the
-                  channels you've already curated in Dispatcharr — using each channel's own
-                  EPG to match its assigned streams to events. Lets you match only the channel
-                  versions you've mapped, instead of every stream in a provider group.
-                  Teamarr's own generated channels are excluded.
-                </p>
-                {epg?.epg_channel_source_enabled && (
-                  <div className="pt-1 max-w-md">
-                    <CheckboxListPicker
-                      label="Dispatcharr groups to include"
-                      selected={(epg?.epg_channel_source_groups ?? []).map(String)}
-                      onChange={(vals) =>
-                        epg &&
-                        setEPG({
-                          ...epg,
-                          epg_channel_source_groups: vals.map(Number),
-                        })
-                      }
-                      items={(channelGroupsQuery.data ?? []).map((g) => ({
-                        value: String(g.id),
-                        label: g.name,
-                      }))}
-                      searchPlaceholder="Search Dispatcharr groups..."
-                    />
-                    <p className="text-xs text-muted-foreground pt-1">
-                      Only channels in these groups are scanned for EPG matching — fewer
-                      groups means faster generation. Leave empty to include all groups.
-                      The selected groups also become sort options under Channels → Stream
-                      Ordering.
-                    </p>
-                  </div>
-                )}
-              </div>
-            )}
-            {epg?.epg_match_enabled && (
-              <div className="space-y-2 pt-1">
-                <div className="flex items-center gap-2">
-                  <Switch
-                    checked={epg?.epg_xtream_fallback_enabled ?? false}
-                    onCheckedChange={(checked) =>
-                      epg && setEPG({ ...epg, epg_xtream_fallback_enabled: checked })
-                    }
-                  />
-                  <Label>Fall back to Xtream (XC) provider EPG</Label>
-                </div>
-                <p className="text-sm text-muted-foreground">
-                  EPG matching normally requires a valid stream-to-EPG mapping in Dispatcharr
-                  (a curated channel link or an imported-guide name match). As a backup, for
-                  Xtream Codes (XC) providers, Teamarr can independently fetch the provider's
-                  own EPG and match against it — covering channels Dispatcharr has no guide for
-                  (e.g. regional sports networks). The provider's guide is cached on disk per XC
-                  account and only re-downloaded when older than the cache duration below.
-                </p>
-                {epg?.epg_xtream_fallback_enabled && (
-                  <div className="max-w-xs pt-1">
-                    <Label htmlFor="epg-xtream-cache">Cache for (hours)</Label>
-                    <Input
-                      id="epg-xtream-cache"
-                      type="number"
-                      min={1}
-                      value={epg?.epg_xtream_cache_hours ?? 24}
-                      onChange={(e) =>
-                        epg &&
-                        setEPG({
-                          ...epg,
-                          epg_xtream_cache_hours: parseInt(e.target.value) || 1,
-                        })
-                      }
-                    />
-                    <p className="text-xs text-muted-foreground pt-1">
-                      How long to reuse a downloaded XC guide before fetching it again.
-                      Provider guides change slowly; 24h is a good default.
-                    </p>
-                  </div>
-                )}
-              </div>
-            )}
+              )}
+            </div>
           </div>
 
           {/* Scheduled Generation */}

@@ -141,9 +141,6 @@ def get_all_settings(conn: Connection) -> AllSettings:
             prepend_postponed_label=bool(row["prepend_postponed_label"])
             if row["prepend_postponed_label"] is not None
             else True,
-            epg_match_enabled=bool(row["epg_match_enabled"])
-            if "epg_match_enabled" in row.keys()
-            else False,
             epg_xtream_fallback_enabled=bool(row["epg_xtream_fallback_enabled"])
             if "epg_xtream_fallback_enabled" in row.keys()
             else False,
@@ -374,7 +371,7 @@ def get_epg_settings(conn: Connection) -> EPGSettings:
                   epg_output_days_ahead, epg_lookback_hours, epg_timezone,
                   epg_output_path, include_final_events, midnight_crossover_mode,
                   cron_expression, prepend_postponed_label,
-                  epg_match_enabled, epg_xtream_fallback_enabled,
+                  epg_xtream_fallback_enabled,
                   epg_xtream_cache_hours,
                   epg_channel_source_enabled, epg_channel_source_groups,
                   epg_stream_pre_buffer_minutes,
@@ -400,7 +397,6 @@ def get_epg_settings(conn: Connection) -> EPGSettings:
         prepend_postponed_label=bool(row["prepend_postponed_label"])
         if row["prepend_postponed_label"] is not None
         else True,
-        epg_match_enabled=bool(row["epg_match_enabled"]),
         epg_xtream_fallback_enabled=bool(row["epg_xtream_fallback_enabled"]),
         epg_xtream_cache_hours=row["epg_xtream_cache_hours"] or 24,
         epg_channel_source_enabled=bool(row["epg_channel_source_enabled"]),
