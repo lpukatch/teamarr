@@ -22,7 +22,7 @@ from teamarr.services.custom_leagues import (
     CustomLeagueNotFoundError,
     CustomLeagueProtectedError,
     CustomLeagueValidationError,
-    create_custom_league,
+    create_custom_league_and_refresh,
     custom_leagues_enabled,
     delete_custom_league,
     run_custom_league_test_fetch,
@@ -156,21 +156,24 @@ def post_custom_league_test_fetch(body: CustomLeagueTestFetch) -> dict:
 
 @router.post("", status_code=201)
 def post_custom_league(body: CustomLeagueCreate) -> dict:
-    """Create a custom league (TSDB-only, premium-gated, is_custom=1)."""
+    """Create a custom league (TSDB-only, premium-gated, is_custom=1).
+
+    On success the response includes a ``team_refresh`` summary — the scoped
+    team-cache refresh (eqz.4) fired right after create so teams populate
+    without waiting for the next full refresh.
+    """
     try:
-        with get_db() as conn:
-            return create_custom_league(
-                conn,
-                league_code=body.league_code,
-                provider=body.provider,
-                provider_league_id=body.provider_league_id,
-                provider_league_name=body.provider_league_name,
-                display_name=body.display_name,
-                sport=body.sport,
-                event_type=body.event_type,
-                tsdb_tier=body.tsdb_tier,
-                allow_empty=body.allow_empty,
-            )
+        return create_custom_league_and_refresh(
+            league_code=body.league_code,
+            provider=body.provider,
+            provider_league_id=body.provider_league_id,
+            provider_league_name=body.provider_league_name,
+            display_name=body.display_name,
+            sport=body.sport,
+            event_type=body.event_type,
+            tsdb_tier=body.tsdb_tier,
+            allow_empty=body.allow_empty,
+        )
     except Exception as exc:  # noqa: BLE001
         _raise_http(exc)
 

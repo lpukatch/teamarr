@@ -305,7 +305,7 @@ function CustomLeagueDialog({
         })
         toast.success("Custom league updated")
       } else {
-        await createMutation.mutateAsync({
+        const result = await createMutation.mutateAsync({
           league_code: form.league_code.trim(),
           provider_league_id: form.provider_league_id.trim(),
           provider_league_name: form.provider_league_name.trim(),
@@ -315,7 +315,14 @@ function CustomLeagueDialog({
           tsdb_tier: form.tsdb_tier || null,
           allow_empty: form.allow_empty,
         })
-        toast.success("Custom league created")
+        const refresh = result.team_refresh
+        if (refresh && refresh.success && refresh.team_count > 0) {
+          toast.success(`Custom league created — cached ${refresh.team_count} team(s)`)
+        } else if (refresh && !refresh.success) {
+          toast.success("Custom league created — teams not cached yet (will retry on next refresh)")
+        } else {
+          toast.success("Custom league created")
+        }
       }
       onOpenChange(false)
     } catch (err) {

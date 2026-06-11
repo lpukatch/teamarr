@@ -211,6 +211,168 @@ class CacheRefresher:
 
         return False
 
+    def refresh_league(self, league_code: str) -> dict:
+        """Scoped team-cache refresh for a single league.
+
+        Unlike :meth:`refresh`, this does NOT wipe the cache — it replaces only
+        this league's rows in ``team_cache``/``league_cache`` and updates the
+        league's ``cached_team_count``/``last_cache_refresh``. That makes it safe
+        to run on demand (e.g. right after a custom league is created) so its
+        teams populate immediately without disturbing every other league.
+
+        The league row must already exist and be committed: the provider maps
+        ``league_code`` → provider league id/name by reading that row.
+
+        Never raises for an expected provider/network failure — returns a result
+        dict so the caller can keep the league and surface a "teams not yet
+        cached" state.
+
+        Returns:
+            ``{success, league_code, team_count, error}``
+        """
+        from teamarr.providers import ProviderRegistry
+
+        def fail(msg: str) -> dict:
+            logger.warning("[CACHE_REFRESH] Scoped refresh of %s failed: %s", league_code, msg)
+            return {
+                "success": False,
+                "league_code": league_code,
+                "team_count": 0,
+                "error": msg,
+            }
+
+        with self._db() as conn:
+            row = conn.execute(
+                "SELECT provider, sport, display_name, logo_url FROM leagues WHERE league_code = ?",
+                (league_code,),
+            ).fetchone()
+        if row is None:
+            return fail(f"League '{league_code}' not found")
+
+        provider_name = row["provider"]
+        sport = (row["sport"] or "").lower()
+        provider = ProviderRegistry.get(provider_name)
+        if provider is None:
+            return fail(f"Provider '{provider_name}' not registered")
+
+        # Resolve the league through the provider's mapping before fetching. An
+        # unresolvable league yields zero teams that would otherwise be reported
+        # as a (misleading) success; surface it as a failure instead so callers
+        # don't show "cached" when nothing was. A just-created custom league lands
+        # here only if its mapping wasn't reloaded after the insert.
+        if not provider.supports_league(league_code):
+            return fail(
+                f"Provider '{provider_name}' cannot resolve league '{league_code}' "
+                "(mapping not loaded?)"
+            )
+
+        try:
+            teams = provider.get_league_teams(league_code) or []
+        except Exception as e:  # noqa: BLE001 — best-effort; report, don't crash create
+            return fail(str(e))
+
+        team_entries = [
+            {
+                "team_name": team.name,
+                "team_abbrev": team.abbreviation,
+                "team_short_name": team.short_name,
+                "provider": provider_name,
+                "provider_team_id": team.id,
+                "league": league_code,
+                "sport": team.sport or sport,
+                "logo_url": team.logo_url,
+            }
+            for team in teams
+        ]
+
+        count = self._save_league_teams(
+            league_code,
+            provider_name,
+            sport,
+            display_name=row["display_name"],
+            logo_url=row["logo_url"],
+            teams=team_entries,
+        )
+        logger.info("[CACHE_REFRESH] Scoped refresh of %s cached %d teams", league_code, count)
+        return {"success": True, "league_code": league_code, "team_count": count, "error": None}
+
+    def _save_league_teams(
+        self,
+        league_code: str,
+        provider_name: str,
+        sport: str,
+        *,
+        display_name: str | None,
+        logo_url: str | None,
+        teams: list[dict],
+    ) -> int:
+        """Replace just one league's team rows; return the cached team count.
+
+        Scoped counterpart to :meth:`_save_cache` — deletes only this league's
+        ``team_cache`` rows (not the whole table) before re-inserting, then
+        upserts ``league_cache`` and the league's count columns in one
+        transaction.
+        """
+        now = datetime.utcnow().isoformat() + "Z"
+
+        seen: set = set()
+        rows = []
+        for team in teams:
+            if not team.get("team_name"):
+                continue
+            key = (team["provider"], team["provider_team_id"], team["league"])
+            if key in seen:
+                continue
+            seen.add(key)
+            rows.append(
+                (
+                    team["team_name"],
+                    team.get("team_abbrev"),
+                    team.get("team_short_name"),
+                    team["provider"],
+                    team["provider_team_id"],
+                    team["league"],
+                    team["sport"],
+                    team.get("logo_url"),
+                    now,
+                )
+            )
+
+        with self._db() as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                "DELETE FROM team_cache WHERE provider = ? AND league = ?",
+                (provider_name, league_code),
+            )
+            cursor.executemany(
+                """
+                INSERT OR REPLACE INTO team_cache
+                (team_name, team_abbrev, team_short_name, provider,
+                 provider_team_id, league, sport, logo_url, last_seen)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                rows,
+            )
+            cursor.execute(
+                """
+                INSERT OR REPLACE INTO league_cache
+                (league_slug, provider, league_name, sport, logo_url,
+                 team_count, last_refreshed)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+                """,
+                (league_code, provider_name, display_name, sport, logo_url, len(rows), now),
+            )
+            cursor.execute(
+                """
+                UPDATE leagues
+                SET cached_team_count = ?, last_cache_refresh = ?
+                WHERE league_code = ?
+                """,
+                (len(rows), now, league_code),
+            )
+
+        return len(rows)
+
     def _discover_from_provider(
         self,
         provider: SportsProvider,

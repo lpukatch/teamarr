@@ -32,6 +32,16 @@ export interface CustomLeagueCreate {
 
 export type CustomLeagueUpdate = Omit<CustomLeagueCreate, "league_code" | "allow_empty">
 
+export interface TeamRefreshResult {
+  success: boolean
+  league_code: string
+  team_count: number
+  error: string | null
+}
+
+/** Create returns the new league plus a scoped team-cache refresh summary (eqz.4). */
+export type CustomLeagueCreateResult = CustomLeague & { team_refresh?: TeamRefreshResult }
+
 export interface CustomLeagueCapability {
   enabled: boolean
   supported_sports: { sport_code: string; display_name: string }[]
@@ -77,7 +87,9 @@ export async function testCustomLeague(
   return api.post("/leagues/custom/test-fetch", data)
 }
 
-export async function createCustomLeague(data: CustomLeagueCreate): Promise<CustomLeague> {
+export async function createCustomLeague(
+  data: CustomLeagueCreate
+): Promise<CustomLeagueCreateResult> {
   return api.post("/leagues", data)
 }
 

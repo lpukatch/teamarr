@@ -23,8 +23,10 @@ Why sport guardrails (``eqz.8``):
 
 from __future__ import annotations
 
+import logging
 import sqlite3
 
+from teamarr.database import get_db
 from teamarr.database.leagues import (
     delete_custom_league_row,
     get_league_row,
@@ -32,6 +34,8 @@ from teamarr.database.leagues import (
     update_custom_league_row,
 )
 from teamarr.database.settings.read import get_tsdb_api_key
+
+logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
 # Sport guardrails (eqz.8)
@@ -482,3 +486,67 @@ def run_custom_league_test_fetch(
         "event_count": len(events),
         "sample_events": samples,
     }
+
+
+# ---------------------------------------------------------------------------
+# Create + auto team-cache refresh (eqz.4)
+#
+# A freshly-created league has cached_team_count=0 until a refresh runs. Rather
+# than wait for the weekly schedule or a full manual refresh, we kick a scoped
+# refresh of just this league right after create commits, so its teams populate
+# immediately. The refresh is best-effort: a provider/network hiccup leaves the
+# league created with a "teams not yet cached" state instead of failing the save.
+# Note teams populate even for an off-season league — team rosters exist
+# year-round, unlike the upcoming-events feed the create guardrail checks.
+# ---------------------------------------------------------------------------
+
+
+def refresh_custom_league_teams(league_code: str) -> dict:
+    """Best-effort scoped team-cache refresh for one league. Never raises.
+
+    Returns the refresher's result dict, or a ``success=False`` dict if the
+    refresh machinery itself blows up.
+    """
+    from teamarr.consumers.cache.refresh import CacheRefresher
+
+    try:
+        return CacheRefresher().refresh_league(league_code)
+    except Exception as e:  # noqa: BLE001 — the league is already saved; don't surface
+        logger.warning("[CUSTOM_LEAGUE] Team refresh for %s failed: %s", league_code, e)
+        return {"success": False, "league_code": league_code, "team_count": 0, "error": str(e)}
+
+
+def create_custom_league_and_refresh(**fields) -> dict:
+    """Create a custom league, commit, then scope-refresh its teams.
+
+    The create runs in its own transaction (so the row is committed and visible
+    to the provider's league-mapping lookup) before the team refresh fires on a
+    separate connection. Returns the created league row with a ``team_refresh``
+    summary attached. The team refresh is best-effort and never fails the create.
+
+    Between the two, the in-memory league-mapping cache is reloaded: providers
+    resolve ``league_code`` → provider league name/id through that cache, which is
+    a startup-built snapshot with no live DB reads. Without the reload the row is
+    committed but invisible to the provider, so the team fetch silently resolves
+    nothing and caches zero teams until the next restart or cache refresh.
+    """
+    with get_db() as conn:
+        league = create_custom_league(conn, **fields)
+
+    _reload_league_mappings()
+    team_refresh = refresh_custom_league_teams(league["league_code"])
+    return {**league, "team_refresh": team_refresh}
+
+
+def _reload_league_mappings() -> None:
+    """Reload the global league-mapping cache so a just-created league resolves.
+
+    Best-effort: if the service isn't initialized (e.g. in unit tests that call
+    the create path directly), there's nothing to reload and we move on.
+    """
+    from teamarr.services.league_mappings import get_league_mapping_service
+
+    try:
+        get_league_mapping_service().reload()
+    except RuntimeError:
+        logger.debug("[CUSTOM_LEAGUE] Mapping service not initialized; skipping reload")

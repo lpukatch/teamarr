@@ -588,3 +588,197 @@ def test_validator_reports_resolution_metadata(monkeypatch):
     none = run_custom_league_test_fetch(conn, provider_league_id="4379", chosen_sport="soccer")
     assert none["name_matches"] is None
 
+
+# ---------------------------------------------------------------------------
+# Scoped team-cache refresh on create (eqz.4)
+# ---------------------------------------------------------------------------
+
+import contextlib  # noqa: E402
+
+from teamarr.core import Team  # noqa: E402
+
+
+def _shared_factory(conn: sqlite3.Connection):
+    """A get_db-shaped factory bound to one in-memory conn (commits, never closes)."""
+
+    @contextlib.contextmanager
+    def factory():
+        try:
+            yield conn
+            conn.commit()
+        except Exception:
+            conn.rollback()
+            raise
+
+    return factory
+
+
+class _FakeTeamProvider:
+    """Provider stub returning a fixed roster for any league."""
+
+    def __init__(self, teams: list[Team], supports: bool = True):
+        self._teams = teams
+        self._supports = supports
+
+    def supports_league(self, league: str) -> bool:
+        return self._supports
+
+    def get_league_teams(self, league: str) -> list[Team]:
+        return self._teams
+
+
+def _mk_team(tid: str, name: str, league: str) -> Team:
+    return Team(
+        id=tid,
+        provider="tsdb",
+        name=name,
+        short_name=name,
+        abbreviation=name[:3].upper(),
+        league=league,
+        sport="soccer",
+    )
+
+
+def _patch_provider(monkeypatch, provider):
+    import teamarr.providers as providers_pkg
+
+    monkeypatch.setattr(
+        providers_pkg.ProviderRegistry,
+        "get",
+        staticmethod(lambda name: provider if name == "tsdb" else None),
+    )
+
+
+def test_refresh_league_populates_teams_and_counts(monkeypatch):
+    from teamarr.consumers.cache.refresh import CacheRefresher
+
+    conn = _premium_db()
+    _patch_client(monkeypatch)
+    create_custom_league(conn, **_VALID)  # swe.1, tsdb, soccer
+
+    provider = _FakeTeamProvider(
+        [_mk_team("1", "AIK", "swe.1"), _mk_team("2", "Hammarby", "swe.1")]
+    )
+    _patch_provider(monkeypatch, provider)
+
+    result = CacheRefresher(db_factory=_shared_factory(conn)).refresh_league("swe.1")
+    assert result == {"success": True, "league_code": "swe.1", "team_count": 2, "error": None}
+
+    cached = conn.execute(
+        "SELECT COUNT(*) AS n FROM team_cache WHERE league = 'swe.1'"
+    ).fetchone()["n"]
+    assert cached == 2
+    row = conn.execute(
+        "SELECT cached_team_count, last_cache_refresh FROM leagues WHERE league_code = 'swe.1'"
+    ).fetchone()
+    assert row["cached_team_count"] == 2
+    assert row["last_cache_refresh"] is not None
+
+
+def test_refresh_league_does_not_wipe_other_leagues(monkeypatch):
+    from teamarr.consumers.cache.refresh import CacheRefresher
+
+    conn = _premium_db()
+    _patch_client(monkeypatch)
+    create_custom_league(conn, **_VALID)
+    # A pre-existing team from a different league must survive the scoped refresh.
+    conn.execute(
+        """
+        INSERT INTO team_cache
+        (team_name, provider, provider_team_id, league, sport, last_seen)
+        VALUES ('Arsenal', 'espn', 'ars', 'eng.1', 'soccer', '2026-01-01T00:00:00Z')
+        """
+    )
+    conn.commit()
+
+    provider = _FakeTeamProvider([_mk_team("1", "AIK", "swe.1")])
+    _patch_provider(monkeypatch, provider)
+    CacheRefresher(db_factory=_shared_factory(conn)).refresh_league("swe.1")
+
+    assert (
+        conn.execute("SELECT 1 FROM team_cache WHERE league = 'eng.1'").fetchone() is not None
+    )
+    assert (
+        conn.execute("SELECT COUNT(*) AS n FROM team_cache WHERE league = 'swe.1'").fetchone()["n"]
+        == 1
+    )
+
+
+def test_refresh_league_unknown_league_fails_gracefully():
+    from teamarr.consumers.cache.refresh import CacheRefresher
+
+    conn = _premium_db()
+    result = CacheRefresher(db_factory=_shared_factory(conn)).refresh_league("nope.1")
+    assert result["success"] is False
+    assert "not found" in result["error"].lower()
+
+
+def test_refresh_league_provider_error_is_graceful(monkeypatch):
+    from teamarr.consumers.cache.refresh import CacheRefresher
+
+    conn = _premium_db()
+    _patch_client(monkeypatch)
+    create_custom_league(conn, **_VALID)
+
+    class _Boom:
+        def supports_league(self, league):
+            return True
+
+        def get_league_teams(self, league):
+            raise RuntimeError("TSDB down")
+
+    _patch_provider(monkeypatch, _Boom())
+    result = CacheRefresher(db_factory=_shared_factory(conn)).refresh_league("swe.1")
+    assert result["success"] is False
+    assert "tsdb down" in result["error"].lower()
+    # League row untouched (still 0 cached).
+    assert (
+        conn.execute(
+            "SELECT cached_team_count FROM leagues WHERE league_code = 'swe.1'"
+        ).fetchone()["cached_team_count"]
+        == 0
+    )
+
+
+def test_refresh_league_unresolvable_mapping_fails(monkeypatch):
+    """A league the provider can't resolve must fail, not report a silent zero.
+
+    This is the regression guard for the stale-mapping bug: a custom league
+    committed but not yet in the in-memory mapping resolves no teams, which must
+    surface as success=False (not the misleading success=True, team_count=0).
+    """
+    from teamarr.consumers.cache.refresh import CacheRefresher
+
+    conn = _premium_db()
+    _patch_client(monkeypatch)
+    create_custom_league(conn, **_VALID)
+
+    # Provider has a roster but reports the league as unsupported (mapping miss).
+    provider = _FakeTeamProvider([_mk_team("1", "AIK", "swe.1")], supports=False)
+    _patch_provider(monkeypatch, provider)
+
+    result = CacheRefresher(db_factory=_shared_factory(conn)).refresh_league("swe.1")
+    assert result["success"] is False
+    assert "resolve" in result["error"].lower()
+    # Nothing cached, league count untouched.
+    assert (
+        conn.execute("SELECT COUNT(*) AS n FROM team_cache WHERE league = 'swe.1'").fetchone()["n"]
+        == 0
+    )
+
+
+def test_refresh_custom_league_teams_wrapper_never_raises(monkeypatch):
+    """The service wrapper swallows refresher explosions into a result dict."""
+    import teamarr.services.custom_leagues as svc
+
+    class _Exploding:
+        def refresh_league(self, code):
+            raise RuntimeError("kaboom")
+
+    monkeypatch.setattr(
+        "teamarr.consumers.cache.refresh.CacheRefresher", lambda *a, **k: _Exploding()
+    )
+    out = svc.refresh_custom_league_teams("swe.1")
+    assert out["success"] is False
+    assert "kaboom" in out["error"].lower()
+
