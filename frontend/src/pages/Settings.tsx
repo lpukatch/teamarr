@@ -1901,7 +1901,7 @@ export function Settings() {
                         epg && setEPG({ ...epg, epg_channel_source_mode: e.target.value })
                       }
                     >
-                      <option value="streams">Streams — match each inner stream (current)</option>
+                      <option value="streams">Streams — match each inner stream</option>
                       <option value="channels">
                         Channels — one representative stream per channel
                       </option>

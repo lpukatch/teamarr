@@ -524,6 +524,13 @@ def _run_migrations(conn: sqlite3.Connection) -> None:
         )
         current_version = 73
 
+    if current_version < 74:
+        _apply_migration(
+            conn, 74, "preserve EPG-match off-state after global switch removal",
+            _migrate_v74_preserve_epg_match_offstate,
+        )
+        current_version = 74
+
 
 # =============================================================================
 # Migration helpers
@@ -1416,6 +1423,44 @@ def _migrate_v73_dedupe_milb_renamed_codes(conn: sqlite3.Connection) -> None:
                 )
         except sqlite3.OperationalError as e:
             logger.warning("[MIGRATE v73] leagues cleanup skipped: %s", e)
+
+
+def _migrate_v74_preserve_epg_match_offstate(conn: sqlite3.Connection) -> None:
+    """v74: preserve "EPG matching off" intent after the global switch removal.
+
+    The global ``settings.epg_match_enabled`` master switch (epic 3lp1.1) was
+    removed: EPG program matching and the Dispatcharr channel-source now activate
+    on the per-group ``event_epg_groups.epg_match_enabled`` /
+    ``settings.epg_channel_source_enabled`` flags ALONE, no longer gated by the
+    global switch. A user who left those flags set while keeping the global switch
+    OFF would otherwise have matching silently turn on at this upgrade.
+
+    Fix: if the (now-vestigial) global switch was OFF, clear the dependent flags so
+    the user's effective "off" state carries across the upgrade. When the global
+    switch was ON, every flag is left exactly as-is — matching continues unchanged.
+    The vestigial ``settings.epg_match_enabled`` column is only read here; it stays
+    in the schema for back-compat.
+    """
+    if not _column_exists(conn, "settings", "epg_match_enabled"):
+        return  # nothing to read (fresh/partial schema) — no-op
+
+    row = conn.execute("SELECT epg_match_enabled FROM settings WHERE id = 1").fetchone()
+    if row is None or row[0]:
+        return  # global switch was ON (or no settings row) — leave all flags untouched
+
+    # Global switch was OFF: matching was globally inert. Preserve that off-state
+    # so it doesn't silently activate now that the gate is gone.
+    if _column_exists(conn, "settings", "epg_channel_source_enabled"):
+        conn.execute("UPDATE settings SET epg_channel_source_enabled = 0 WHERE id = 1")
+    if _column_exists(conn, "event_epg_groups", "epg_match_enabled"):
+        cleared = conn.execute(
+            "UPDATE event_epg_groups SET epg_match_enabled = 0 WHERE epg_match_enabled = 1"
+        ).rowcount
+        logger.info(
+            "[MIGRATE v74] Global EPG-match was off; cleared %d per-group "
+            "epg_match_enabled flag(s) and channel-source to preserve off-state",
+            cleared,
+        )
 
 
 def _table_exists(conn: sqlite3.Connection, table: str) -> bool:
