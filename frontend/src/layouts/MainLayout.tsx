@@ -162,6 +162,9 @@ export function MainLayout() {
               {window.location.port && ` | Port ${window.location.port}`}
             </span>
           </div>
+          <div className="mt-1 text-center text-xs italic text-muted-foreground">
+            Jesse, Teamarr will never support curling 🥌
+          </div>
         </div>
       </footer>
 
