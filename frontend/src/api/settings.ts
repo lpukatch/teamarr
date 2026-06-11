@@ -58,6 +58,7 @@ export interface EPGSettings {
   epg_xtream_cache_hours: number
   epg_channel_source_enabled: boolean
   epg_channel_source_groups: number[]
+  epg_channel_source_mode: string
   epg_stream_pre_buffer_minutes: number
   epg_stream_post_buffer_minutes: number
 }

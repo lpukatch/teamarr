@@ -72,6 +72,8 @@ When on, Teamarr adds a second, **additive** source that:
 
 It runs **alongside** your per-group M3U matching (not instead of it); matches are consolidated onto the same event channels by event identity. Teamarr's **own generated channels are excluded** — they're output, not input. The source is managed for you as a hidden system group ("Dispatcharr Channels") that appears in stats but not in the Event Groups list; created channels use your global/per-league channel-group, profile, and template defaults.
 
+**Streams vs channels.** A **Process each Dispatcharr channel as** selector controls granularity. **Streams** (default) matches every stream curated inside a channel individually — useful when a channel's streams are independent feeds. **Channels** treats each Dispatcharr channel as a single unit: Teamarr matches one representative stream per channel, so a channel whose streams are a curated failover/quality set stays intact instead of being fanned across different event channels.
+
 **Scope it to specific groups.** When you enable the toggle, a **Dispatcharr groups to include** picker appears. Select the channel groups you actually want matched — Teamarr then scans only those, skipping the matching work for everything else (faster generation). Leave it empty to include all groups. Your selection also becomes a **Dispatcharr Group** option in [stream ordering](settings/channels.md#stream-ordering), so you can prioritize a group's streams within consolidated channels.
 
 ---

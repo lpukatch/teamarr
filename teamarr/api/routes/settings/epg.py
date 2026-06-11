@@ -31,6 +31,7 @@ def get_epg_settings():
         epg_xtream_cache_hours=settings.epg_xtream_cache_hours,
         epg_channel_source_enabled=settings.epg_channel_source_enabled,
         epg_channel_source_groups=settings.epg_channel_source_groups,
+        epg_channel_source_mode=settings.epg_channel_source_mode,
         epg_stream_pre_buffer_minutes=settings.epg_stream_pre_buffer_minutes,
         epg_stream_post_buffer_minutes=settings.epg_stream_post_buffer_minutes,
     )
@@ -68,6 +69,7 @@ def update_epg_settings(update: EPGSettingsModel):
             epg_xtream_cache_hours=update.epg_xtream_cache_hours,
             epg_channel_source_enabled=update.epg_channel_source_enabled,
             epg_channel_source_groups=update.epg_channel_source_groups,
+            epg_channel_source_mode=update.epg_channel_source_mode,
             epg_stream_pre_buffer_minutes=update.epg_stream_pre_buffer_minutes,
             epg_stream_post_buffer_minutes=update.epg_stream_post_buffer_minutes,
         )
@@ -97,6 +99,7 @@ def update_epg_settings(update: EPGSettingsModel):
         epg_xtream_cache_hours=settings.epg_xtream_cache_hours,
         epg_channel_source_enabled=settings.epg_channel_source_enabled,
         epg_channel_source_groups=settings.epg_channel_source_groups,
+        epg_channel_source_mode=settings.epg_channel_source_mode,
         epg_stream_pre_buffer_minutes=settings.epg_stream_pre_buffer_minutes,
         epg_stream_post_buffer_minutes=settings.epg_stream_post_buffer_minutes,
     )

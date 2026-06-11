@@ -2744,6 +2744,27 @@ export function Settings() {
               </p>
               {epg?.epg_channel_source_enabled && (
                 <div className="pt-1 max-w-md">
+                  <div className="space-y-1 pb-3">
+                    <Label htmlFor="channel-source-mode">Process each Dispatcharr channel as</Label>
+                    <Select
+                      id="channel-source-mode"
+                      value={epg?.epg_channel_source_mode ?? "streams"}
+                      onChange={(e) =>
+                        epg && setEPG({ ...epg, epg_channel_source_mode: e.target.value })
+                      }
+                    >
+                      <option value="streams">Streams — match each inner stream (current)</option>
+                      <option value="channels">
+                        Channels — one representative stream per channel
+                      </option>
+                    </Select>
+                    <p className="text-xs text-muted-foreground">
+                      <strong>Streams</strong> matches every stream curated inside a Dispatcharr
+                      channel individually. <strong>Channels</strong> treats each channel as a unit
+                      — Teamarr matches a single representative stream per channel, leaving the
+                      channel's built-in stream lineup untouched.
+                    </p>
+                  </div>
                   <CheckboxListPicker
                     label="Dispatcharr groups to include"
                     selected={(epg?.epg_channel_source_groups ?? []).map(String)}

@@ -195,6 +195,12 @@ CREATE TABLE IF NOT EXISTS settings (
     -- undesired groups (faster generation) and drives the "Dispatcharr Group"
     -- stream-ordering rule. (epic teamarrv2-ybt.2)
     epg_channel_source_groups TEXT DEFAULT '[]',
+    -- How channel-source candidates are emitted (epic teamarrv2-3lp1.2):
+    --   'streams'  = one candidate per inner stream of each curated DP channel
+    --                (current behavior; may fan a channel's streams across events)
+    --   'channels' = one representative stream per DP channel, so the channel's
+    --                internal stream lineup is matched as a unit and not fragmented
+    epg_channel_source_mode TEXT DEFAULT 'streams',
 
     -- EPG stream time-windowing buffers (epic teamarrv2-183.5).
     -- SEPARATE from the channel create/delete buffers above: these apply to the
