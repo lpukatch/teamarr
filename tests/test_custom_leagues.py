@@ -349,6 +349,61 @@ def test_delete_rejects_builtin():
     assert conn.execute("SELECT 1 FROM leagues WHERE league_code = 'nfl'").fetchone() is not None
 
 
+def test_delete_purges_cached_team_and_league_rows(monkeypatch):
+    """Deleting a custom league drops its cached teams + league row (eqz.9).
+
+    The create/refresh path scopes ``team_cache``/``league_cache`` to the league,
+    so delete must do the same or it leaves ghosts behind. An unrelated league's
+    cache must survive.
+    """
+    conn = _premium_db()
+    _patch_client(monkeypatch)
+    create_custom_league(conn, **_VALID)
+
+    # Caches the create/refresh path would populate for swe.1...
+    conn.execute(
+        """
+        INSERT INTO team_cache
+        (team_name, provider, provider_team_id, league, sport, last_seen)
+        VALUES ('AIK', 'tsdb', '1', 'swe.1', 'soccer', '2026-01-01T00:00:00Z')
+        """
+    )
+    conn.execute(
+        """
+        INSERT INTO league_cache
+        (league_slug, provider, league_name, sport, team_count, last_refreshed)
+        VALUES ('swe.1', 'tsdb', 'Swedish Allsvenskan', 'soccer', 1, '2026-01-01T00:00:00Z')
+        """
+    )
+    # ...and a control row for an unrelated league that must survive.
+    conn.execute(
+        """
+        INSERT INTO team_cache
+        (team_name, provider, provider_team_id, league, sport, last_seen)
+        VALUES ('Arsenal', 'espn', 'ars', 'eng.1', 'soccer', '2026-01-01T00:00:00Z')
+        """
+    )
+    conn.commit()
+
+    delete_custom_league(conn, "swe.1")
+
+    # League row + both caches for swe.1 are gone.
+    assert conn.execute("SELECT 1 FROM leagues WHERE league_code = 'swe.1'").fetchone() is None
+    assert (
+        conn.execute(
+            "SELECT COUNT(*) AS n FROM team_cache WHERE league = 'swe.1'"
+        ).fetchone()["n"]
+        == 0
+    )
+    assert (
+        conn.execute("SELECT 1 FROM league_cache WHERE league_slug = 'swe.1'").fetchone() is None
+    )
+    # Unrelated league's cache is untouched.
+    assert (
+        conn.execute("SELECT 1 FROM team_cache WHERE league = 'eng.1'").fetchone() is not None
+    )
+
+
 def test_create_survives_restart(monkeypatch):
     """A novel custom code must survive re-running schema.sql (the restart path).
 

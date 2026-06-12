@@ -31,6 +31,7 @@ from teamarr.database.leagues import (
     delete_custom_league_row,
     get_league_row,
     insert_custom_league,
+    purge_league_cache_rows,
     update_custom_league_row,
 )
 from teamarr.database.settings.read import get_tsdb_api_key
@@ -388,11 +389,23 @@ def update_custom_league(
 
 
 def delete_custom_league(conn: sqlite3.Connection, league_code: str) -> None:
-    """Delete an existing custom league (built-ins rejected with 403)."""
+    """Delete an existing custom league (built-ins rejected with 403).
+
+    Removes the ``leagues`` row and its cached ``team_cache``/``league_cache``
+    rows in one transaction, mirroring the create path so no orphaned teams or
+    league entry linger behind (eqz.9).
+    """
     require_custom_leagues_enabled(conn)
     code = league_code.lower()
     _load_custom_or_raise(conn, code)
     delete_custom_league_row(conn, code)
+    teams, leagues = purge_league_cache_rows(conn, code)
+    logger.info(
+        "[CUSTOM_LEAGUE] Deleted %s — purged %d team_cache + %d league_cache rows",
+        code,
+        teams,
+        leagues,
+    )
 
 
 # ---------------------------------------------------------------------------

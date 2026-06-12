@@ -339,3 +339,27 @@ def delete_custom_league_row(conn: sqlite3.Connection, league_code: str) -> int:
         (league_code,),
     )
     return cursor.rowcount
+
+
+def purge_league_cache_rows(conn: sqlite3.Connection, league_code: str) -> tuple[int, int]:
+    """Drop a league's cached ``team_cache``/``league_cache`` rows.
+
+    Counterpart to the create path's :meth:`CacheRefresher._save_league_teams`,
+    which scopes those caches by ``(provider, league)``. Deleting a custom league
+    only removes its ``leagues`` row, so without this the cached teams + league
+    row linger until the next full refresh (harmless to matching, but they show
+    as ghosts in team/league pickers — see bead eqz.9). Scoped by ``league_code``
+    alone (not provider): a custom code is unique, so this is both sufficient and
+    robust against any provider drift between create and delete.
+
+    Returns ``(team_rows_deleted, league_rows_deleted)``.
+    """
+    teams = conn.execute(
+        "DELETE FROM team_cache WHERE league = ?",
+        (league_code,),
+    ).rowcount
+    leagues = conn.execute(
+        "DELETE FROM league_cache WHERE league_slug = ?",
+        (league_code,),
+    ).rowcount
+    return teams, leagues
