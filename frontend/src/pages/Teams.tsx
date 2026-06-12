@@ -13,6 +13,8 @@ import {
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
+import { GlobalDefaults } from "@/components/GlobalDefaults"
+import { StepTabs } from "@/components/StepTabs"
 import { Badge } from "@/components/ui/badge"
 import {
   Table,
@@ -532,7 +534,7 @@ export function Teams() {
   if (error) {
     return (
       <div className="space-y-2">
-        <h1 className="text-xl font-bold">Teams</h1>
+        <h1 className="text-xl font-bold">Subscriptions</h1>
         <Card className="border-destructive p-4">
           <p className="text-destructive">Error loading teams: {error.message}</p>
           <Button className="mt-4" onClick={() => refetch()}>
@@ -548,16 +550,26 @@ export function Teams() {
       {/* Header - Compact */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-bold">Teams</h1>
+          <h1 className="text-xl font-bold">Subscriptions</h1>
           <p className="text-sm text-muted-foreground">
-            Team-based EPG channel configurations
+            Sports, leagues, and teams you follow
           </p>
         </div>
-        <Button size="sm" onClick={() => navigate("/teams/import")}>
+        <Button size="sm" onClick={() => navigate("/subscriptions/import")}>
           <Plus className="h-4 w-4 mr-1" />
           Import
         </Button>
       </div>
+
+      <StepTabs
+        tabs={[
+          { to: "/subscriptions", label: "Leagues & Teams", end: true },
+          { to: "/subscriptions/leagues", label: "Custom Leagues" },
+        ]}
+      />
+
+      {/* Subscribed sports & leagues (lifted from Sources) */}
+      <GlobalDefaults />
 
       {/* Stats Tiles - V1 Style: Grid with 4 equal columns filling width */}
       {teams && teams.length > 0 && (

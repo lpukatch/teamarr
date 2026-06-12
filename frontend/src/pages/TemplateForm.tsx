@@ -218,7 +218,7 @@ export function TemplateForm() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["templates"] })
       toast.success(`Created template "${formData.name}"`)
-      navigate("/templates")
+      navigate("/epg/templates")
     },
     onError: (err) => {
       toast.error(err instanceof Error ? err.message : "Failed to create template")
@@ -231,7 +231,7 @@ export function TemplateForm() {
       queryClient.invalidateQueries({ queryKey: ["templates"] })
       queryClient.invalidateQueries({ queryKey: ["template", templateId] })
       toast.success(`Updated template "${formData.name}"`)
-      navigate("/templates")
+      navigate("/epg/templates")
     },
     onError: (err) => {
       toast.error(err instanceof Error ? err.message : "Failed to update template")
@@ -309,7 +309,7 @@ export function TemplateForm() {
     return (
       <div className="space-y-4">
         <div className="flex items-center gap-4">
-          <Button variant="ghost" size="sm" onClick={() => navigate("/templates")}>
+          <Button variant="ghost" size="sm" onClick={() => navigate("/epg/templates")}>
             <ArrowLeft className="h-4 w-4 mr-1" />
             Back
           </Button>
@@ -382,7 +382,7 @@ export function TemplateForm() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
-          <Button variant="ghost" size="sm" onClick={() => navigate("/templates")}>
+          <Button variant="ghost" size="sm" onClick={() => navigate("/epg/templates")}>
             <ArrowLeft className="h-4 w-4 mr-1" />
             Back
           </Button>

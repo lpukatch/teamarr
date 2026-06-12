@@ -1,7 +1,8 @@
 import { useState } from "react"
 import { useNavigate } from "react-router-dom"
 import { toast } from "sonner"
-import { ArrowLeft, FlaskConical, Loader2, Lock, Pencil, Plus, Trash2 } from "lucide-react"
+import { FlaskConical, Loader2, Lock, Pencil, Plus, Trash2 } from "lucide-react"
+import { StepTabs } from "@/components/StepTabs"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -64,7 +65,6 @@ function errMessage(err: unknown, fallback: string): string {
 }
 
 export function CustomLeagues() {
-  const navigate = useNavigate()
   const capabilityQuery = useCustomLeagueCapability()
   const capability = capabilityQuery.data
 
@@ -78,17 +78,19 @@ export function CustomLeagues() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center gap-3">
-        <Button variant="ghost" size="icon" onClick={() => navigate("/event-groups")}>
-          <ArrowLeft className="h-4 w-4" />
-        </Button>
-        <div>
-          <h1 className="text-xl font-bold">Custom Leagues</h1>
-          <p className="text-sm text-muted-foreground">
-            Add your own TheSportsDB leagues — no code changes or restart required.
-          </p>
-        </div>
+      <div>
+        <h1 className="text-xl font-bold">Subscriptions</h1>
+        <p className="text-sm text-muted-foreground">
+          Add your own TheSportsDB leagues — no code changes or restart required.
+        </p>
       </div>
+
+      <StepTabs
+        tabs={[
+          { to: "/subscriptions", label: "Leagues & Teams", end: true },
+          { to: "/subscriptions/leagues", label: "Custom Leagues" },
+        ]}
+      />
 
       {capability && !capability.enabled ? (
         <PremiumGate />

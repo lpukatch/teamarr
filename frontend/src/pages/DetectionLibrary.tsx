@@ -417,7 +417,7 @@ export function DetectionLibrary() {
   if (categoriesQuery.error) {
     return (
       <div className="space-y-4">
-        <h1 className="text-2xl font-bold">Detection Library</h1>
+        <h1 className="text-2xl font-bold">Matching</h1>
         <Card className="border-destructive">
           <CardContent className="pt-6">
             <p className="text-destructive">
@@ -436,9 +436,9 @@ export function DetectionLibrary() {
     <div className="space-y-2">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-bold">Detection Library</h1>
+          <h1 className="text-xl font-bold">Matching</h1>
           <p className="text-sm text-muted-foreground">
-            Manage detection patterns and team aliases for stream classification
+            Detection patterns and team aliases that classify streams to events
           </p>
         </div>
         <div className="flex gap-2">

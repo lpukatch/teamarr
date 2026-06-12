@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom"
 import { toast } from "sonner"
 import { Plus, Trash2, Pencil, Loader2, Copy, Download, Upload } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { StepTabs } from "@/components/StepTabs"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import {
@@ -204,6 +205,12 @@ export function Templates() {
 
   return (
     <div className="space-y-2">
+      <StepTabs
+        tabs={[
+          { to: "/epg", label: "Output", end: true },
+          { to: "/epg/templates", label: "Templates" },
+        ]}
+      />
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-xl font-bold">Templates</h1>
@@ -218,7 +225,7 @@ export function Templates() {
             )}
             Import
           </Button>
-          <Button size="sm" onClick={() => navigate("/templates/new")}>
+          <Button size="sm" onClick={() => navigate("/epg/templates/new")}>
             <Plus className="h-4 w-4 mr-1" />
             New Template
           </Button>
@@ -319,7 +326,7 @@ export function Templates() {
                           variant="ghost"
                           size="icon"
                           className="h-8 w-8"
-                          onClick={() => navigate(`/templates/${template.id}`)}
+                          onClick={() => navigate(`/epg/templates/${template.id}`)}
                           title="Edit"
                         >
                           <Pencil className="h-4 w-4" />

@@ -16,6 +16,7 @@ import {
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
+import { StepTabs } from "@/components/StepTabs"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { RunHistoryTable } from "@/components/RunHistoryTable"
@@ -240,9 +241,16 @@ export function EPG() {
   return (
     <div className="space-y-2">
       <div>
-        <h1 className="text-xl font-bold">EPG Management</h1>
-        <p className="text-sm text-muted-foreground">Generate and manage XMLTV output</p>
+        <h1 className="text-xl font-bold">EPG</h1>
+        <p className="text-sm text-muted-foreground">Generate output and shape how it looks</p>
       </div>
+
+      <StepTabs
+        tabs={[
+          { to: "/epg", label: "Output", end: true },
+          { to: "/epg/templates", label: "Templates" },
+        ]}
+      />
 
       {/* Action Bar */}
       <div className="flex flex-wrap items-center gap-3 bg-secondary border border-border rounded px-3 py-2">

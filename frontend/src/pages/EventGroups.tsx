@@ -17,7 +17,6 @@ import {
   ArrowUpDown,
   RotateCcw,
   Library,
-  Trophy,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
@@ -57,7 +56,6 @@ import type { EventGroup, PreviewGroupResponse, TeamFilterEntry } from "@/api/ty
 import { getLeagues } from "@/api/teams"
 import { StreamTimezoneSelector } from "@/components/StreamTimezoneSelector"
 import { TeamPicker } from "@/components/TeamPicker"
-import { GlobalDefaults } from "@/components/GlobalDefaults"
 import { Label } from "@/components/ui/label"
 import { getLeagueDisplayName } from "@/lib/utils"
 
@@ -497,7 +495,7 @@ export function EventGroups() {
   if (error) {
     return (
       <div className="space-y-4">
-        <h1 className="text-2xl font-bold">Event Groups</h1>
+        <h1 className="text-2xl font-bold">Sources</h1>
         <Card className="border-destructive">
           <CardContent className="pt-6">
             <p className="text-destructive">
@@ -517,29 +515,22 @@ export function EventGroups() {
       {/* Header - Compact */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-bold">Event Groups</h1>
+          <h1 className="text-xl font-bold">Sources</h1>
           <p className="text-sm text-muted-foreground">
-            Configure event-based EPG from M3U stream groups
+            M3U stream groups that feed event-based EPG
           </p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" size="sm" onClick={() => navigate("/detection-library")}>
+          <Button variant="outline" size="sm" onClick={() => navigate("/matching")}>
             <Library className="h-4 w-4 mr-1" />
-            Detection Library
+            Matching
           </Button>
-          <Button variant="outline" size="sm" onClick={() => navigate("/custom-leagues")}>
-            <Trophy className="h-4 w-4 mr-1" />
-            Custom Leagues
-          </Button>
-          <Button size="sm" onClick={() => navigate("/event-groups/import")}>
+          <Button size="sm" onClick={() => navigate("/sources/import")}>
             <Download className="h-4 w-4 mr-1" />
             Import
           </Button>
         </div>
       </div>
-
-      {/* Subscribed Sports — global league/soccer/template management */}
-      <GlobalDefaults />
 
       {/* Stats Tiles - V1 Style: Grid with 4 equal columns filling width */}
       {data?.groups && data.groups.length > 0 && (
@@ -706,7 +697,7 @@ export function EventGroups() {
                   onClick={() => {
                     if (selectedIds.size === 1) {
                       const groupId = Array.from(selectedIds)[0]
-                      navigate(`/event-groups/${groupId}`)
+                      navigate(`/sources/${groupId}`)
                     } else {
                       setShowBulkEdit(true)
                     }
@@ -1014,7 +1005,7 @@ export function EventGroups() {
                           variant="ghost"
                           size="icon"
                           className="h-8 w-8"
-                          onClick={() => navigate(`/event-groups/${group.id}`)}
+                          onClick={() => navigate(`/sources/${group.id}`)}
                           title="Edit"
                         >
                           <Pencil className="h-4 w-4" />

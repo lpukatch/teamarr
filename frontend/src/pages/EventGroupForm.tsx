@@ -275,7 +275,7 @@ export function EventGroupForm() {
         await createMutation.mutateAsync(submitData)
         toast.success(`Created group "${formData.name}"`)
       }
-      navigate("/event-groups")
+      navigate("/sources")
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed to save group")
     }
@@ -295,7 +295,7 @@ export function EventGroupForm() {
     <div className="space-y-6 max-w-4xl mx-auto">
       {/* Header */}
       <div className="flex items-center gap-4">
-        <Button variant="ghost" size="icon" onClick={() => navigate("/event-groups")}>
+        <Button variant="ghost" size="icon" onClick={() => navigate("/sources")}>
           <ArrowLeft className="h-5 w-5" />
         </Button>
         <div className="flex-1">
@@ -1218,7 +1218,7 @@ export function EventGroupForm() {
 
           {/* Actions */}
           <div className="flex justify-end gap-2">
-            <Button variant="outline" onClick={() => navigate("/event-groups")}>
+            <Button variant="outline" onClick={() => navigate("/sources")}>
               Cancel
             </Button>
             <Button onClick={handleSubmit} disabled={isPending}>

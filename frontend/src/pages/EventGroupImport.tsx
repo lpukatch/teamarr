@@ -207,7 +207,7 @@ export function EventGroupImport() {
       m3u_account_id: String(selectedAccount!.id),
       m3u_account_name: selectedAccount!.name,
     })
-    navigate(`/event-groups/new?${params.toString()}`)
+    navigate(`/sources/new?${params.toString()}`)
   }
 
   // Handle bulk import
@@ -239,7 +239,7 @@ export function EventGroupImport() {
 
       // Show success or navigate
       if (response.total_created > 0) {
-        navigate("/event-groups")
+        navigate("/sources")
       }
     } catch (error) {
       console.error("Bulk import failed:", error)
