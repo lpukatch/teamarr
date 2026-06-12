@@ -11,6 +11,7 @@ import {
   ToggleRight,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { EventMatchingSettings } from "@/components/EventMatchingSettings"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
@@ -467,6 +468,9 @@ export function DetectionLibrary() {
           onChange={handleImportFile}
         />
       </div>
+
+      {/* Matching settings (lifted from Settings) */}
+      <EventMatchingSettings />
 
       {/* Tabs */}
       <div className="flex gap-1 border-b border-border overflow-x-auto">
