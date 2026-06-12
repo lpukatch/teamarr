@@ -14,6 +14,7 @@ import {
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { StepTabs } from "@/components/StepTabs"
+import { TeamEpgSettingsCard } from "@/components/TeamEpgSettingsCard"
 import { Badge } from "@/components/ui/badge"
 import {
   Table,
@@ -566,6 +567,9 @@ export function Teams() {
           Import
         </Button>
       </div>
+
+      {/* Team EPG settings (lifted from Settings) */}
+      <TeamEpgSettingsCard />
 
       {/* Stats Tiles - V1 Style: Grid with 4 equal columns filling width */}
       {teams && teams.length > 0 && (

@@ -857,7 +857,6 @@ type SettingsTab = "general" | "teams" | "events" | "channels" | "epg" | "dispat
 
 const TABS: { id: SettingsTab; label: string }[] = [
   { id: "general", label: "General" },
-  { id: "teams", label: "Teams" },
   { id: "events", label: "Event Groups" },
   { id: "epg", label: "EPG" },
   { id: "channels", label: "Channels" },
@@ -1602,79 +1601,6 @@ export function Settings() {
       )}
 
       {/* Teams Tab */}
-      {activeTab === "teams" && (
-      <>
-      <div className="mb-4">
-        <h2 className="text-lg font-semibold">Team Based Streams</h2>
-        <p className="text-sm text-muted-foreground">Configure settings for team-based EPG generation</p>
-      </div>
-      <Card>
-        <CardHeader>
-          <CardTitle>Team EPG Settings</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid grid-cols-3 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="team-schedule-days">Schedule Days Ahead</Label>
-              <Select
-                id="team-schedule-days"
-                value={String(epg?.team_schedule_days_ahead ?? 30)}
-                onChange={(e) =>
-                  epg && setEPG({ ...epg, team_schedule_days_ahead: parseInt(e.target.value) })
-                }
-              >
-                <option value="7">7 days</option>
-                <option value="14">14 days</option>
-                <option value="30">30 days</option>
-                <option value="60">60 days</option>
-                <option value="90">90 days</option>
-              </Select>
-              <p className="text-xs text-muted-foreground">
-                How far to fetch team schedules (for .next variables)
-              </p>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="midnight-mode">Midnight Crossover</Label>
-              <Select
-                id="midnight-mode"
-                value={epg?.midnight_crossover_mode ?? "postgame"}
-                onChange={(e) =>
-                  epg && setEPG({ ...epg, midnight_crossover_mode: e.target.value })
-                }
-              >
-                <option value="postgame">Show postgame filler</option>
-                <option value="idle">Show idle filler</option>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="channel-id-format">Channel ID Format</Label>
-              <Input
-                id="channel-id-format"
-                value={display?.channel_id_format ?? "{team_name_pascal}.{league}"}
-                onChange={(e) => display && setDisplay({ ...display, channel_id_format: e.target.value })}
-                className="font-mono text-sm"
-              />
-              <p className="text-xs text-muted-foreground">
-                {"{team_name}"}, {"{league}"}, {"{league_id}"}
-              </p>
-            </div>
-          </div>
-
-          <Button
-            onClick={handleSaveEPGAndDisplay}
-            disabled={updateEPG.isPending || updateDisplay.isPending}
-          >
-            {(updateEPG.isPending || updateDisplay.isPending) ? (
-              <Loader2 className="h-4 w-4 mr-1 animate-spin" />
-            ) : (
-              <Save className="h-4 w-4 mr-1" />
-            )}
-            Save
-          </Button>
-        </CardContent>
-      </Card>
-      </>
-      )}
 
       {/* Event Groups Tab */}
       {activeTab === "events" && (
