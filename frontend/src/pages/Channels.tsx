@@ -1,4 +1,5 @@
 import { ExceptionKeywordsCard } from "@/components/ExceptionKeywordsCard"
+import { FeedSeparationCard } from "@/components/FeedSeparationCard"
 
 /**
  * Step 5 — Channels. Configuration for how channels are named, sorted, numbered,
@@ -16,6 +17,7 @@ export function Channels() {
       </div>
 
       <ExceptionKeywordsCard />
+      <FeedSeparationCard />
     </div>
   )
 }
