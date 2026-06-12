@@ -15,6 +15,7 @@ import {
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { ExceptionKeywordsCard } from "@/components/ExceptionKeywordsCard"
 import { Badge } from "@/components/ui/badge"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Input } from "@/components/ui/input"
@@ -401,9 +402,9 @@ export function Channels() {
     <div className="space-y-2">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-bold">Managed Channels</h1>
+          <h1 className="text-xl font-bold">Channels</h1>
           <p className="text-sm text-muted-foreground">
-            Event-based channels managed by Teamarr
+            How channels are named, sorted, numbered, and managed
           </p>
         </div>
         <div className="flex gap-2">
@@ -428,6 +429,9 @@ export function Channels() {
           </Button>
         </div>
       </div>
+
+      {/* Naming & Sorting (lifted from Settings) */}
+      <ExceptionKeywordsCard />
 
       {/* Fixed Batch Operations Bar */}
       {selectedIds.size > 0 && (
