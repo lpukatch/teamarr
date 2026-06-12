@@ -53,6 +53,16 @@ _USER_AGENT = (
 DAYS_BACK = 7
 
 
+def _first_word(name: str) -> str:
+    """First word of a full team name, lowercased ("Barrie Baycats" -> "barrie").
+
+    Used only for the fallback name-key join; the city it produces does not always
+    match the schedule's home/away override (e.g. "Chatham-Kent" -> "chatham-kent"
+    vs override "chatham"), which is why game_number is the primary join key.
+    """
+    return name.split()[0].lower() if name else ""
+
+
 class SupabaseLeagueClient:
     """HTTP client for Supabase-backed league websites.
 
@@ -450,17 +460,33 @@ class SupabaseLeagueClient:
         website_url, _, _ = config
         return self._get_logo_map(website_url)
 
-    def build_score_map(self, games: list[dict]) -> dict[tuple, dict]:
-        """Build (game_date_str, home_city_lower) -> game_dict lookup."""
-        score_map: dict[tuple, dict] = {}
+    def build_score_map(self, games: list[dict]) -> dict[str, dict]:
+        """Build score lookups for merging onto schedule entries.
+
+        Returns ``{"by_number": ..., "by_name": ...}`` where:
+
+        - ``by_number`` maps ``games.schedule_game_number`` -> game. This is the
+          authoritative join: the number matches ``schedule_game_overrides.game_number``
+          exactly (int), so it disambiguates baseball doubleheaders (same two teams,
+          same date — distinct game numbers) and is immune to city-name parsing. In the
+          live CBL data every current-season completed game carries this number.
+        - ``by_name`` maps ``(game_date, home_city, away_city)`` -> game as a defensive
+          fallback for any completed game missing a number. City = first word of the
+          full team name; this is fragile (e.g. "Chatham-Kent" vs override "chatham"),
+          so it is only consulted when the number lookup misses.
+        """
+        by_number: dict[int, dict] = {}
+        by_name: dict[tuple, dict] = {}
         for game in games:
+            number = game.get("schedule_game_number")
+            if number is not None:
+                by_number[number] = game
             game_date = game.get("game_date")
-            home_name = game.get("home_team_name", "")
-            if game_date and home_name:
-                # First word of full name is the city ("Barrie Baycats" -> "barrie")
-                city = home_name.split()[0].lower() if home_name else ""
-                score_map[(game_date, city)] = game
-        return score_map
+            home_city = _first_word(game.get("home_team_name", ""))
+            if game_date and home_city:
+                away_city = _first_word(game.get("away_team_name", ""))
+                by_name[(game_date, home_city, away_city)] = game
+        return {"by_number": by_number, "by_name": by_name}
 
     def get_events_by_date(self, league: str, target_date: date) -> list[dict]:
         """Get schedule entries for a specific date, merged with scores."""
@@ -523,14 +549,25 @@ class SupabaseLeagueClient:
         return self._merge_scores(team_entries, score_map)
 
     def _merge_scores(
-        self, entries: list[dict], score_map: dict[tuple, dict]
+        self, entries: list[dict], score_map: dict[str, dict]
     ) -> list[dict]:
-        """Attach score data from score_map to each schedule entry."""
+        """Attach score data from score_map to each schedule entry.
+
+        Joins on ``game_number`` first (exact, doubleheader-safe), falling back to
+        the ``(date, home_city, away_city)`` name key only when an entry has no
+        number or the number has no matching completed game.
+        """
+        by_number = score_map.get("by_number", {})
+        by_name = score_map.get("by_name", {})
         result = []
         for entry in entries:
-            game_date = entry.get("game_date_override", "")
-            home_city = (entry.get("home_team_override") or "").lower()
-            score = score_map.get((game_date, home_city))
+            number = entry.get("game_number")
+            score = by_number.get(number) if number is not None else None
+            if score is None:
+                game_date = entry.get("game_date_override", "")
+                home_city = (entry.get("home_team_override") or "").lower()
+                away_city = (entry.get("away_team_override") or "").lower()
+                score = by_name.get((game_date, home_city, away_city))
             if score:
                 merged = dict(entry)
                 merged["_score"] = score
