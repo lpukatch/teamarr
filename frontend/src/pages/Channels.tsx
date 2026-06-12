@@ -1,3 +1,4 @@
+import { ChannelConfigSettings } from "@/components/ChannelConfigSettings"
 import { ExceptionKeywordsCard } from "@/components/ExceptionKeywordsCard"
 import { FeedSeparationCard } from "@/components/FeedSeparationCard"
 
@@ -16,6 +17,7 @@ export function Channels() {
         </p>
       </div>
 
+      <ChannelConfigSettings />
       <ExceptionKeywordsCard />
       <FeedSeparationCard />
     </div>
