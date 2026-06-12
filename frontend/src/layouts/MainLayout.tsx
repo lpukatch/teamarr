@@ -3,27 +3,31 @@ import {
   Moon,
   Sun,
   LayoutDashboard,
-  FileCode,
   Users,
   Layers,
+  ScanSearch,
   CalendarDays,
   Tv,
   Settings,
+  Play,
 } from "lucide-react"
 import type { LucideIcon } from "lucide-react"
 import { useEffect, useState } from "react"
 import { Toaster } from "sonner"
 import { useQuery } from "@tanstack/react-query"
 import { useUpdateCheckSettings, useCheckForUpdates } from "../hooks/useSettings"
+import { useGenerationProgress } from "@/contexts/GenerationContext"
 
-const NAV_ITEMS: { to: string; label: string; icon: LucideIcon }[] = [
+// The stepwise user flow (v2.7.0 IA). Dashboard is the landing/overview;
+// steps 1–5 are the ordered configuration flow; Generate is the end bookend.
+// Connect (Dispatcharr) and Settings live outside the numbered flow.
+const NAV_ITEMS: { to: string; label: string; icon: LucideIcon; step?: number }[] = [
   { to: "/", label: "Dashboard", icon: LayoutDashboard },
-  { to: "/templates", label: "Templates", icon: FileCode },
-  { to: "/teams", label: "Teams", icon: Users },
-  { to: "/event-groups", label: "Event Groups", icon: Layers },
-  { to: "/epg", label: "EPG", icon: CalendarDays },
-  { to: "/channels", label: "Channels", icon: Tv },
-  { to: "/settings", label: "Settings", icon: Settings },
+  { to: "/sources", label: "Sources", icon: Layers, step: 1 },
+  { to: "/subscriptions", label: "Subscriptions", icon: Users, step: 2 },
+  { to: "/matching", label: "Matching", icon: ScanSearch, step: 3 },
+  { to: "/epg", label: "EPG", icon: CalendarDays, step: 4 },
+  { to: "/channels", label: "Channels", icon: Tv, step: 5 },
 ]
 
 async function fetchHealth(): Promise<{ status: string; version: string }> {
@@ -44,6 +48,8 @@ export function MainLayout() {
   })
 
   const version = healthQuery.data?.version || "v2.0.0"
+
+  const { startGeneration, isGenerating } = useGenerationProgress()
 
   // Update check
   const updateSettingsQuery = useUpdateCheckSettings()
@@ -86,7 +92,7 @@ export function MainLayout() {
               </div>
             </Link>
 
-            {/* Nav Links */}
+            {/* Nav Links — stepwise flow */}
             <div className="flex items-center gap-1">
               {NAV_ITEMS.map((item) => {
                 const Icon = item.icon
@@ -94,6 +100,7 @@ export function MainLayout() {
                   <NavLink
                     key={item.to}
                     to={item.to}
+                    end={item.to === "/"}
                     className={({ isActive }) =>
                       `flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
                         isActive
@@ -102,15 +109,42 @@ export function MainLayout() {
                       }`
                     }
                   >
+                    {item.step != null && (
+                      <span className="flex h-4 w-4 items-center justify-center rounded-full bg-muted text-[10px] font-semibold">
+                        {item.step}
+                      </span>
+                    )}
                     <Icon className="h-4 w-4" />
                     {item.label}
                   </NavLink>
                 )
               })}
+
+              {/* Generate — end-of-flow bookend */}
+              <button
+                onClick={() => startGeneration()}
+                disabled={isGenerating}
+                title="Generate EPG"
+                className="ml-1 flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-60"
+              >
+                <Play className="h-4 w-4" />
+                {isGenerating ? "Generating…" : "Generate"}
+              </button>
             </div>
 
             {/* Right side */}
             <div className="flex items-center gap-3">
+              <NavLink
+                to="/settings"
+                title="Settings"
+                className={({ isActive }) =>
+                  `p-2 rounded-md transition-colors ${
+                    isActive ? "text-primary bg-primary/10" : "hover:bg-accent"
+                  }`
+                }
+              >
+                <Settings className="h-4 w-4" />
+              </NavLink>
               <Link
                 to="/settings?tab=advanced"
                 className="flex items-center gap-1.5 text-xs text-muted-foreground bg-muted px-2 py-0.5 rounded hover:bg-muted/80 transition-colors"

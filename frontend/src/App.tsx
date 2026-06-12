@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route } from "react-router-dom"
+import { BrowserRouter, Routes, Route, Navigate, useParams, useLocation } from "react-router-dom"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { MainLayout } from "@/layouts/MainLayout"
 import { GenerationProvider } from "@/contexts/GenerationContext"
@@ -28,6 +28,21 @@ const queryClient = new QueryClient({
   },
 })
 
+/**
+ * Redirect that forwards :params and the query string from the matched
+ * (legacy) URL to its new home, so bookmarks and in-app navigate() calls to
+ * old paths keep working after the v2.7.0 IA route rename.
+ */
+function Redirect({ to }: { to: string }) {
+  const params = useParams()
+  const { search } = useLocation()
+  let path = to
+  for (const [key, value] of Object.entries(params)) {
+    path = path.replace(`:${key}`, value ?? "")
+  }
+  return <Navigate to={path + search} replace />
+}
+
 function AppContent() {
   return (
     <>
@@ -36,20 +51,45 @@ function AppContent() {
         <Routes>
           <Route path="/" element={<MainLayout />}>
             <Route index element={<Dashboard />} />
-            <Route path="templates" element={<Templates />} />
-            <Route path="templates/new" element={<TemplateForm />} />
-            <Route path="templates/:templateId" element={<TemplateForm />} />
-            <Route path="teams" element={<Teams />} />
-            <Route path="teams/import" element={<TeamImport />} />
-            <Route path="event-groups" element={<EventGroups />} />
-            <Route path="event-groups/new" element={<EventGroupForm />} />
-            <Route path="event-groups/:groupId" element={<EventGroupForm />} />
-            <Route path="event-groups/import" element={<EventGroupImport />} />
-            <Route path="detection-library" element={<DetectionLibrary />} />
-            <Route path="custom-leagues" element={<CustomLeagues />} />
+
+            {/* ① Sources (was Event Groups) */}
+            <Route path="sources" element={<EventGroups />} />
+            <Route path="sources/new" element={<EventGroupForm />} />
+            <Route path="sources/:groupId" element={<EventGroupForm />} />
+            <Route path="sources/import" element={<EventGroupImport />} />
+
+            {/* ② Subscriptions (Teams + Custom Leagues) */}
+            <Route path="subscriptions" element={<Teams />} />
+            <Route path="subscriptions/import" element={<TeamImport />} />
+            <Route path="subscriptions/leagues" element={<CustomLeagues />} />
+
+            {/* ③ Matching (was Detection Library) */}
+            <Route path="matching" element={<DetectionLibrary />} />
+
+            {/* ④ EPG (EPG management + Templates) */}
             <Route path="epg" element={<EPG />} />
+            <Route path="epg/templates" element={<Templates />} />
+            <Route path="epg/templates/new" element={<TemplateForm />} />
+            <Route path="epg/templates/:templateId" element={<TemplateForm />} />
+
+            {/* ⑤ Channels */}
             <Route path="channels" element={<Channels />} />
+
+            {/* Settings (system/integration) */}
             <Route path="settings" element={<Settings />} />
+
+            {/* Legacy URL redirects — keep bookmarks & in-app links working */}
+            <Route path="event-groups" element={<Redirect to="/sources" />} />
+            <Route path="event-groups/new" element={<Redirect to="/sources/new" />} />
+            <Route path="event-groups/:groupId" element={<Redirect to="/sources/:groupId" />} />
+            <Route path="event-groups/import" element={<Redirect to="/sources/import" />} />
+            <Route path="teams" element={<Redirect to="/subscriptions" />} />
+            <Route path="teams/import" element={<Redirect to="/subscriptions/import" />} />
+            <Route path="custom-leagues" element={<Redirect to="/subscriptions/leagues" />} />
+            <Route path="detection-library" element={<Redirect to="/matching" />} />
+            <Route path="templates" element={<Redirect to="/epg/templates" />} />
+            <Route path="templates/new" element={<Redirect to="/epg/templates/new" />} />
+            <Route path="templates/:templateId" element={<Redirect to="/epg/templates/:templateId" />} />
           </Route>
         </Routes>
       </BrowserRouter>
