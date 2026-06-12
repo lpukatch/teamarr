@@ -805,6 +805,30 @@ END;
 
 
 -- =============================================================================
+-- CHANNEL PRIORITY TEAMS
+-- A team-level sort tier that floats a followed team's channels to the very top
+-- of the global channel list, ahead of all sport/league/time ordering. Purely an
+-- ordering preference — unrelated to the Teams page or EPG generation.
+-- Matched against managed_channels.home_team/away_team by (sport, team_name).
+-- =============================================================================
+
+CREATE TABLE IF NOT EXISTS channel_priority_teams (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+
+    -- Team identity (from team_cache)
+    provider TEXT NOT NULL,                  -- 'espn' or 'tsdb'
+    provider_team_id TEXT NOT NULL,          -- Provider's team ID
+    team_name TEXT NOT NULL,                 -- Display + match key (e.g., 'Liverpool')
+    league TEXT,                             -- League slug the team was picked from
+    sport TEXT NOT NULL,                     -- Sport code (scopes name matching)
+
+    -- One entry per team-in-league
+    UNIQUE(provider, provider_team_id, league)
+);
+
+
+-- =============================================================================
 -- LEAGUES TABLE
 -- Single source of truth for configured leagues
 -- Combines API config + display config in one table

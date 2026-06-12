@@ -52,6 +52,8 @@ def conn():
             event_id TEXT,
             sport TEXT,
             league TEXT,
+            home_team TEXT,
+            away_team TEXT,
             event_date TEXT,
             exception_keyword TEXT,
             created_at TEXT
@@ -65,6 +67,16 @@ def conn():
             sort_priority INTEGER,
             created_at TEXT,
             updated_at TEXT
+        )
+    """)
+    db.execute("""
+        CREATE TABLE channel_priority_teams (
+            id INTEGER PRIMARY KEY,
+            provider TEXT,
+            provider_team_id TEXT,
+            team_name TEXT,
+            league TEXT,
+            sport TEXT
         )
     """)
     db.commit()

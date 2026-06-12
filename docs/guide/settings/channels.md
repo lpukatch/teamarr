@@ -70,9 +70,13 @@ Controls how duplicate streams for the same event are handled:
 
 ### Channel Ordering
 
-Configure how channels are ordered within the channel range. The **Sort Priority Manager** lets you drag and drop sports and leagues into your preferred order. Higher items get lower channel numbers.
+Configure how channels are ordered within the channel range.
 
-Click **Auto-populate** to pre-fill with all currently subscribed sports and leagues.
+**Priority Teams** — add teams here and their channels float to the very top of the channel list, ahead of all sport/league/time ordering. A team floats up wherever it plays (league and cup), matched by name within its sport. This is purely an ordering preference — it has no connection to the [Teams](../teams) page or EPG generation.
+
+The **Sort Priority Order** list lets you drag and drop sports and leagues into your preferred order. Higher items get lower channel numbers. Click **Auto-populate** to pre-fill with all currently subscribed sports and leagues.
+
+The full order is: **Priority Teams → Sport → League → Event time**.
 
 ## Per-League Channel Config
 
