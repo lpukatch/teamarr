@@ -210,7 +210,6 @@ class EPGSettingsModel(BaseModel):
     epg_xtream_cache_hours: int = 24
     epg_channel_source_enabled: bool = False
     epg_channel_source_groups: list[int] = []
-    epg_channel_source_mode: str = "streams"
     epg_stream_pre_buffer_minutes: int = 60
     epg_stream_post_buffer_minutes: int = 60
 

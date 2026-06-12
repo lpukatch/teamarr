@@ -228,7 +228,6 @@ def update_epg_settings(conn: Connection, **kwargs) -> bool:
         "epg_xtream_cache_hours": "epg_xtream_cache_hours",
         "epg_channel_source_enabled": "epg_channel_source_enabled",
         "epg_channel_source_groups": "epg_channel_source_groups",
-        "epg_channel_source_mode": "epg_channel_source_mode",
         "epg_stream_pre_buffer_minutes": "epg_stream_pre_buffer_minutes",
         "epg_stream_post_buffer_minutes": "epg_stream_post_buffer_minutes",
     }

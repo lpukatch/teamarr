@@ -90,9 +90,6 @@ class EPGSettings:
     # Which DP channel groups to include as channel-source candidates (group ids).
     # Empty = include all (ybt.2). Scopes the scan and drives the sorting rule.
     epg_channel_source_groups: list[int] = field(default_factory=list)
-    # 'streams' = one candidate per inner stream; 'channels' = one representative
-    # stream per curated DP channel (lineup matched as a unit). (3lp1.2)
-    epg_channel_source_mode: str = "streams"
     epg_stream_pre_buffer_minutes: int = 60
     epg_stream_post_buffer_minutes: int = 60
 

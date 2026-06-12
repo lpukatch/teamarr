@@ -167,9 +167,7 @@ def test_scopes_candidates_to_selected_dp_groups(monkeypatch):
     proc = _two_group_processor(monkeypatch)
     monkeypatch.setattr(
         "teamarr.database.settings.get_epg_settings",
-        lambda conn: SimpleNamespace(
-            epg_channel_source_groups=[7], epg_channel_source_mode="streams"
-        ),
+        lambda conn: SimpleNamespace(epg_channel_source_groups=[7]),
     )
     out = proc._fetch_channel_source_streams()
     assert [s["id"] for s in out] == [500]
@@ -183,59 +181,10 @@ def test_empty_selection_includes_all_groups(monkeypatch):
     proc = _two_group_processor(monkeypatch)
     monkeypatch.setattr(
         "teamarr.database.settings.get_epg_settings",
-        lambda conn: SimpleNamespace(
-            epg_channel_source_groups=[], epg_channel_source_mode="streams"
-        ),
+        lambda conn: SimpleNamespace(epg_channel_source_groups=[]),
     )
     out = proc._fetch_channel_source_streams()
     assert sorted(s["id"] for s in out) == [500, 501]
-
-
-def _multi_stream_channel_processor(monkeypatch):
-    # DP channel 100 carries TWO curated streams (500, 501); channel 101 carries one (502).
-    # All share the same active EPG link, so all are otherwise-valid candidates.
-    return _make_processor(
-        stream_channel_map={
-            501: {"id": 100, "epg_data_id": 1, "name": "ESPN"},
-            500: {"id": 100, "epg_data_id": 1, "name": "ESPN"},
-            502: {"id": 101, "epg_data_id": 1, "name": "ESPN2"},
-        },
-        epg_data_list=[{"id": 1, "tvg_id": "ESPN.us", "epg_source": 10}],
-        streams=[_stream(500, "ESPN A"), _stream(501, "ESPN B"), _stream(502, "ESPN2")],
-        managed=[],
-        epg_groups=[],
-        monkeypatch=monkeypatch,
-    )
-
-
-def test_streams_mode_emits_every_inner_stream(monkeypatch):
-    # Default 'streams' mode: every qualifying inner stream becomes a candidate.
-    proc = _multi_stream_channel_processor(monkeypatch)
-    monkeypatch.setattr(
-        "teamarr.database.settings.get_epg_settings",
-        lambda conn: SimpleNamespace(
-            epg_channel_source_groups=[], epg_channel_source_mode="streams"
-        ),
-    )
-    out = proc._fetch_channel_source_streams()
-    assert sorted(s["id"] for s in out) == [500, 501, 502]
-
-
-def test_channels_mode_emits_one_representative_per_channel(monkeypatch):
-    # 'channels' mode: ONE representative stream per DP channel (lowest id wins),
-    # so the channel's internal lineup isn't fragmented. Channel 100 -> 500 (not 501),
-    # channel 101 -> 502.
-    proc = _multi_stream_channel_processor(monkeypatch)
-    monkeypatch.setattr(
-        "teamarr.database.settings.get_epg_settings",
-        lambda conn: SimpleNamespace(
-            epg_channel_source_groups=[], epg_channel_source_mode="channels"
-        ),
-    )
-    out = proc._fetch_channel_source_streams()
-    assert sorted(s["id"] for s in out) == [500, 502]
-    # Both surviving candidates still carry the channel's EPG tvg_id.
-    assert all(s["tvg_id"] == "ESPN.us" for s in out)
 
 
 @pytest.fixture

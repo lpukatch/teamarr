@@ -1252,10 +1252,6 @@ class EventGroupProcessor:
         # Scoping skips the expensive EPG-resolution/matching for channels in
         # groups the user didn't pick — a generation-time saving.
         selected_groups: set[int] = set()
-        # Candidate granularity (3lp1.2): in "channels" mode emit one representative
-        # stream per DP channel so its internal lineup isn't fragmented across event
-        # channels; "streams" mode (default) emits every qualifying inner stream.
-        channel_mode = False
         try:
             from teamarr.database.channels import get_all_managed_channels
             from teamarr.database.groups import get_all_groups
@@ -1272,11 +1268,9 @@ class EventGroupProcessor:
                     for g in get_all_groups(conn, include_disabled=False)
                     if g.epg_match_enabled and not g.is_channel_source and g.m3u_group_id
                 }
-                _cs_settings = get_epg_settings(conn)
                 selected_groups = {
-                    int(gid) for gid in _cs_settings.epg_channel_source_groups
+                    int(gid) for gid in get_epg_settings(conn).epg_channel_source_groups
                 }
-                channel_mode = _cs_settings.epg_channel_source_mode == "channels"
         except Exception as e:
             logger.warning("[CHANNEL_SOURCE] Failed to load managed/group ids: %s", e)
 
@@ -1289,14 +1283,10 @@ class EventGroupProcessor:
 
         candidates: list[dict] = []
         seen: set[int] = set()
-        seen_channels: set = set()  # (3lp1.2) DP channels already represented in "channels" mode
         skipped_teamarr = 0
         skipped_overlap = 0
         skipped_group = 0
-        skipped_channel_dupe = 0
-        # Sorted by stream id so the representative stream per channel ("channels"
-        # mode) is deterministic (lowest id wins); output is id-sorted regardless.
-        for stream_id, ch in sorted(stream_channel_map.items(), key=lambda kv: kv[0]):
+        for stream_id, ch in stream_channel_map.items():
             if ch.get("id") in managed_ids:
                 skipped_teamarr += 1
                 continue
@@ -1323,16 +1313,7 @@ class EventGroupProcessor:
             ):
                 skipped_overlap += 1
                 continue
-            # "channels" mode: keep only the first qualifying stream per DP channel
-            # (its representative); later streams of the same channel are skipped so
-            # the channel's internal lineup is matched as a unit, not fragmented.
-            ch_id = ch.get("id")
-            if channel_mode and ch_id in seen_channels:
-                skipped_channel_dupe += 1
-                continue
             seen.add(stream_id)
-            if ch_id is not None:
-                seen_channels.add(ch_id)
             candidates.append(
                 {
                     "id": stream_id,
@@ -1358,14 +1339,12 @@ class EventGroupProcessor:
         candidates.sort(key=lambda s: s["id"])
         logger.info(
             "[CHANNEL_SOURCE] built %d candidate stream(s) from curated DP channels "
-            "in '%s' mode (excluded %d Teamarr-managed, %d already in EPG-match groups, "
-            "%d outside selected groups, %d non-representative streams)",
+            "(excluded %d Teamarr-managed, %d already in EPG-match groups, "
+            "%d outside selected groups)",
             len(candidates),
-            "channels" if channel_mode else "streams",
             skipped_teamarr,
             skipped_overlap,
             skipped_group,
-            skipped_channel_dupe,
         )
         return candidates
 
