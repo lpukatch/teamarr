@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom"
 import { api } from "@/api/client"
 import { Button } from "@/components/ui/button"
 import { RunHistoryTable } from "@/components/RunHistoryTable"
+import { EpgOutput } from "@/components/EpgOutput"
 import { EventMatcherModal, useEventMatcher } from "@/components/EventMatcherModal"
 import { Quadrant, StatTile } from "@/components/ui/rich-tooltip"
 import { useGenerationProgress } from "@/contexts/GenerationContext"
@@ -322,6 +323,9 @@ export function Dashboard() {
           </div>
         </div>
       )}
+
+      {/* EPG output diagnostics: URL, coverage analysis, XML preview, all-time totals */}
+      <EpgOutput />
 
       {/* Getting Started Guide */}
       {isGettingStarted && (

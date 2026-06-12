@@ -1,11 +1,8 @@
 import { useState, useMemo, useRef, useCallback } from "react"
 import { toast } from "sonner"
 import {
-  Play,
-  Download,
   Loader2,
   CheckCircle,
-  Ban,
   Link,
   Copy,
   Check,
@@ -15,17 +12,12 @@ import {
   Search,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
-import { StepTabs } from "@/components/StepTabs"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
-import { RunHistoryTable } from "@/components/RunHistoryTable"
-import { EventMatcherModal, useEventMatcher } from "@/components/EventMatcherModal"
-import { useGenerationProgress } from "@/contexts/GenerationContext"
 import { useDateFormat } from "@/hooks/useDateFormat"
 import {
   useStats,
-  useRecentRuns,
   useEPGAnalysis,
   useEPGContent,
 } from "@/hooks/useEPG"
@@ -55,23 +47,18 @@ function formatDateRange(start: string | null, end: string | null): string {
   return `${formatDate(start)} - ${formatDate(end)}`
 }
 
-export function EPG() {
-  const { data: stats, isLoading: statsLoading, refetch: refetchStats } = useStats()
-  const { data: runsData, isLoading: runsLoading, refetch: refetchRuns } = useRecentRuns(10, "full_epg")
-  const { data: analysis, isLoading: analysisLoading, refetch: refetchAnalysis } = useEPGAnalysis()
+export function EpgOutput() {
+  const { data: stats, isLoading: statsLoading } = useStats()
+  const { data: analysis, isLoading: analysisLoading } = useEPGAnalysis()
   const { data: epgContent, isLoading: contentLoading } = useEPGContent(0) // 0 = no limit
   const { formatRelativeTime } = useDateFormat()
 
-  const [isDownloading, setIsDownloading] = useState(false)
   const [copied, setCopied] = useState(false)
   const [showXmlPreview, setShowXmlPreview] = useState(false)
   const [searchTerm, setSearchTerm] = useState("")
   const [currentMatch, setCurrentMatch] = useState(0)
   const [showLineNumbers, setShowLineNumbers] = useState(true)
   const previewRef = useRef<HTMLPreElement>(null)
-
-  // Event matcher (shared component)
-  const matcher = useEventMatcher()
 
   // Gap highlighting state
   const [highlightedGap, setHighlightedGap] = useState<{
@@ -105,29 +92,6 @@ export function EPG() {
       setTimeout(() => setCopied(false), 2000)
     } catch {
       toast.error("Failed to copy URL")
-    }
-  }
-
-  // Generation progress (non-blocking toast)
-  const { startGeneration, cancelGeneration, isGenerating } = useGenerationProgress()
-
-  const handleGenerate = () => {
-    startGeneration(() => {
-      refetchAnalysis()
-      refetchRuns()
-      refetchStats()
-    })
-  }
-
-  const handleDownload = async () => {
-    setIsDownloading(true)
-    try {
-      const url = getTeamXmltvUrl()
-      window.open(url, "_blank")
-    } catch {
-      toast.error("Failed to open XMLTV URL")
-    } finally {
-      setIsDownloading(false)
     }
   }
 
@@ -240,61 +204,9 @@ export function EPG() {
 
   return (
     <div className="space-y-2">
-      <div>
-        <h1 className="text-xl font-bold">EPG</h1>
-        <p className="text-sm text-muted-foreground">Generate output and shape how it looks</p>
-      </div>
-
-      <StepTabs
-        tabs={[
-          { to: "/epg/templates", label: "Templates" },
-          { to: "/epg/teams", label: "Team EPG" },
-        ]}
-      />
-
-      {/* Action Bar */}
+      {/* EPG URL for IPTV apps */}
       <div className="flex flex-wrap items-center gap-3 bg-secondary border border-border rounded px-3 py-2">
-        {isGenerating ? (
-          <>
-            <Button size="sm" disabled>
-              <Loader2 className="h-4 w-4 mr-1 animate-spin" />
-              Generating...
-            </Button>
-            <Button
-              size="sm"
-              variant="destructive"
-              onClick={cancelGeneration}
-            >
-              <Ban className="h-4 w-4 mr-1" />
-              Cancel
-            </Button>
-          </>
-        ) : (
-          <Button size="sm" onClick={handleGenerate}>
-            <Play className="h-4 w-4 mr-1" />
-            Generate
-          </Button>
-        )}
-        {stats?.last_run && (
-          <span className="text-xs text-muted-foreground">
-            Last: {formatRelativeTime(stats.last_run)}
-          </span>
-        )}
-        <div className="h-4 w-px bg-border" />
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={handleDownload}
-          disabled={isDownloading}
-        >
-          {isDownloading ? (
-            <Loader2 className="h-4 w-4 mr-1 animate-spin" />
-          ) : (
-            <Download className="h-4 w-4 mr-1" />
-          )}
-          Download
-        </Button>
-        <div className="h-4 w-px bg-border" />
+        <span className="text-xs font-medium text-muted-foreground shrink-0">EPG URL</span>
         <div className="flex items-center gap-2 flex-1 min-w-0">
           <Link className="h-4 w-4 text-muted-foreground shrink-0" />
           <Input
@@ -541,30 +453,6 @@ export function EPG() {
         )}
       </Card>
 
-      {/* Recent Runs */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Recent Runs</CardTitle>
-          <CardDescription>Latest EPG generation runs (click Matched/Failed to view details)</CardDescription>
-        </CardHeader>
-        <CardContent>
-          {runsLoading ? (
-            <div className="flex items-center justify-center py-8">
-              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-            </div>
-          ) : runsData?.runs.length === 0 ? (
-            <div className="text-center py-8 text-muted-foreground">
-              No runs recorded yet. Generate EPG to see history.
-            </div>
-          ) : (
-            <RunHistoryTable
-              runs={runsData?.runs ?? []}
-              onFixStream={matcher.handleOpen}
-            />
-          )}
-        </CardContent>
-      </Card>
-
       {/* All-time Stats */}
       <Card>
         <CardHeader>
@@ -614,26 +502,6 @@ export function EPG() {
         </CardContent>
       </Card>
 
-      {/* Event Matcher Modal */}
-      <EventMatcherModal
-        open={matcher.open}
-        onOpenChange={matcher.setOpen}
-        stream={matcher.stream}
-        league={matcher.league}
-        onLeagueChange={matcher.setLeague}
-        targetDate={matcher.targetDate}
-        onTargetDateChange={matcher.setTargetDate}
-        teamFilter={matcher.teamFilter}
-        onTeamFilterChange={matcher.setTeamFilter}
-        events={matcher.events}
-        loading={matcher.loading}
-        submitting={matcher.submitting}
-        selectedEventId={matcher.selectedEventId}
-        onSelectEvent={matcher.setSelectedEventId}
-        onSearch={matcher.handleSearch}
-        onCorrect={matcher.handleCorrect}
-        onSkip={matcher.handleSkip}
-      />
     </div>
   )
 }

@@ -15,7 +15,6 @@ import {
   EventGroups,
   EventGroupForm,
   EventGroupImport,
-  EPG,
   Channels,
   Settings,
 } from "@/pages"
@@ -73,7 +72,6 @@ function AppContent() {
             <Route path="epg/templates/:templateId" element={<TemplateForm />} />
             <Route path="epg/teams" element={<Teams />} />
             <Route path="epg/teams/import" element={<TeamImport />} />
-            <Route path="epg/output" element={<EPG />} />
 
             {/* ⑤ Channels */}
             <Route path="channels" element={<Channels />} />
