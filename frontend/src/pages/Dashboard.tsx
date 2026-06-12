@@ -4,6 +4,7 @@ import { api } from "@/api/client"
 import { Button } from "@/components/ui/button"
 import { RunHistoryTable } from "@/components/RunHistoryTable"
 import { EpgOutput } from "@/components/EpgOutput"
+import { ManagedChannelsTable } from "@/components/ManagedChannelsTable"
 import { EventMatcherModal, useEventMatcher } from "@/components/EventMatcherModal"
 import { Quadrant, StatTile } from "@/components/ui/rich-tooltip"
 import { useGenerationProgress } from "@/contexts/GenerationContext"
@@ -326,6 +327,9 @@ export function Dashboard() {
 
       {/* EPG output diagnostics: URL, coverage analysis, XML preview, all-time totals */}
       <EpgOutput />
+
+      {/* Managed channels (output) — collapsible active + recently-deleted tables */}
+      <ManagedChannelsTable />
 
       {/* Getting Started Guide */}
       {isGettingStarted && (
