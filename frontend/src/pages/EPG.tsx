@@ -247,8 +247,8 @@ export function EPG() {
 
       <StepTabs
         tabs={[
-          { to: "/epg", label: "Output", end: true },
           { to: "/epg/templates", label: "Templates" },
+          { to: "/epg/teams", label: "Team EPG" },
         ]}
       />
 

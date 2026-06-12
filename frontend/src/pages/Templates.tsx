@@ -207,8 +207,8 @@ export function Templates() {
     <div className="space-y-2">
       <StepTabs
         tabs={[
-          { to: "/epg", label: "Output", end: true },
           { to: "/epg/templates", label: "Templates" },
+          { to: "/epg/teams", label: "Team EPG" },
         ]}
       />
       <div className="flex items-center justify-between">

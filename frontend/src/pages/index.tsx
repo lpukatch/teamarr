@@ -1,4 +1,5 @@
 export { Dashboard } from "./Dashboard"
+export { Subscriptions } from "./Subscriptions"
 export { CustomLeagues } from "./CustomLeagues"
 export { DetectionLibrary } from "./DetectionLibrary"
 export { EventGroups } from "./EventGroups"

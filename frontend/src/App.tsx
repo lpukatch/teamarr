@@ -5,6 +5,7 @@ import { GenerationProvider } from "@/contexts/GenerationContext"
 import { StartupOverlay } from "@/components/StartupOverlay"
 import {
   Dashboard,
+  Subscriptions,
   CustomLeagues,
   DetectionLibrary,
   Templates,
@@ -58,19 +59,21 @@ function AppContent() {
             <Route path="sources/:groupId" element={<EventGroupForm />} />
             <Route path="sources/import" element={<EventGroupImport />} />
 
-            {/* ② Subscriptions (Teams + Custom Leagues) */}
-            <Route path="subscriptions" element={<Teams />} />
-            <Route path="subscriptions/import" element={<TeamImport />} />
+            {/* ② Subscriptions (Global Defaults + Custom Leagues) */}
+            <Route path="subscriptions" element={<Subscriptions />} />
             <Route path="subscriptions/leagues" element={<CustomLeagues />} />
 
             {/* ③ Matching (was Detection Library) */}
             <Route path="matching" element={<DetectionLibrary />} />
 
-            {/* ④ EPG (EPG management + Templates) */}
-            <Route path="epg" element={<EPG />} />
+            {/* ④ EPG — Templates (default) + Team EPG; Output parked pending move to Dashboard */}
+            <Route path="epg" element={<Redirect to="/epg/templates" />} />
             <Route path="epg/templates" element={<Templates />} />
             <Route path="epg/templates/new" element={<TemplateForm />} />
             <Route path="epg/templates/:templateId" element={<TemplateForm />} />
+            <Route path="epg/teams" element={<Teams />} />
+            <Route path="epg/teams/import" element={<TeamImport />} />
+            <Route path="epg/output" element={<EPG />} />
 
             {/* ⑤ Channels */}
             <Route path="channels" element={<Channels />} />
@@ -83,8 +86,8 @@ function AppContent() {
             <Route path="event-groups/new" element={<Redirect to="/sources/new" />} />
             <Route path="event-groups/:groupId" element={<Redirect to="/sources/:groupId" />} />
             <Route path="event-groups/import" element={<Redirect to="/sources/import" />} />
-            <Route path="teams" element={<Redirect to="/subscriptions" />} />
-            <Route path="teams/import" element={<Redirect to="/subscriptions/import" />} />
+            <Route path="teams" element={<Redirect to="/epg/teams" />} />
+            <Route path="teams/import" element={<Redirect to="/epg/teams/import" />} />
             <Route path="custom-leagues" element={<Redirect to="/subscriptions/leagues" />} />
             <Route path="detection-library" element={<Redirect to="/matching" />} />
             <Route path="templates" element={<Redirect to="/epg/templates" />} />

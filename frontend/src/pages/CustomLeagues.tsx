@@ -87,7 +87,7 @@ export function CustomLeagues() {
 
       <StepTabs
         tabs={[
-          { to: "/subscriptions", label: "Leagues & Teams", end: true },
+          { to: "/subscriptions", label: "Leagues", end: true },
           { to: "/subscriptions/leagues", label: "Custom Leagues" },
         ]}
       />

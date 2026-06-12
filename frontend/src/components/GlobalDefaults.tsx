@@ -14,8 +14,6 @@ import { useState, useEffect, useMemo, useCallback } from "react"
 import { useQuery } from "@tanstack/react-query"
 import { toast } from "sonner"
 import {
-  ChevronRight,
-  ChevronDown,
   Save,
   Loader2,
   Layers,
@@ -37,7 +35,6 @@ import type { SoccerFollowedTeam } from "@/api/types"
 import type { TeamFilterSettings } from "@/api/settings"
 
 export function GlobalDefaults() {
-  const [expanded, setExpanded] = useState(false)
   const [templateModalOpen, setTemplateModalOpen] = useState(false)
 
   // Fetch subscription state from server
@@ -108,27 +105,7 @@ export function GlobalDefaults() {
     [nonSoccerLeagues, soccerLeagues]
   )
 
-  // Summary stats
-  const sportCount = useMemo(() => {
-    const sports = new Set<string>()
-    for (const slug of allSubscribedLeagues) {
-      const league = allLeagues.find((l) => l.slug === slug)
-      if (league?.sport) sports.add(league.sport)
-    }
-    return sports.size
-  }, [allSubscribedLeagues, allLeagues])
-
   const templateCount = templatesData?.templates?.length || 0
-
-  // Team filter summary
-  const teamFilterSummary = useMemo(() => {
-    if (!teamFilter.enabled) return ""
-    const count = teamFilter.mode === "include"
-      ? (teamFilter.include_teams?.length ?? 0)
-      : (teamFilter.exclude_teams?.length ?? 0)
-    if (count === 0) return ""
-    return `, ${count} team${count !== 1 ? "s" : ""} ${teamFilter.mode === "include" ? "included" : "excluded"}`
-  }, [teamFilter])
 
   // Handle non-soccer league change
   const handleNonSoccerChange = useCallback((leagues: string[]) => {
@@ -191,47 +168,31 @@ export function GlobalDefaults() {
     })
   }, [teamFilter, updateTeamFilter])
 
-  const summaryText = subLoading
-    ? "Loading..."
-    : allSubscribedLeagues.length === 0
-    ? "No sports subscribed"
-    : `${allSubscribedLeagues.length} league${allSubscribedLeagues.length !== 1 ? "s" : ""} across ${sportCount} sport${sportCount !== 1 ? "s" : ""}${templateCount > 0 ? `, ${templateCount} template rule${templateCount !== 1 ? "s" : ""}` : ""}${teamFilterSummary}`
-
   return (
     <>
       <Card>
-        <CardHeader
-          className="cursor-pointer hover:bg-muted/50 rounded-t-lg"
-          onClick={() => setExpanded(!expanded)}
-        >
+        <CardHeader>
           <div className="flex items-center gap-2">
-            {expanded ? (
-              <ChevronDown className="h-4 w-4 text-muted-foreground" />
-            ) : (
-              <ChevronRight className="h-4 w-4 text-muted-foreground" />
-            )}
             <Trophy className="h-4 w-4 text-muted-foreground" />
             <div className="flex-1">
               <CardTitle>Global Defaults</CardTitle>
-              {!expanded && (
-                <CardDescription className="mt-1">
-                  {summaryText}
-                </CardDescription>
-              )}
-              {expanded && (
-                <CardDescription>
-                  Configure default league subscriptions and team filtering for all event groups
-                </CardDescription>
-              )}
+              <CardDescription>
+                Configure default league subscriptions and team filtering for all event groups
+              </CardDescription>
             </div>
-            {hasLocalChanges && !expanded && (
+            {hasLocalChanges && (
               <span className="text-xs text-amber-500 font-medium">Unsaved changes</span>
             )}
           </div>
         </CardHeader>
 
-        {expanded && (
-          <CardContent className="space-y-4">
+        <CardContent className="space-y-4">
+          {subLoading || !leaguesData ? (
+            <div className="flex items-center justify-center gap-2 py-8 text-muted-foreground">
+              <Loader2 className="h-4 w-4 animate-spin" /> Loading subscriptions…
+            </div>
+          ) : (
+          <>
             {/* ── Section 1: Template Assignments ── */}
             <div className="rounded-lg border bg-card p-4 space-y-3">
               <div className="flex items-center justify-between">
@@ -403,8 +364,9 @@ export function GlobalDefaults() {
                 </Button>
               </div>
             </div>
-          </CardContent>
-        )}
+          </>
+          )}
+        </CardContent>
       </Card>
 
       {/* Template Assignment Modal */}
