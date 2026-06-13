@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate, useParams, useLocation } from "react-router-dom"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { MainLayout } from "@/layouts/MainLayout"
+import { EpgLayout } from "@/components/EpgLayout"
 import { GenerationProvider } from "@/contexts/GenerationContext"
 import { StartupOverlay } from "@/components/StartupOverlay"
 import {
@@ -9,7 +10,6 @@ import {
   DetectionLibrary,
   Templates,
   TemplateForm,
-  TemplateAssignments,
   EpgOutput,
   Teams,
   TeamImport,
@@ -66,15 +66,19 @@ function AppContent() {
             {/* ③ Matching (was Detection Library) */}
             <Route path="matching" element={<DetectionLibrary />} />
 
-            {/* ④ EPG — Templates (default) + Template Assignments + Team EPG + EPG Output */}
+            {/* ④ EPG — Templates (default, with assignments folded in) + Team EPG + EPG Output */}
             <Route path="epg" element={<Redirect to="/epg/templates" />} />
-            <Route path="epg/templates" element={<Templates />} />
+            {/* Editor pages are standalone full-screen (no EPG header/SubNav) */}
             <Route path="epg/templates/new" element={<TemplateForm />} />
             <Route path="epg/templates/:templateId" element={<TemplateForm />} />
-            <Route path="epg/assignments" element={<TemplateAssignments />} />
-            <Route path="epg/teams" element={<Teams />} />
             <Route path="epg/teams/import" element={<TeamImport />} />
-            <Route path="epg/output" element={<EpgOutput />} />
+            {/* SubNav views share the EPG layout (fixed "EPG" header + SubNav) */}
+            <Route element={<EpgLayout />}>
+              <Route path="epg/templates" element={<Templates />} />
+              <Route path="epg/assignments" element={<Redirect to="/epg/templates" />} />
+              <Route path="epg/teams" element={<Teams />} />
+              <Route path="epg/output" element={<EpgOutput />} />
+            </Route>
 
             {/* ⑤ Channels */}
             <Route path="channels" element={<Channels />} />

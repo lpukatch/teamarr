@@ -3,7 +3,6 @@ import { useNavigate } from "react-router-dom"
 import { toast } from "sonner"
 import { Plus, Trash2, Pencil, Loader2, Copy, Download, Upload } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { EpgSubNav } from "@/components/EpgSubNav"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import {
@@ -28,10 +27,14 @@ import {
   useDeleteTemplate,
 } from "@/hooks/useTemplates"
 import { getTemplate, type Template } from "@/api/templates"
+import { TemplateAssignmentManager } from "@/components/TemplateAssignmentModal"
+import { useSubscription } from "@/hooks/useSubscription"
 
 export function Templates() {
   const navigate = useNavigate()
   const { data: templates, isLoading, error, refetch } = useTemplates()
+  const { data: subscription } = useSubscription()
+  const subscribedLeagues = subscription?.leagues ?? []
   const createMutation = useCreateTemplate()
   const deleteMutation = useDeleteTemplate()
 
@@ -205,11 +208,9 @@ export function Templates() {
 
   return (
     <div className="space-y-2">
-      <EpgSubNav />
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-xl font-bold">Templates</h1>
-          <p className="text-sm text-muted-foreground">Configure EPG title and description templates</p>
         </div>
         <div className="flex gap-2">
           <Button variant="outline" size="sm" onClick={handleImportClick} disabled={isImporting}>
@@ -361,6 +362,17 @@ export function Templates() {
               </TableBody>
             </Table>
           )}
+      </div>
+
+      {/* Template Assignments */}
+      <div className="space-y-2 pt-4">
+        <div>
+          <h2 className="text-lg font-semibold">Template Assignments</h2>
+          <p className="text-sm text-muted-foreground">
+            Assign event templates by sport or league. More specific matches win: league &gt; sport &gt; default.
+          </p>
+        </div>
+        <TemplateAssignmentManager subscribedLeagues={subscribedLeagues} />
       </div>
 
       {/* Delete Confirmation */}

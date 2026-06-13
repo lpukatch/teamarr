@@ -70,7 +70,6 @@ export function EpgOutputSettings() {
       <Card>
         <CardHeader>
           <CardTitle>Output Settings</CardTitle>
-          <CardDescription>Where the XMLTV is written and how far the guide extends</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid grid-cols-3 gap-4">
@@ -108,16 +107,33 @@ export function EpgOutputSettings() {
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
+          <Button onClick={handleSaveOutput} disabled={updateEPG.isPending}>
+            {updateEPG.isPending ? (
+              <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+            ) : (
+              <Save className="h-4 w-4 mr-1" />
+            )}
+            Save
+          </Button>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <CardTitle>Include Final Events</CardTitle>
             <Switch
               checked={epg?.include_final_events ?? false}
               onCheckedChange={(checked) =>
                 epg && setEPG({ ...epg, include_final_events: checked })
               }
             />
-            <Label>Include completed/final events in EPG</Label>
           </div>
-
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <p className="text-sm text-muted-foreground">
+            Keep completed/final events in the EPG instead of dropping them once they've ended.
+          </p>
           <Button onClick={handleSaveOutput} disabled={updateEPG.isPending}>
             {updateEPG.isPending ? (
               <Loader2 className="h-4 w-4 mr-1 animate-spin" />
