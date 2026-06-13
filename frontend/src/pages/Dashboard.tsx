@@ -2,6 +2,7 @@ import { RunHistoryTable } from "@/components/RunHistoryTable"
 import { EpgOutput } from "@/components/EpgOutput"
 import { ManagedChannelsTable } from "@/components/ManagedChannelsTable"
 import { EventMatcherModal, useEventMatcher } from "@/components/EventMatcherModal"
+import { StatusStrip } from "@/components/StatusStrip"
 import { useRecentRuns } from "@/hooks/useEPG"
 
 /**
@@ -25,7 +26,8 @@ export function Dashboard() {
         <h1 className="text-xl font-bold">Dashboard</h1>
       </div>
 
-      {/* Status strip — added in 7rfd.1 */}
+      {/* Status strip — at-a-glance system health */}
+      <StatusStrip lastRun={runs[0]} />
 
       {/* EPG Generation History */}
       {runs.length > 0 && (
