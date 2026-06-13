@@ -1917,7 +1917,7 @@ class EventGroupProcessor:
                 # Team in parentheses: "(Penguins)" or "(Penguins Feed)"
                 if re.search(rf"\(\s*{esc}(?:\s+feed)?\s*\)", stream_name_lower):
                     return team
-                
+
                 patterns = [
                     rf"\b{esc}\s+(?:feed|broadcast)\b",
                     rf"\b(?:feed|broadcast)[:\s]+{esc}\b",
@@ -1928,15 +1928,15 @@ class EventGroupProcessor:
                 for pattern in patterns:
                     for match in re.finditer(pattern, stream_name_lower):
                         remainder = stream_name_lower[match.end():]
-                        
-                        # Check if the opposing team is mentioned *after* the feed keyword match.
-                        # This prevents false positives when a feed keyword merely precedes a matchup 
-                        # string, such as "4K FEED TEAM". 
+
+                        # Skip when the opposing team is named *after* the feed
+                        # keyword — that's a shared matchup feed ("4K FEED A B"),
+                        # not a team-specific feed.
                         other_team_after = any(
                             re.search(rf"\b{re.escape(other)}\b", remainder)
                             for other in other_candidates
                         )
-                        
+
                         if not other_team_after:
                             return team
 

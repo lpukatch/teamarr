@@ -229,6 +229,28 @@ class TestDetectTeamInStreamName:
         result = EventGroupProcessor._detect_team_in_stream_name("gs broadcast", team, other)
         assert result is None
 
+    def test_feed_keyword_before_matchup_not_team_specific(self, home_team, away_team):
+        """A feed keyword preceding BOTH teams is a shared matchup feed (#234).
+
+        "feed orioles yankees" must not be attributed to the Orioles just
+        because "feed orioles" matches — the opposing team appears after.
+        """
+        from teamarr.consumers.event_group_processor import EventGroupProcessor
+
+        result = EventGroupProcessor._detect_team_in_stream_name(
+            "feed orioles yankees", home_team, away_team
+        )
+        assert result is None
+
+    def test_team_specific_feed_still_matches_with_opponent_before(self, home_team, away_team):
+        """Opponent BEFORE the keyword is fine — still the home team's feed (#234)."""
+        from teamarr.consumers.event_group_processor import EventGroupProcessor
+
+        result = EventGroupProcessor._detect_team_in_stream_name(
+            "yankees at orioles feed", home_team, away_team
+        )
+        assert result == home_team
+
 
 # ===========================================================================
 # Feed label generation
