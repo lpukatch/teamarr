@@ -1,7 +1,6 @@
 import { useState, useEffect, useMemo, useRef } from "react"
 import { toast } from "sonner"
 import cronstrue from "cronstrue"
-import { getSportDisplayName } from "@/lib/utils"
 import {
   Loader2,
   Save,
@@ -44,7 +43,6 @@ import {
   useUpdateSchedulerSettings,
   useSchedulerStatus,
   useUpdateEPGSettings,
-  useUpdateDurationSettings,
   useUpdateDisplaySettings,
   useUpdateCheckSettings,
   useUpdateUpdateCheckSettings,
@@ -62,7 +60,6 @@ import {
   useChannelsDVRSources,
   useChannelsDVRLineups,
 } from "@/hooks/useSettings"
-import { getSports } from "@/api/teams"
 import { restoreBackup, downloadSpecificBackup } from "@/api/backup"
 import {
   useBackups,
@@ -81,7 +78,6 @@ import type {
   DispatcharrSettings,
   SchedulerSettings,
   EPGSettings,
-  DurationSettings,
   DisplaySettings,
   UpdateCheckSettings,
   EmbySettings,
@@ -601,7 +597,6 @@ export function Settings() {
   const testConnection = useTestDispatcharrConnection()
   const updateScheduler = useUpdateSchedulerSettings()
   const updateEPG = useUpdateEPGSettings()
-  const updateDurations = useUpdateDurationSettings()
   const updateDisplay = useUpdateDisplaySettings()
 
   // Feed separation settings
@@ -638,19 +633,10 @@ export function Settings() {
   const forceCheckUpdates = useForceCheckForUpdates()
   const { formatDateTime } = useDateFormat()
 
-  // Fetch sport display names from database (single source of truth)
-  const { data: sportsData } = useQuery({
-    queryKey: ["sports"],
-    queryFn: getSports,
-    staleTime: 1000 * 60 * 60, // 1 hour
-  })
-  const sportsMap = sportsData?.sports
-
   // Local form state
   const [dispatcharr, setDispatcharr] = useState<Partial<DispatcharrSettings>>({})
   const [scheduler, setScheduler] = useState<SchedulerSettings | null>(null)
   const [epg, setEPG] = useState<EPGSettings | null>(null)
-  const [durations, setDurations] = useState<DurationSettings | null>(null)
   const [display, setDisplay] = useState<DisplaySettings | null>(null)
   const [tsdbValidation, setTsdbValidation] = useState<TSDBKeyValidationResult | null>(null)
   const [tsdbValidating, setTsdbValidating] = useState(false)
@@ -737,7 +723,6 @@ export function Settings() {
       })
       setScheduler(settings.scheduler)
       setEPG(settings.epg)
-      setDurations(settings.durations)
       if (settings.display) {
         setDisplay(settings.display)
       }
@@ -994,16 +979,6 @@ export function Settings() {
     startGeneration()
   }
 
-  const handleSaveDurations = async () => {
-    if (!durations) return
-    try {
-      await updateDurations.mutateAsync(durations)
-      toast.success("Duration settings saved")
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to save")
-    }
-  }
-
   const handleRefreshCache = async () => {
     try {
       const result = await refreshCacheMutation.mutateAsync()
@@ -1228,56 +1203,11 @@ export function Settings() {
       </div>
       <Card>
         <CardHeader>
-          <CardTitle>Output Settings</CardTitle>
+          <CardTitle>Scheduled Generation</CardTitle>
+          <CardDescription>Run EPG generation automatically on a schedule</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="grid grid-cols-3 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="epg-output-path">Output Path</Label>
-              <Input
-                id="epg-output-path"
-                value={epg?.epg_output_path ?? "./teamarr.xml"}
-                onChange={(e) => epg && setEPG({ ...epg, epg_output_path: e.target.value })}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="epg-days-ahead">Output Days Ahead</Label>
-              <Input
-                id="epg-days-ahead"
-                type="number"
-                min={1}
-                value={epg?.epg_output_days_ahead ?? 14}
-                onChange={(e) =>
-                  epg && setEPG({ ...epg, epg_output_days_ahead: parseInt(e.target.value) || 14 })
-                }
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="epg-lookback">EPG Start (Hours Ago)</Label>
-              <Input
-                id="epg-lookback"
-                type="number"
-                min={0}
-                value={epg?.epg_lookback_hours ?? 6}
-                onChange={(e) =>
-                  epg && setEPG({ ...epg, epg_lookback_hours: parseInt(e.target.value) || 6 })
-                }
-              />
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <Switch
-              checked={epg?.include_final_events ?? false}
-              onCheckedChange={(checked) =>
-                epg && setEPG({ ...epg, include_final_events: checked })
-              }
-            />
-            <Label>Include completed/final events in EPG</Label>
-          </div>
-
-          {/* Scheduled Generation */}
-          <div className="space-y-4 pt-2 border-t">
+          <div className="space-y-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <Switch
@@ -1386,47 +1316,6 @@ export function Settings() {
               Save
             </Button>
           </div>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Default Durations</CardTitle>
-          <CardDescription>Default event durations by sport (in hours)</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid grid-cols-4 gap-4">
-            {durations &&
-              Object.entries(durations).map(([sport, hours]) => (
-                <div key={sport} className="space-y-1">
-                  <Label htmlFor={`duration-${sport}`}>
-                    {getSportDisplayName(sport, sportsMap)}
-                  </Label>
-                  <Input
-                    id={`duration-${sport}`}
-                    type="number"
-                    step="0.5"
-                    min={0.5}
-                    value={hours}
-                    onChange={(e) =>
-                      setDurations({
-                        ...durations,
-                        [sport]: parseFloat(e.target.value) || 3,
-                      })
-                    }
-                  />
-                </div>
-              ))}
-          </div>
-
-          <Button onClick={handleSaveDurations} disabled={updateDurations.isPending}>
-            {updateDurations.isPending ? (
-              <Loader2 className="h-4 w-4 mr-1 animate-spin" />
-            ) : (
-              <Save className="h-4 w-4 mr-1" />
-            )}
-            Save
-          </Button>
         </CardContent>
       </Card>
 

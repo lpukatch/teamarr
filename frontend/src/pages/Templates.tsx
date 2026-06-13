@@ -4,6 +4,7 @@ import { toast } from "sonner"
 import { Plus, Trash2, Pencil, Loader2, Copy, Download, Upload } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { StepTabs } from "@/components/StepTabs"
+import { EpgOutputSettings } from "@/components/EpgOutputSettings"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import {
@@ -366,6 +367,11 @@ export function Templates() {
               </TableBody>
             </Table>
           )}
+      </div>
+
+      {/* EPG output settings (lifted from Settings) */}
+      <div className="pt-2">
+        <EpgOutputSettings />
       </div>
 
       {/* Delete Confirmation */}
