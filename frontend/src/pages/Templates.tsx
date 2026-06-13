@@ -365,14 +365,8 @@ export function Templates() {
           )}
       </div>
 
-      {/* Template Assignments */}
-      <div className="space-y-2 pt-4">
-        <div>
-          <h2 className="text-lg font-semibold">Template Assignments</h2>
-          <p className="text-sm text-muted-foreground">
-            Assign event templates by sport or league. More specific matches win: league &gt; sport &gt; default.
-          </p>
-        </div>
+      {/* Template Assignments — the manager owns its own header + add button */}
+      <div className="pt-4">
         <TemplateAssignmentManager subscribedLeagues={subscribedLeagues} />
       </div>
 

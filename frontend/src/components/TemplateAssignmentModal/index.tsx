@@ -205,6 +205,23 @@ export function TemplateAssignmentManager({
 
   return (
     <div className="space-y-4">
+      {/* Section header + add action — mirrors the Templates page header (title
+          left, standard add button right) */}
+      <div className="flex items-center justify-between gap-3">
+        <div>
+          <h2 className="text-lg font-semibold">Template Assignments</h2>
+          <p className="text-sm text-muted-foreground">
+            Assign event templates by sport or league. More specific matches win: league &gt; sport &gt; default.
+          </p>
+        </div>
+        {!editing && (
+          <Button size="sm" onClick={handleAdd} className="shrink-0">
+            <Plus className="h-4 w-4 mr-1" />
+            Add Template Assignment
+          </Button>
+        )}
+      </div>
+
       {/* Current assignments */}
       {isLoading && (
         <div className="flex items-center justify-center py-8">
@@ -369,14 +386,6 @@ export function TemplateAssignmentManager({
                 </Button>
               </div>
             </div>
-          )}
-
-          {/* Add button — matches the standard add buttons (New Template, Add Team, …) */}
-          {!editing && (
-            <Button size="sm" onClick={handleAdd}>
-              <Plus className="h-4 w-4 mr-1" />
-              Add Template Assignment
-            </Button>
           )}
         </>
       )}
