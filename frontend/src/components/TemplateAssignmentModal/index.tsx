@@ -371,9 +371,9 @@ export function TemplateAssignmentManager({
             </div>
           )}
 
-          {/* Add button */}
+          {/* Add button — matches the standard add buttons (New Template, Add Team, …) */}
           {!editing && (
-            <Button variant="outline" size="sm" onClick={handleAdd} className="w-full">
+            <Button size="sm" onClick={handleAdd}>
               <Plus className="h-4 w-4 mr-1" />
               Add Template Assignment
             </Button>
