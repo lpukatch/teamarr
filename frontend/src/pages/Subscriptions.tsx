@@ -42,7 +42,9 @@ export function Subscriptions() {
 
       {activeTile === "custom" ? (
         <div className="space-y-3">
-          <p className="text-sm text-muted-foreground">Premium TheSportsDB only</p>
+          <p className="text-sm italic text-muted-foreground">
+            NOTE: Custom League support requires a Premium TheSportsDB API key
+          </p>
           <CustomLeaguesManager capability={capability} />
         </div>
       ) : (
