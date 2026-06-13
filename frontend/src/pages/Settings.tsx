@@ -21,11 +21,9 @@ import {
   HardDrive,
 } from "lucide-react"
 import {
-  ChannelProfileSelector,
   profileIdsToApi,
   apiToProfileIds,
 } from "@/components/ChannelProfileSelector"
-import { StreamProfileSelector } from "@/components/StreamProfileSelector"
 import { useGenerationProgress } from "@/contexts/GenerationContext"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -669,39 +667,8 @@ export function Settings() {
   // Selected profile IDs for display (converted from API format)
   const [selectedProfileIds, setSelectedProfileIds] = useState<(number | string)[]>([])
 
-  // Dispatcharr channel groups for per-league config.
-  // Always fetch the full list (with from_m3u flag) so a saved M3U-sourced
-  // group always has a matching <option> to bind to — otherwise the native
-  // <select> silently displays "None" on reload while the underlying state
-  // still holds the saved id, leading users to think the value was lost
-  // (teamarrv2-t6d). The includeM3uGroups toggle now filters the displayed
-  // list on the frontend, but the currently-selected group is always shown.
-  const [includeM3uGroups, setIncludeM3uGroups] = useState(false)
-  const channelGroupsQuery = useQuery({
-    queryKey: ["dispatcharr-channel-groups"],
-    queryFn: async () => {
-      const response = await fetch(
-        "/api/v1/dispatcharr/channel-groups?exclude_m3u=false"
-      )
-      if (!response.ok) return []
-      return response.json() as Promise<
-        { id: number; name: string; from_m3u: boolean }[]
-      >
-    },
-    enabled: dispatcharrStatus.data?.connected ?? false,
-    retry: false,
-  })
-
-  // Filter channel-group options for a picker. Hides M3U-sourced groups
-  // when the toggle is off, but always keeps the currently-selected
-  // option so reloads can't visually orphan a saved id.
-  const visibleChannelGroups = (
-    all: { id: number; name: string; from_m3u: boolean }[],
-    selectedId: number | null | undefined,
-  ) => {
-    if (includeM3uGroups) return all
-    return all.filter((g) => !g.from_m3u || g.id === selectedId)
-  }
+  // Default channel-group selection (with M3U filtering) moved to the Channels
+  // page (DispatcharrOutputSettings) in the v2.7.0 IA overhaul.
 
   const initializedRef = useRef(false)
 
@@ -1584,208 +1551,9 @@ export function Settings() {
         </CardContent>
       </Card>
 
-      {/* Card 3: Default Channel Profiles */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Default Channel Profiles</CardTitle>
-          <CardDescription>Profiles assigned to new channels</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="space-y-2">
-            <ChannelProfileSelector
-              selectedIds={selectedProfileIds}
-              onChange={setSelectedProfileIds}
-              disabled={!dispatcharrStatus.data?.connected}
-            />
-            <p className="text-xs text-muted-foreground">
-              These defaults apply to all groups unless overridden in individual group settings.
-              Profile assignment is enforced on every EPG generation run.
-            </p>
-          </div>
-
-          <Button onClick={handleSaveDispatcharr} disabled={updateDispatcharr.isPending}>
-            {updateDispatcharr.isPending ? (
-              <Loader2 className="h-4 w-4 mr-1 animate-spin" />
-            ) : (
-              <Save className="h-4 w-4 mr-1" />
-            )}
-            Save
-          </Button>
-        </CardContent>
-      </Card>
-
-      {/* Card 4: Default Stream Profile */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Default Stream Profile</CardTitle>
-          <CardDescription>Processing profile for channel streams</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="space-y-2">
-            <StreamProfileSelector
-              value={dispatcharr.default_stream_profile_id ?? null}
-              onChange={(id) => setDispatcharr({ ...dispatcharr, default_stream_profile_id: id })}
-              disabled={!dispatcharrStatus.data?.connected}
-              isGlobalDefault
-            />
-            <p className="text-xs text-muted-foreground">
-              Stream profile defines how streams are processed (ffmpeg, VLC, proxy, etc).
-              This default applies to all groups unless overridden.
-            </p>
-          </div>
-
-          <Button onClick={handleSaveDispatcharr} disabled={updateDispatcharr.isPending}>
-            {updateDispatcharr.isPending ? (
-              <Loader2 className="h-4 w-4 mr-1 animate-spin" />
-            ) : (
-              <Save className="h-4 w-4 mr-1" />
-            )}
-            Save
-          </Button>
-        </CardContent>
-      </Card>
-
-      {/* Card 5: Default Channel Group */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Default Channel Group</CardTitle>
-          <CardDescription>Default group and mode for event channels</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="space-y-2">
-            <Label className="text-sm font-medium">Channel Group</Label>
-            <Select
-              value={dispatcharr.default_channel_group_id?.toString() ?? ""}
-              onChange={(e) => {
-                const v = e.target.value
-                setDispatcharr({
-                  ...dispatcharr,
-                  default_channel_group_id: v ? parseInt(v) : null,
-                })
-              }}
-              disabled={!dispatcharrStatus.data?.connected}
-              className="w-64"
-            >
-              <option value="">None</option>
-              {visibleChannelGroups(
-                channelGroupsQuery.data ?? [],
-                dispatcharr.default_channel_group_id,
-              ).map((g) => (
-                <option key={g.id} value={g.id.toString()}>
-                  {g.name}
-                </option>
-              ))}
-            </Select>
-            <p className="text-xs text-muted-foreground">
-              Static group used when mode is "Static". Per-league overrides take priority.
-            </p>
-            <div className="flex items-center gap-2 pt-1">
-              <Switch
-                id="include-m3u-groups"
-                checked={includeM3uGroups}
-                onCheckedChange={setIncludeM3uGroups}
-                disabled={!dispatcharrStatus.data?.connected}
-              />
-              <Label htmlFor="include-m3u-groups" className="text-xs font-normal cursor-pointer">
-                Show M3U-sourced channel groups
-              </Label>
-            </div>
-            <p className="text-xs text-muted-foreground">
-              Off by default. Enable to assign groups that originated from an M3U
-              account (e.g., a group you manually curated that's also tagged with an M3U source).
-            </p>
-          </div>
-
-          <div className="space-y-2">
-            <Label className="text-sm font-medium">Group Mode</Label>
-            <Select
-              value={
-                dispatcharr.default_channel_group_mode &&
-                !["static", "sport", "league"].includes(dispatcharr.default_channel_group_mode)
-                  ? "custom"
-                  : dispatcharr.default_channel_group_mode ?? "static"
-              }
-              onChange={(e) => {
-                const v = e.target.value
-                if (v === "custom") {
-                  setDispatcharr({ ...dispatcharr, default_channel_group_mode: "{sport} | {league}" })
-                } else {
-                  setDispatcharr({ ...dispatcharr, default_channel_group_mode: v || "static" })
-                }
-              }}
-              className="w-64"
-            >
-              <option value="static">Static (use selected group)</option>
-              <option value="sport">Dynamic by Sport</option>
-              <option value="league">Dynamic by League</option>
-              <option value="custom">Custom pattern</option>
-            </Select>
-            <p className="text-xs text-muted-foreground">
-              Static uses the group above. Dynamic modes auto-create groups named by sport or league.
-              Custom lets you define a pattern with {"{sport}"} and {"{league}"} placeholders.
-            </p>
-          </div>
-
-          {dispatcharr.default_channel_group_mode &&
-            !["static", "sport", "league"].includes(dispatcharr.default_channel_group_mode) && (
-            <div className="space-y-2">
-              <Label className="text-sm font-medium">Custom Pattern</Label>
-              <Input
-                value={dispatcharr.default_channel_group_mode}
-                onChange={(e) =>
-                  setDispatcharr({ ...dispatcharr, default_channel_group_mode: e.target.value })
-                }
-                placeholder="{sport} | {league}"
-                className="w-64"
-              />
-              <p className="text-xs text-muted-foreground">
-                Use {"{sport}"} and {"{league}"} as placeholders. Example: "{"{sport}"} | {"{league}"}" creates groups like "Hockey | NHL".
-              </p>
-            </div>
-          )}
-
-          <Button onClick={handleSaveDispatcharr} disabled={updateDispatcharr.isPending}>
-            {updateDispatcharr.isPending ? (
-              <Loader2 className="h-4 w-4 mr-1 animate-spin" />
-            ) : (
-              <Save className="h-4 w-4 mr-1" />
-            )}
-            Save
-          </Button>
-        </CardContent>
-      </Card>
-
-      {/* Card 6: Logo Cleanup */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Logo Cleanup</CardTitle>
-          <CardDescription>Remove unused logos from Dispatcharr</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="space-y-2">
-            <div className="flex items-center gap-2">
-              <Switch
-                checked={dispatcharr.cleanup_unused_logos ?? false}
-                onCheckedChange={(checked) => setDispatcharr({ ...dispatcharr, cleanup_unused_logos: checked })}
-              />
-              <Label>Clean up unused logos after generation</Label>
-            </div>
-            <p className="text-xs text-muted-foreground">
-              When enabled, removes <strong>all</strong> unused logos from Dispatcharr after EPG generation.
-              This affects all unused logos, not just ones uploaded by Teamarr.
-            </p>
-          </div>
-
-          <Button onClick={handleSaveDispatcharr} disabled={updateDispatcharr.isPending}>
-            {updateDispatcharr.isPending ? (
-              <Loader2 className="h-4 w-4 mr-1 animate-spin" />
-            ) : (
-              <Save className="h-4 w-4 mr-1" />
-            )}
-            Save
-          </Button>
-        </CardContent>
-      </Card>
+      {/* Default profiles, channel group, and logo cleanup moved to the
+          Channels page (DispatcharrOutputSettings) in the v2.7.0 IA overhaul.
+          Connection Settings + EPG Source stay here. */}
 
       </>
       )}
