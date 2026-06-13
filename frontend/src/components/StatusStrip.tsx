@@ -1,9 +1,10 @@
 import { useState } from "react"
 import { toast } from "sonner"
-import { CheckCircle, XCircle, AlertTriangle, Clock, Tv, Target, Copy, Check } from "lucide-react"
+import { CheckCircle, XCircle, AlertTriangle, Clock, Tv, Target, Copy, Check, Loader2 } from "lucide-react"
 import { useDispatcharrStatus } from "@/hooks/useSettings"
 import { useMatchRate, matchRateColor } from "@/hooks/useMatchRate"
 import { useDateFormat } from "@/hooks/useDateFormat"
+import { useGenerationProgress } from "@/contexts/GenerationContext"
 import { getTeamXmltvUrl } from "@/api/epg"
 import type { ProcessingRun } from "@/api/epg"
 
@@ -29,7 +30,12 @@ export function StatusStrip({ lastRun }: { lastRun?: ProcessingRun }) {
   const dispatcharr = useDispatcharrStatus()
   const matchRate = useMatchRate()
   const { formatRelativeTime } = useDateFormat()
+  const { isGenerating } = useGenerationProgress()
   const [copied, setCopied] = useState(false)
+
+  // While a run is active these three values are mid-recompute — show a spinner
+  // in their place until the run finishes and the fresh numbers land.
+  const Spinner = () => <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />
 
   const epgUrl = `${window.location.origin}${getTeamXmltvUrl()}`
 
@@ -114,11 +120,21 @@ export function StatusStrip({ lastRun }: { lastRun?: ProcessingRun }) {
 
       {/* Last generated */}
       <div className="flex items-center gap-2">
-        <GenIcon className={`h-4 w-4 ${genColor}`} />
+        {isGenerating ? (
+          <Loader2 className="h-4 w-4 animate-spin text-primary" />
+        ) : (
+          <GenIcon className={`h-4 w-4 ${genColor}`} />
+        )}
         <span className="text-muted-foreground">Last generated</span>
-        <span className="font-medium">{genWhen}</span>
-        {genDuration && !failed && (
-          <span className="text-xs text-muted-foreground">({genDuration})</span>
+        {isGenerating ? (
+          <span className="font-medium text-muted-foreground">Generating…</span>
+        ) : (
+          <>
+            <span className="font-medium">{genWhen}</span>
+            {genDuration && !failed && (
+              <span className="text-xs text-muted-foreground">({genDuration})</span>
+            )}
+          </>
         )}
       </div>
 
@@ -127,16 +143,20 @@ export function StatusStrip({ lastRun }: { lastRun?: ProcessingRun }) {
       {/* Live channels */}
       <div className="flex items-center gap-2">
         <Tv className="h-4 w-4 text-muted-foreground" />
-        <span className="font-medium">{liveChannels ?? "—"}</span>
+        {isGenerating ? <Spinner /> : <span className="font-medium">{liveChannels ?? "—"}</span>}
         <span className="text-muted-foreground">managed channels</span>
       </div>
 
-      {matchRate.hasData && (
+      {(matchRate.hasData || isGenerating) && (
         <>
           <span className="hidden h-4 w-px bg-border sm:inline-block" />
           <div className="flex items-center gap-2">
-            <Target className={`h-4 w-4 ${matchRateColor(matchRate.rate)}`} />
-            <span className={`font-medium ${matchRateColor(matchRate.rate)}`}>{matchRate.rate}%</span>
+            <Target className={`h-4 w-4 ${isGenerating ? "text-muted-foreground" : matchRateColor(matchRate.rate)}`} />
+            {isGenerating ? (
+              <Spinner />
+            ) : (
+              <span className={`font-medium ${matchRateColor(matchRate.rate)}`}>{matchRate.rate}%</span>
+            )}
             <span className="text-muted-foreground">matched</span>
           </div>
         </>
