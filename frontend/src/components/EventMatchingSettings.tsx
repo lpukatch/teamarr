@@ -165,7 +165,7 @@ export function EpgMatchingSettings() {
               />
               <p className="text-xs text-muted-foreground pt-1">
                 Only these groups are scanned — fewer = faster. Empty = all. They also become
-                sort options under Channels → Stream Ordering.
+                sort options under Channels → Stream Priority.
               </p>
             </div>
           )}

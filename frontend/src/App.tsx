@@ -2,6 +2,12 @@ import { BrowserRouter, Routes, Route, Navigate, useParams, useLocation } from "
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { MainLayout } from "@/layouts/MainLayout"
 import { EpgLayout } from "@/components/EpgLayout"
+import { ChannelsLayout } from "@/components/ChannelsLayout"
+import { ChannelLifecycle } from "@/pages/channels/ChannelLifecycle"
+import { ChannelConsolidation } from "@/pages/channels/ChannelConsolidation"
+import { ChannelNumbering } from "@/pages/channels/ChannelNumbering"
+import { ChannelStreamPriority } from "@/pages/channels/ChannelStreamPriority"
+import { ChannelDispatcharrOutput } from "@/pages/channels/ChannelDispatcharrOutput"
 import { GenerationProvider } from "@/contexts/GenerationContext"
 import { StartupOverlay } from "@/components/StartupOverlay"
 import {
@@ -16,7 +22,6 @@ import {
   EventGroups,
   EventGroupForm,
   EventGroupImport,
-  Channels,
   Settings,
 } from "@/pages"
 
@@ -80,8 +85,15 @@ function AppContent() {
               <Route path="epg/output" element={<EpgOutput />} />
             </Route>
 
-            {/* ⑤ Channels */}
-            <Route path="channels" element={<Channels />} />
+            {/* ⑤ Channels — Lifecycle + Consolidation + Numbering + Stream Priority + Dispatcharr Output */}
+            <Route path="channels" element={<Redirect to="/channels/lifecycle" />} />
+            <Route element={<ChannelsLayout />}>
+              <Route path="channels/lifecycle" element={<ChannelLifecycle />} />
+              <Route path="channels/consolidation" element={<ChannelConsolidation />} />
+              <Route path="channels/numbering" element={<ChannelNumbering />} />
+              <Route path="channels/stream-priority" element={<ChannelStreamPriority />} />
+              <Route path="channels/output" element={<ChannelDispatcharrOutput />} />
+            </Route>
 
             {/* Settings (system/integration) */}
             <Route path="settings" element={<Settings />} />

@@ -792,7 +792,7 @@ export function StreamOrderingManager() {
       <CardHeader>
         <div className="flex items-start justify-between gap-4">
           <div className="space-y-1.5">
-            <CardTitle>Stream Ordering</CardTitle>
+            <CardTitle>Stream Priority</CardTitle>
             <CardDescription>
               Prioritize streams within channels based on M3U account, event group, or custom patterns.
               Lower priority numbers appear first. Streams not matching any rule are sorted to the end.
