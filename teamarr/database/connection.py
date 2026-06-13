@@ -99,6 +99,7 @@ def init_db(db_path: Path | str | None = None) -> None:
             _rename_league_id_column_if_needed(conn)
             _migrate_exception_keywords_columns(conn)
             _migrate_settings_for_v65(conn)
+            _migrate_detection_keywords_check(conn)
 
             # ================================================================
             # Schema reconciliation — ensures ALL columns match schema.sql.
@@ -333,6 +334,39 @@ def _migrate_settings_for_v65(conn: sqlite3.Connection) -> None:
     )
 
 
+def _migrate_detection_keywords_check(conn: sqlite3.Connection) -> None:
+    """Pre-migration: rebuild detection_keywords if its category CHECK is stale.
+
+    The 'combat_sports' category was renamed to 'event_type_keywords'. SQLite bakes
+    CHECK constraints at table creation, so databases created before the rename
+    still reject 'event_type_keywords' inserts even though the v47 data migration
+    ran — i.e. users can't add Event Type Detection keywords. Detect the stale
+    constraint and drop the table so executescript recreates it with the current
+    CHECK; data is backed up to _detection_keywords_backup and restored (mapping
+    combat_sports -> event_type_keywords) in _run_migrations.
+    """
+    try:
+        row = conn.execute(
+            "SELECT sql FROM sqlite_master "
+            "WHERE type='table' AND name='detection_keywords'"
+        ).fetchone()
+    except Exception:
+        return  # Table doesn't exist yet (fresh install)
+    if not row or not row[0]:
+        return
+    if "event_type_keywords" in row[0]:
+        return  # Constraint already current — nothing to do
+
+    conn.execute("DROP TABLE IF EXISTS _detection_keywords_backup")
+    conn.execute(
+        "CREATE TABLE _detection_keywords_backup AS SELECT * FROM detection_keywords"
+    )
+    conn.execute("DROP TABLE detection_keywords")
+    logger.info(
+        "[PRE-MIGRATE] detection_keywords dropped to refresh stale category CHECK constraint"
+    )
+
+
 def _seed_tsdb_cache_if_needed(conn: sqlite3.Connection) -> None:
     """Seed TSDB cache from distributed seed file if needed."""
     from teamarr.database.seed import seed_if_needed
@@ -480,6 +514,7 @@ def _run_migrations(conn: sqlite3.Connection) -> None:
     # to default by the executescript that recreates settings). The version
     # bump runs unconditionally for any DB still below v65.
     _migrate_v65_lifecycle_timing_restore_if_needed(conn)
+    _migrate_detection_keywords_restore_if_needed(conn)
     if current_version < 65:
         _advance_version(conn, 65, "event-anchored lifecycle timing")
         current_version = 65
@@ -1207,6 +1242,41 @@ def _migrate_v65_lifecycle_timing_restore_if_needed(conn: sqlite3.Connection) ->
     except Exception as e:
         logger.warning("[MIGRATE v65] Settings restore failed: %s", e)
         conn.execute("DROP TABLE IF EXISTS _settings_v65_backup")
+
+
+def _migrate_detection_keywords_restore_if_needed(conn: sqlite3.Connection) -> None:
+    """Restore detection_keywords from the pre-migration backup.
+
+    The structural pre-migration drops/recreates the table to refresh the stale
+    category CHECK constraint. Keyed off the backup table's existence. Maps the
+    renamed combat_sports category to event_type_keywords on the way back in.
+    """
+    has_backup = conn.execute(
+        "SELECT COUNT(*) FROM sqlite_master "
+        "WHERE type='table' AND name='_detection_keywords_backup'"
+    ).fetchone()[0]
+    if not has_backup:
+        return
+
+    try:
+        conn.execute(
+            "UPDATE _detection_keywords_backup SET category = 'event_type_keywords' "
+            "WHERE category = 'combat_sports'"
+        )
+        backup_cols = [r[1] for r in conn.execute("PRAGMA table_info(_detection_keywords_backup)")]
+        new_cols = [r[1] for r in conn.execute("PRAGMA table_info(detection_keywords)")]
+        common = [c for c in new_cols if c in backup_cols]
+        col_list = ", ".join(common)
+
+        conn.execute(
+            f"INSERT OR IGNORE INTO detection_keywords ({col_list}) "
+            f"SELECT {col_list} FROM _detection_keywords_backup"
+        )
+        conn.execute("DROP TABLE _detection_keywords_backup")
+        logger.info("[MIGRATE] Restored detection_keywords after CHECK constraint refresh")
+    except Exception as e:
+        logger.warning("[MIGRATE] detection_keywords restore failed: %s", e)
+        conn.execute("DROP TABLE IF EXISTS _detection_keywords_backup")
 
 
 def _migrate_v66_tsdb_tiers(conn: sqlite3.Connection) -> None:

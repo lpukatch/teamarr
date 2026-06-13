@@ -195,3 +195,6 @@
 {"id":"int-c4d9ce4e","kind":"field_change","created_at":"2026-06-13T18:55:08.599749062Z","actor":"egyptiangio","issue_id":"teamarrv2-j35s.1","extra":{"field":"status","new_value":"closed","old_value":"in_progress","reason":"Closed"}}
 {"id":"int-e4b8193e","kind":"field_change","created_at":"2026-06-13T18:55:09.155067426Z","actor":"egyptiangio","issue_id":"teamarrv2-j35s.2","extra":{"field":"status","new_value":"closed","old_value":"open","reason":"Closed"}}
 {"id":"int-5df9aa7d","kind":"field_change","created_at":"2026-06-13T18:55:09.740583387Z","actor":"egyptiangio","issue_id":"teamarrv2-j35s","extra":{"field":"status","new_value":"closed","old_value":"open","reason":"Closed"}}
+{"id":"int-e84ca3b2","kind":"field_change","created_at":"2026-06-13T19:53:40.808647849Z","actor":"egyptiangio","issue_id":"teamarrv2-2wpj.1","extra":{"field":"status","new_value":"in_progress","old_value":"open"}}
+{"id":"int-51885c6e","kind":"field_change","created_at":"2026-06-13T19:53:41.497057128Z","actor":"egyptiangio","issue_id":"teamarrv2-2wpj.2","extra":{"field":"status","new_value":"in_progress","old_value":"open"}}
+{"id":"int-5f1c911f","kind":"field_change","created_at":"2026-06-13T20:08:34.394727669Z","actor":"egyptiangio","issue_id":"teamarrv2-2wpj.3","extra":{"field":"status","new_value":"closed","old_value":"open","reason":"Closed"}}
