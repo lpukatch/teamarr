@@ -6,7 +6,6 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
-import { Switch } from "@/components/ui/switch"
 import { getSports } from "@/api/teams"
 import { getSportDisplayName } from "@/lib/utils"
 import {
@@ -107,33 +106,6 @@ export function EpgOutputSettings() {
             </div>
           </div>
 
-          <Button onClick={handleSaveOutput} disabled={updateEPG.isPending}>
-            {updateEPG.isPending ? (
-              <Loader2 className="h-4 w-4 mr-1 animate-spin" />
-            ) : (
-              <Save className="h-4 w-4 mr-1" />
-            )}
-            Save
-          </Button>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <CardTitle>Include Final Events</CardTitle>
-            <Switch
-              checked={epg?.include_final_events ?? false}
-              onCheckedChange={(checked) =>
-                epg && setEPG({ ...epg, include_final_events: checked })
-              }
-            />
-          </div>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <p className="text-sm text-muted-foreground">
-            Keep completed/final events in the EPG instead of dropping them once they've ended.
-          </p>
           <Button onClick={handleSaveOutput} disabled={updateEPG.isPending}>
             {updateEPG.isPending ? (
               <Loader2 className="h-4 w-4 mr-1 animate-spin" />

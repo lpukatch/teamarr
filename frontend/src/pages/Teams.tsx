@@ -551,7 +551,7 @@ export function Teams() {
         <h1 className="text-xl font-bold">Team EPG</h1>
         <Button size="sm" onClick={() => navigate("/epg/teams/import")}>
           <Plus className="h-4 w-4 mr-1" />
-          Import
+          Add Team
         </Button>
       </div>
 

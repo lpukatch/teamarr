@@ -493,7 +493,9 @@ class TeamProcessor:
             template=template_config,  # Pre-loaded template
             filler_config=filler_config,  # Pre-loaded filler config
             filler_enabled=True,
-            include_final_events=all_settings.epg.include_final_events,
+            # Final/complete events are always included in the EPG (no longer a
+            # user setting — the toggle was removed in the v2.7.0 EPG overhaul).
+            include_final_events=True,
         )
 
     def _get_team(self, conn: Connection, team_id: int) -> TeamConfig | None:
