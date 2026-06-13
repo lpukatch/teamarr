@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react"
 import { toast } from "sonner"
-import { usePersistentCollapse } from "@/hooks/usePersistentCollapse"
+import { CollapsibleSection } from "@/components/ui/collapsible-section"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
 import {
   Trash2,
@@ -10,8 +10,6 @@ import {
   Tv,
   Search,
   AlertTriangle,
-  ChevronDown,
-  ChevronRight,
   X,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -120,8 +118,6 @@ export function ManagedChannelsTable() {
   const [resetLoading, setResetLoading] = useState(false)
   const [resetExecuting, setResetExecuting] = useState(false)
   const [resetChannels, setResetChannels] = useState<ResetChannelInfo[]>([])
-  const [activeCollapsed, setActiveCollapsed] = usePersistentCollapse("channels.active", true)
-  const [deletedCollapsed, setDeletedCollapsed] = usePersistentCollapse("channels.deleted", true)
 
   const queryClient = useQueryClient()
 
@@ -401,42 +397,34 @@ export function ManagedChannelsTable() {
 
   return (
     <div className="space-y-2">
-      <div className="flex items-center justify-between">
-        <button
-          onClick={() => setActiveCollapsed((c) => !c)}
-          className="flex items-center gap-2 hover:opacity-80"
-        >
-          {activeCollapsed ? (
-            <ChevronRight className="h-4 w-4 text-muted-foreground" />
-          ) : (
-            <ChevronDown className="h-4 w-4 text-muted-foreground" />
-          )}
-          <h2 className="text-lg font-semibold">Managed Channels</h2>
-        </button>
-        <div className="flex gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => {
-              refetchReconciliation()
-              setOrphansModalOpen(true)
-            }}
-          >
-            <Search className="h-4 w-4 mr-1" />
-            Find Orphans
-          </Button>
-          <Button
-            variant="destructive"
-            size="sm"
-            onClick={handleOpenResetModal}
-          >
-            <AlertTriangle className="h-4 w-4 mr-1" />
-            Reset All
-          </Button>
-        </div>
-      </div>
-
-      {!activeCollapsed && (<>
+      <CollapsibleSection
+        title="Managed Channels"
+        icon={<Tv className="h-5 w-5 text-muted-foreground" />}
+        persistKey="channels.active"
+        actions={
+          <>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                refetchReconciliation()
+                setOrphansModalOpen(true)
+              }}
+            >
+              <Search className="h-4 w-4 mr-1" />
+              Find Orphans
+            </Button>
+            <Button
+              variant="destructive"
+              size="sm"
+              onClick={handleOpenResetModal}
+            >
+              <AlertTriangle className="h-4 w-4 mr-1" />
+              Reset All
+            </Button>
+          </>
+        }
+      >
 
       {/* Fixed Batch Operations Bar */}
       {selectedIds.size > 0 && (
@@ -680,26 +668,16 @@ export function ManagedChannelsTable() {
         </CardContent>
       </Card>
 
-      </>)}
+      </CollapsibleSection>
 
       {/* Recently Deleted */}
       {deletedChannels.length > 0 && (
-        <Card>
-          <CardHeader
-            className="pb-2 cursor-pointer select-none hover:bg-muted/50 transition-colors"
-            onClick={() => setDeletedCollapsed(!deletedCollapsed)}
-          >
-            <CardTitle className="text-base flex items-center gap-2">
-              {deletedCollapsed ? (
-                <ChevronRight className="h-4 w-4 text-muted-foreground" />
-              ) : (
-                <ChevronDown className="h-4 w-4 text-muted-foreground" />
-              )}
-              <Clock className="h-4 w-4 text-muted-foreground" />
-              Recently Deleted ({deletedChannels.length})
-            </CardTitle>
-          </CardHeader>
-          {!deletedCollapsed && <CardContent>
+        <CollapsibleSection
+          title="Recently Deleted"
+          icon={<Clock className="h-4 w-4 text-muted-foreground" />}
+          count={`(${deletedChannels.length})`}
+          persistKey="channels.deleted"
+        >
             <Table>
               <TableHeader>
                 <TableRow>
@@ -755,8 +733,7 @@ export function ManagedChannelsTable() {
                 ))}
               </TableBody>
             </Table>
-          </CardContent>}
-        </Card>
+        </CollapsibleSection>
       )}
 
       {/* Delete Confirmation */}

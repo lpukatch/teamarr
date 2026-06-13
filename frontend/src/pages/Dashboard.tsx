@@ -77,14 +77,14 @@ export function Dashboard() {
 
       {/* Getting Started slot — first-run experience handled by epic 297x */}
 
-      {/* All-time totals — de-emphasized footer */}
+      {/* All-time totals — de-emphasized styled tile */}
       {stats && (
-        <p className="pt-2 text-xs text-muted-foreground">
-          All-time · {stats.total_runs ?? 0} runs · {stats.totals?.programmes_generated ?? 0} programmes ·{" "}
-          {stats.totals?.streams_matched ?? 0} streams matched · {stats.totals?.channels_created ?? 0} channels created ·{" "}
-          {stats.totals?.streams_cached ?? 0} cache hits · {stats.totals?.channels_deleted ?? 0} deleted · avg{" "}
-          {formatDuration(stats.avg_duration_ms)}
-        </p>
+        <div className="mt-2 rounded-lg border bg-muted/20 px-4 py-2 text-xs text-muted-foreground">
+          <span className="font-medium text-foreground/70">All-time</span> · {stats.total_runs ?? 0} runs ·{" "}
+          {stats.totals?.programmes_generated ?? 0} programmes · {stats.totals?.streams_matched ?? 0} streams matched ·{" "}
+          {stats.totals?.channels_created ?? 0} channels created · {stats.totals?.streams_cached ?? 0} cache hits ·{" "}
+          {stats.totals?.channels_deleted ?? 0} deleted · avg {formatDuration(stats.avg_duration_ms)}
+        </div>
       )}
 
       {/* Event Matcher Modal */}

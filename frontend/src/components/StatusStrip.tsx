@@ -129,19 +129,28 @@ export function StatusStrip({ lastRun }: { lastRun?: ProcessingRun }) {
         <span className="text-muted-foreground">managed channels</span>
       </div>
 
-      {/* XMLTV URL copy — pushed to the right */}
-      <button
-        onClick={handleCopy}
-        title={epgUrl}
-        className="ml-auto inline-flex items-center gap-1.5 rounded-md border bg-background px-2.5 py-1 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-      >
-        {copied ? (
-          <Check className="h-3.5 w-3.5 text-green-600" />
-        ) : (
-          <Copy className="h-3.5 w-3.5" />
-        )}
-        {copied ? "Copied" : "Copy EPG URL"}
-      </button>
+      {/* XMLTV URL + copy — pushed to the right */}
+      <div className="ml-auto flex min-w-0 items-center gap-2">
+        <span className="shrink-0 text-muted-foreground">EPG URL</span>
+        <code
+          className="min-w-0 max-w-[22rem] truncate rounded bg-background px-2 py-1 font-mono text-xs text-muted-foreground"
+          title={epgUrl}
+        >
+          {epgUrl}
+        </code>
+        <button
+          onClick={handleCopy}
+          title="Copy EPG URL"
+          className="inline-flex shrink-0 items-center gap-1 rounded-md border bg-background px-2 py-1 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+        >
+          {copied ? (
+            <Check className="h-3.5 w-3.5 text-green-600" />
+          ) : (
+            <Copy className="h-3.5 w-3.5" />
+          )}
+          {copied ? "Copied" : "Copy"}
+        </button>
+      </div>
     </div>
   )
 }

@@ -1,28 +1,9 @@
 import { useState, useMemo, useRef, useCallback } from "react"
-import { toast } from "sonner"
-import {
-  Loader2,
-  CheckCircle,
-  Link,
-  Copy,
-  Check,
-  AlertTriangle,
-  ChevronDown,
-  ChevronUp,
-  Search,
-} from "lucide-react"
+import { Loader2, CheckCircle, AlertTriangle, Search } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
-import { usePersistentCollapse } from "@/hooks/usePersistentCollapse"
-import {
-  useEPGAnalysis,
-  useEPGContent,
-} from "@/hooks/useEPG"
-import {
-  getTeamXmltvUrl,
-} from "@/api/epg"
+import { CollapsibleSection } from "@/components/ui/collapsible-section"
+import { useEPGAnalysis, useEPGContent } from "@/hooks/useEPG"
 
 function formatBytes(bytes: number | undefined | null): string {
   if (bytes == null || isNaN(bytes) || bytes === 0) return "0 B"
@@ -31,19 +12,17 @@ function formatBytes(bytes: number | undefined | null): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
 }
 
-function formatDateRange(start: string | null, end: string | null): string {
-  if (!start || !end) return "N/A"
-  const formatDate = (d: string) => `${d.slice(4, 6)}/${d.slice(6, 8)}`
-  return `${formatDate(start)} - ${formatDate(end)}`
-}
-
+/**
+ * XML Preview — a top-level collapsible section on the Dashboard. Contains the
+ * EPG analysis (coverage gaps / unreplaced-variable issues, or an all-clear)
+ * and a searchable preview of the generated XMLTV. The EPG URL lives in the
+ * Dashboard status strip; composition counts live on their home tabs / in the
+ * run-history table (dropped here per the 7rfd redesign).
+ */
 export function EpgOutput() {
   const { data: analysis, isLoading: analysisLoading } = useEPGAnalysis()
   const { data: epgContent, isLoading: contentLoading } = useEPGContent(0) // 0 = no limit
-  const [collapsed, setCollapsed] = usePersistentCollapse("epg-output", true)
 
-  const [copied, setCopied] = useState(false)
-  const [showXmlPreview, setShowXmlPreview] = useState(false)
   const [searchTerm, setSearchTerm] = useState("")
   const [currentMatch, setCurrentMatch] = useState(0)
   const [showLineNumbers, setShowLineNumbers] = useState(true)
@@ -56,33 +35,6 @@ export function EpgOutput() {
     afterProgram: string
     beforeProgram: string
   } | null>(null)
-
-  // EPG URL for IPTV apps
-  const epgUrl = `${window.location.origin}${getTeamXmltvUrl()}`
-
-  const handleCopyUrl = async () => {
-    try {
-      if (navigator.clipboard && window.isSecureContext) {
-        await navigator.clipboard.writeText(epgUrl)
-      } else {
-        const textArea = document.createElement("textarea")
-        textArea.value = epgUrl
-        textArea.style.position = "fixed"
-        textArea.style.left = "-999999px"
-        textArea.style.top = "-999999px"
-        document.body.appendChild(textArea)
-        textArea.focus()
-        textArea.select()
-        document.execCommand("copy")
-        textArea.remove()
-      }
-      setCopied(true)
-      toast.success("URL copied to clipboard")
-      setTimeout(() => setCopied(false), 2000)
-    } catch {
-      toast.error("Failed to copy URL")
-    }
-  }
 
   // Search functionality for XML preview
   const searchMatches = useMemo(() => {
@@ -192,274 +144,168 @@ export function EpgOutput() {
                    (analysis?.coverage_gaps?.length ?? 0) > 0
 
   return (
-    <div className="space-y-2">
-      {/* Collapsible header */}
-      <button
-        onClick={() => setCollapsed(!collapsed)}
-        className="flex w-full items-center justify-between rounded-lg border bg-muted/30 px-4 py-2.5 text-sm font-semibold transition-colors hover:bg-muted/50"
-      >
-        <span>EPG Output</span>
-        {collapsed ? (
-          <ChevronDown className="h-4 w-4 text-muted-foreground" />
-        ) : (
-          <ChevronUp className="h-4 w-4 text-muted-foreground" />
-        )}
-      </button>
-
-      {!collapsed && (
+    <CollapsibleSection
+      title="XML Preview"
+      persistKey="epg-xml-preview"
+      count={epgContent ? `${epgContent.total_lines} lines · ${formatBytes(epgContent.size_bytes)}` : undefined}
+    >
       <div className="space-y-2">
-      {/* EPG URL for IPTV apps */}
-      <div className="flex flex-wrap items-center gap-3 bg-secondary border border-border rounded px-3 py-2">
-        <span className="text-xs font-medium text-muted-foreground shrink-0">EPG URL</span>
-        <div className="flex items-center gap-2 flex-1 min-w-0">
-          <Link className="h-4 w-4 text-muted-foreground shrink-0" />
-          <Input
-            value={epgUrl}
-            readOnly
-            className="text-xs font-mono h-8 flex-1 min-w-0"
-            onClick={(e) => e.currentTarget.select()}
-          />
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-8 w-8 shrink-0"
-            onClick={handleCopyUrl}
-          >
-            {copied ? (
-              <Check className="h-4 w-4 text-green-500" />
-            ) : (
-              <Copy className="h-4 w-4" />
-            )}
-          </Button>
-        </div>
-      </div>
-
-      {/* EPG Analysis - Stats Tiles */}
-      <div className="grid grid-cols-3 md:grid-cols-6 gap-3">
-        <div className="bg-secondary rounded px-3 py-2">
-          <div className="text-lg font-semibold">{analysis?.channels.total ?? 0}</div>
-          <div className="text-xs text-muted-foreground">Channels</div>
-          {analysis && (
-            <div className="text-xs text-muted-foreground">
-              {analysis.channels.team_based}T / {analysis.channels.event_based}E
-            </div>
-          )}
-        </div>
-        <div className="bg-secondary rounded px-3 py-2">
-          <div className="text-lg font-semibold">{analysis?.programmes.events ?? 0}</div>
-          <div className="text-xs text-muted-foreground">Events</div>
-        </div>
-        <div className="bg-secondary rounded px-3 py-2">
-          <div className="text-lg font-semibold text-blue-600">{analysis?.programmes.pregame ?? 0}</div>
-          <div className="text-xs text-muted-foreground">Pregame</div>
-        </div>
-        <div className="bg-secondary rounded px-3 py-2">
-          <div className="text-lg font-semibold text-purple-600">{analysis?.programmes.postgame ?? 0}</div>
-          <div className="text-xs text-muted-foreground">Postgame</div>
-        </div>
-        <div className="bg-secondary rounded px-3 py-2">
-          <div className="text-lg font-semibold text-orange-600">{analysis?.programmes.idle ?? 0}</div>
-          <div className="text-xs text-muted-foreground">Idle</div>
-        </div>
-        <div className="bg-secondary rounded px-3 py-2">
-          <div className="text-lg font-semibold">{analysis?.programmes.total ?? 0}</div>
-          <div className="text-xs text-muted-foreground">Total</div>
-          {analysis && (
-            <div className="text-xs text-muted-foreground">
-              {formatDateRange(analysis.date_range.start, analysis.date_range.end)}
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* EPG Issues */}
-      {analysisLoading ? (
-        <div className="flex items-center justify-center py-4">
-          <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-        </div>
-      ) : analysis && hasIssues ? (
-        <div className="border border-yellow-500/30 bg-yellow-500/10 rounded-lg p-3 space-y-2">
-          <div className="flex items-center gap-2 text-yellow-600 font-medium text-sm">
-            <AlertTriangle className="h-4 w-4" />
-            Detected Issues
+        {/* EPG analysis: issues or all-clear */}
+        {analysisLoading ? (
+          <div className="flex items-center justify-center py-4">
+            <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
           </div>
-
-          {analysis.unreplaced_variables.length > 0 && (
-            <div>
-              <div className="text-xs font-medium mb-1">
-                Unreplaced Variables ({analysis.unreplaced_variables.length})
-              </div>
-              <div className="flex flex-wrap gap-1">
-                {analysis.unreplaced_variables.map((v) => (
-                  <code
-                    key={v}
-                    className="text-xs bg-yellow-500/20 px-1.5 py-0.5 rounded cursor-pointer hover:bg-yellow-500/40"
-                    onClick={() => {
-                      setSearchTerm(v)
-                      setShowXmlPreview(true)
-                    }}
-                  >
-                    {v}
-                  </code>
-                ))}
-              </div>
+        ) : analysis && hasIssues ? (
+          <div className="border border-yellow-500/30 bg-yellow-500/10 rounded-lg p-3 space-y-2">
+            <div className="flex items-center gap-2 text-yellow-600 font-medium text-sm">
+              <AlertTriangle className="h-4 w-4" />
+              Detected Issues
             </div>
-          )}
 
-          {analysis.coverage_gaps.length > 0 && (
-            <div>
-              <div className="text-xs font-medium mb-1">
-                Coverage Gaps ({analysis.coverage_gaps.length})
-              </div>
-              <div className="space-y-1 max-h-32 overflow-y-auto">
-                {analysis.coverage_gaps.slice(0, 10).map((gap, idx) => (
-                  <div
-                    key={idx}
-                    className="text-xs bg-yellow-500/20 px-2 py-1 rounded cursor-pointer hover:bg-yellow-500/40"
-                    onClick={() => {
-                      setSearchTerm("")
-                      setHighlightedGap({
-                        afterStop: gap.after_stop,
-                        beforeStart: gap.before_start,
-                        afterProgram: gap.after_program,
-                        beforeProgram: gap.before_program,
-                      })
-                      setShowXmlPreview(true)
-                      setTimeout(() => {
-                        if (previewRef.current) {
-                          const mark = previewRef.current.querySelector(".bg-red-400\\/30, .bg-blue-400\\/30")
-                          if (mark) {
-                            mark.scrollIntoView({ behavior: "smooth", block: "center" })
-                          }
-                        }
-                      }, 100)
-                    }}
-                  >
-                    <strong>{gap.channel}</strong>: {gap.gap_minutes}min gap between "{gap.after_program}" and "{gap.before_program}"
-                  </div>
-                ))}
-                {analysis.coverage_gaps.length > 10 && (
-                  <div className="text-xs text-muted-foreground">
-                    ... and {analysis.coverage_gaps.length - 10} more
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-        </div>
-      ) : analysis ? (
-        <div className="border border-green-500/30 bg-green-500/10 rounded-lg p-3">
-          <div className="flex items-center gap-2 text-green-600 font-medium text-sm">
-            <CheckCircle className="h-4 w-4" />
-            No Issues Detected
-          </div>
-          <p className="text-xs text-muted-foreground mt-1">
-            All template variables resolved and no coverage gaps found.
-          </p>
-        </div>
-      ) : null}
-
-      {/* XML Preview Toggle */}
-      <Card>
-        <CardHeader
-          className="cursor-pointer"
-          onClick={() => setShowXmlPreview(!showXmlPreview)}
-        >
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <CardTitle>XML Preview</CardTitle>
-              {epgContent && (
-                <Badge variant="secondary">
-                  {epgContent.total_lines} lines | {formatBytes(epgContent.size_bytes)}
-                </Badge>
-              )}
-            </div>
-            {showXmlPreview ? (
-              <ChevronUp className="h-5 w-5" />
-            ) : (
-              <ChevronDown className="h-5 w-5" />
-            )}
-          </div>
-        </CardHeader>
-        {showXmlPreview && (
-          <CardContent>
-            {contentLoading ? (
-              <div className="flex items-center justify-center py-8">
-                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-              </div>
-            ) : epgContent?.content ? (
-              <div className="space-y-2">
-                {/* Search Bar */}
-                <div className="flex items-center gap-2">
-                  <div className="relative flex-1">
-                    <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      placeholder="Search XML..."
-                      value={searchTerm}
-                      onChange={(e) => {
-                        setSearchTerm(e.target.value)
-                        setCurrentMatch(0)
-                        setHighlightedGap(null)
-                      }}
-                      className="pl-8"
-                    />
-                  </div>
-                  {highlightedGap && (
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm text-yellow-600">
-                        Gap: "{highlightedGap.afterProgram}" → "{highlightedGap.beforeProgram}"
-                      </span>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => setHighlightedGap(null)}
-                        className="h-6 px-2 text-xs"
-                      >
-                        Clear
-                      </Button>
-                    </div>
-                  )}
-                  {searchMatches.length > 0 && !highlightedGap && (
-                    <div className="flex items-center gap-1">
-                      <span className="text-sm text-muted-foreground">
-                        {currentMatch + 1}/{searchMatches.length}
-                      </span>
-                      <Button variant="outline" size="sm" onClick={prevMatch}>
-                        Prev
-                      </Button>
-                      <Button variant="outline" size="sm" onClick={nextMatch}>
-                        Next
-                      </Button>
-                    </div>
-                  )}
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setShowLineNumbers(!showLineNumbers)}
-                  >
-                    {showLineNumbers ? "Hide" : "Show"} Lines
-                  </Button>
+            {analysis.unreplaced_variables.length > 0 && (
+              <div>
+                <div className="text-xs font-medium mb-1">
+                  Unreplaced Variables ({analysis.unreplaced_variables.length})
                 </div>
+                <div className="flex flex-wrap gap-1">
+                  {analysis.unreplaced_variables.map((v) => (
+                    <code
+                      key={v}
+                      className="text-xs bg-yellow-500/20 px-1.5 py-0.5 rounded cursor-pointer hover:bg-yellow-500/40"
+                      onClick={() => setSearchTerm(v)}
+                    >
+                      {v}
+                    </code>
+                  ))}
+                </div>
+              </div>
+            )}
 
-                {/* XML Content */}
-                <pre
-                  ref={previewRef}
-                  className="bg-muted/50 rounded-lg p-4 text-xs font-mono overflow-auto max-h-[600px]"
-                  dangerouslySetInnerHTML={{ __html: highlightedContent }}
+            {analysis.coverage_gaps.length > 0 && (
+              <div>
+                <div className="text-xs font-medium mb-1">
+                  Coverage Gaps ({analysis.coverage_gaps.length})
+                </div>
+                <div className="space-y-1 max-h-32 overflow-y-auto">
+                  {analysis.coverage_gaps.slice(0, 10).map((gap, idx) => (
+                    <div
+                      key={idx}
+                      className="text-xs bg-yellow-500/20 px-2 py-1 rounded cursor-pointer hover:bg-yellow-500/40"
+                      onClick={() => {
+                        setSearchTerm("")
+                        setHighlightedGap({
+                          afterStop: gap.after_stop,
+                          beforeStart: gap.before_start,
+                          afterProgram: gap.after_program,
+                          beforeProgram: gap.before_program,
+                        })
+                        setTimeout(() => {
+                          if (previewRef.current) {
+                            const mark = previewRef.current.querySelector(".bg-red-400\\/30, .bg-blue-400\\/30")
+                            if (mark) {
+                              mark.scrollIntoView({ behavior: "smooth", block: "center" })
+                            }
+                          }
+                        }, 100)
+                      }}
+                    >
+                      <strong>{gap.channel}</strong>: {gap.gap_minutes}min gap between "{gap.after_program}" and "{gap.before_program}"
+                    </div>
+                  ))}
+                  {analysis.coverage_gaps.length > 10 && (
+                    <div className="text-xs text-muted-foreground">
+                      ... and {analysis.coverage_gaps.length - 10} more
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+        ) : analysis ? (
+          <div className="border border-green-500/30 bg-green-500/10 rounded-lg p-3">
+            <div className="flex items-center gap-2 text-green-600 font-medium text-sm">
+              <CheckCircle className="h-4 w-4" />
+              No Issues Detected
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">
+              All template variables resolved and no coverage gaps found.
+            </p>
+          </div>
+        ) : null}
+
+        {/* XML content */}
+        {contentLoading ? (
+          <div className="flex items-center justify-center py-8">
+            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+          </div>
+        ) : epgContent?.content ? (
+          <div className="space-y-2">
+            {/* Search Bar */}
+            <div className="flex items-center gap-2">
+              <div className="relative flex-1">
+                <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search XML..."
+                  value={searchTerm}
+                  onChange={(e) => {
+                    setSearchTerm(e.target.value)
+                    setCurrentMatch(0)
+                    setHighlightedGap(null)
+                  }}
+                  className="pl-8"
                 />
               </div>
-            ) : (
-              <div className="text-center py-8 text-muted-foreground">
-                No XML content available. Generate EPG first.
-              </div>
-            )}
-          </CardContent>
-        )}
-      </Card>
+              {highlightedGap && (
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-yellow-600">
+                    Gap: "{highlightedGap.afterProgram}" → "{highlightedGap.beforeProgram}"
+                  </span>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setHighlightedGap(null)}
+                    className="h-6 px-2 text-xs"
+                  >
+                    Clear
+                  </Button>
+                </div>
+              )}
+              {searchMatches.length > 0 && !highlightedGap && (
+                <div className="flex items-center gap-1">
+                  <span className="text-sm text-muted-foreground">
+                    {currentMatch + 1}/{searchMatches.length}
+                  </span>
+                  <Button variant="outline" size="sm" onClick={prevMatch}>
+                    Prev
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={nextMatch}>
+                    Next
+                  </Button>
+                </div>
+              )}
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowLineNumbers(!showLineNumbers)}
+              >
+                {showLineNumbers ? "Hide" : "Show"} Lines
+              </Button>
+            </div>
 
+            {/* XML Content */}
+            <pre
+              ref={previewRef}
+              className="bg-muted/50 rounded-lg p-4 text-xs font-mono overflow-auto max-h-[600px]"
+              dangerouslySetInnerHTML={{ __html: highlightedContent }}
+            />
+          </div>
+        ) : (
+          <div className="text-center py-8 text-muted-foreground">
+            No XML content available. Generate EPG first.
+          </div>
+        )}
       </div>
-      )}
-    </div>
+    </CollapsibleSection>
   )
 }
 
