@@ -21,6 +21,7 @@ from teamarr.consumers.matching.constants import (
     BOTH_TEAMS_THRESHOLD,
     HIGH_CONFIDENCE_THRESHOLD,
 )
+from teamarr.consumers.matching.country_resolver import CountryNameResolver
 from teamarr.consumers.matching.normalizer import normalize_for_matching
 from teamarr.consumers.matching.result import (
     FailedReason,
@@ -151,6 +152,8 @@ class TeamMatcher:
         # Reverse cache: alias -> [(canonical, league), ...]
         # Enables finding canonical name without knowing league first
         self._reverse_aliases: dict[str, list[tuple[str, str]]] = self._build_reverse_cache()
+        # Locale-aware country name resolver (e.g. "brasil" → "Brazil")
+        self._country_resolver = CountryNameResolver()
 
     def reload_aliases(self) -> None:
         """Reload aliases from database.
@@ -1244,6 +1247,7 @@ class TeamMatcher:
         Priority:
         1. Built-in aliases (TEAM_ALIASES constant) - league-agnostic
         2. User-defined aliases (database) - league-specific
+        3. International country name auto-resolution (e.g. "brasil" → "Brazil")
 
         Args:
             team_name: The team name to look up
@@ -1264,6 +1268,14 @@ class TeamMatcher:
             user_canonical = self._lookup_user_alias(normalized, league)
             if user_canonical:
                 return user_canonical
+
+        # Finally, try automatic country name resolution for national-team sports
+        country_canonical = self._country_resolver.resolve(team_name)
+        if country_canonical:
+            logger.debug(
+                "[ALIAS] Country name resolved: %r → %r", team_name, country_canonical
+            )
+            return country_canonical
 
         return None
 
