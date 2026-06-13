@@ -178,7 +178,7 @@ export function GlobalDefaults({
     <>
       {/* ── Tile: Sport / League ── */}
       {activeTile === "sportleague" && (
-        <div className="rounded-lg border bg-card p-4 space-y-4">
+        <Card className="p-4 space-y-4">
           <div className="flex items-center justify-between">
             <Label className="text-base font-medium">Sports (Non-Soccer)</Label>
             {hasLocalChanges && (
@@ -201,12 +201,12 @@ export function GlobalDefaults({
               disabled={!hasLocalChanges}
             />
           </div>
-        </div>
+        </Card>
       )}
 
       {/* ── Tile: Soccer ── */}
       {activeTile === "soccer" && (
-        <div className="rounded-lg border bg-card p-4 space-y-4">
+        <Card className="p-4 space-y-4">
           <div className="flex items-center justify-between">
             <Label className="text-base font-medium">Soccer Leagues</Label>
             {hasLocalChanges && (
@@ -228,12 +228,12 @@ export function GlobalDefaults({
               disabled={!hasLocalChanges}
             />
           </div>
-        </div>
+        </Card>
       )}
 
       {/* ── Tile: Teams (Default Team Filter) ── */}
       {activeTile === "teams" && (
-            <div className="rounded-lg border bg-card p-4 space-y-4">
+            <Card className="p-4 space-y-4">
               <div className="flex items-center justify-between">
                 <Label className="text-base font-medium">Default Team Filter</Label>
                 <div className="flex items-center gap-2">
@@ -328,7 +328,7 @@ export function GlobalDefaults({
                   Save Team Filter
                 </SaveButton>
               </div>
-            </div>
+            </Card>
       )}
     </>
   )
