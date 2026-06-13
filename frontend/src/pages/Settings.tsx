@@ -1,6 +1,5 @@
-import { useState, useEffect, useMemo, useRef } from "react"
+import { useState, useEffect, useRef } from "react"
 import { toast } from "sonner"
-import cronstrue from "cronstrue"
 import {
   Loader2,
   Save,
@@ -32,6 +31,8 @@ import { Label } from "@/components/ui/label"
 import { Select } from "@/components/ui/select"
 import { Switch } from "@/components/ui/switch"
 import { Badge } from "@/components/ui/badge"
+import { CronPreview } from "@/components/CronPreview"
+import { ScheduledChannelResetCard } from "@/components/ScheduledChannelResetCard"
 import {
   useSettings,
   useUpdateDispatcharrSettings,
@@ -98,31 +99,6 @@ function formatRelativeTime(dateStr: string | null): string {
   if (diffMins < 60) return `${diffMins}m ago`
   if (diffHours < 24) return `${diffHours}h ago`
   return `${diffDays}d ago`
-}
-
-function CronPreview({ expression }: { expression: string }) {
-  const humanReadable = useMemo(() => {
-    try {
-      return cronstrue.toString(expression, {
-        throwExceptionOnParseError: false,
-        verbose: true,
-      })
-    } catch {
-      return null
-    }
-  }, [expression])
-
-  if (!humanReadable) {
-    return (
-      <p className="text-xs text-destructive">Invalid cron expression</p>
-    )
-  }
-
-  return (
-    <p className="text-xs text-muted-foreground">
-      {humanReadable}
-    </p>
-  )
 }
 
 function formatBytes(bytes: number): string {
@@ -1286,117 +1262,9 @@ export function Settings() {
         </CardContent>
       </Card>
 
-      {/* Scheduled Channel Reset */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Scheduled Channel Reset</CardTitle>
-          <CardDescription>
-            For users experiencing stale channel logos in Jellyfin. Schedule a periodic
-            purge of all Teamarr channels before your media server&apos;s guide refresh.
-            Leave disabled if you&apos;re not having issues.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="flex items-center gap-2">
-            <Switch
-              checked={scheduler?.channel_reset_enabled ?? false}
-              onCheckedChange={(checked) =>
-                scheduler && setScheduler({ ...scheduler, channel_reset_enabled: checked })
-              }
-            />
-            <Label>Enable Scheduled Channel Reset</Label>
-          </div>
-
-          {scheduler?.channel_reset_enabled && (
-            <>
-              <div className="space-y-2">
-                <Label htmlFor="reset-cron">Reset Schedule (Cron Expression)</Label>
-                <Input
-                  id="reset-cron"
-                  value={scheduler?.channel_reset_cron ?? ""}
-                  onChange={(e) =>
-                    scheduler && setScheduler({ ...scheduler, channel_reset_cron: e.target.value })
-                  }
-                  className="font-mono"
-                  placeholder="30 3 * * *"
-                />
-                <CronPreview expression={scheduler?.channel_reset_cron ?? ""} />
-              </div>
-
-              <div className="flex flex-wrap gap-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() =>
-                    scheduler && setScheduler({ ...scheduler, channel_reset_cron: "30 2 * * *" })
-                  }
-                >
-                  Daily 2:30 AM
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() =>
-                    scheduler && setScheduler({ ...scheduler, channel_reset_cron: "30 3 * * *" })
-                  }
-                >
-                  Daily 3:30 AM
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() =>
-                    scheduler && setScheduler({ ...scheduler, channel_reset_cron: "30 4 * * *" })
-                  }
-                >
-                  Daily 4:30 AM
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() =>
-                    scheduler && setScheduler({ ...scheduler, channel_reset_cron: "30 5 * * *" })
-                  }
-                >
-                  Daily 5:30 AM
-                </Button>
-              </div>
-
-              <p className="text-xs text-muted-foreground">
-                Set this to run shortly before your media server&apos;s scheduled guide refresh.
-                Channels will be recreated on the next EPG generation.
-              </p>
-            </>
-          )}
-
-          <Button
-            onClick={async () => {
-              if (!scheduler) return
-              try {
-                await updateScheduler.mutateAsync({
-                  channel_reset_enabled: scheduler.channel_reset_enabled,
-                  channel_reset_cron: scheduler.channel_reset_cron,
-                })
-                toast.success("Channel reset settings saved")
-              } catch (err) {
-                toast.error(err instanceof Error ? err.message : "Failed to save")
-              }
-            }}
-            disabled={updateScheduler.isPending}
-          >
-            {updateScheduler.isPending ? (
-              <Loader2 className="h-4 w-4 mr-1 animate-spin" />
-            ) : (
-              <Save className="h-4 w-4 mr-1" />
-            )}
-            Save
-          </Button>
-        </CardContent>
-      </Card>
+      {/* Scheduled Channel Reset moved to the Media Servers tab
+          (ScheduledChannelResetCard) in the v2.7.0 IA overhaul — it's a
+          media-server guide-refresh workaround, not an EPG-generation setting. */}
       </>
       )}
 
@@ -1929,6 +1797,8 @@ export function Settings() {
           </Button>
         </CardContent>
       </Card>
+
+      <ScheduledChannelResetCard />
       </>
       )}
 
