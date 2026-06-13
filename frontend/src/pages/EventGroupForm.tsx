@@ -1,10 +1,10 @@
 import { useState, useEffect, useMemo, useCallback } from "react"
 import { useNavigate, useParams, useSearchParams } from "react-router-dom"
 import { toast } from "sonner"
-import { ArrowLeft, Loader2, Save, ChevronRight, ChevronDown, FlaskConical } from "lucide-react"
+import { ArrowLeft, Loader2, Save, FlaskConical } from "lucide-react"
 import { useQuery } from "@tanstack/react-query"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
+import { CollapsibleSection } from "@/components/ui/collapsible-section"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
@@ -60,13 +60,6 @@ export function EventGroupForm() {
   const { data: group, isLoading: isLoadingGroup } = useGroup(
     isEdit ? Number(groupId) : 0
   )
-
-  // Collapsible section states
-  const [basicSettingsExpanded, setBasicSettingsExpanded] = useState(true)
-  const [subscriptionOverrideExpanded, setSubscriptionOverrideExpanded] = useState(false)
-  const [streamTimezoneExpanded, setStreamTimezoneExpanded] = useState(false)
-  const [regexExpanded, setRegexExpanded] = useState(false)
-  const [teamFilterExpanded, setTeamFilterExpanded] = useState(false)
 
   // Custom Regex event type tab
   type EventTypeTab = "team_vs_team" | "event_card"
@@ -314,11 +307,8 @@ export function EventGroupForm() {
       <div className="space-y-6">
           {/* Basic Settings (name and enabled only, for new groups without full edit context) */}
           {!isEdit && (
-            <Card>
-              <CardHeader>
-                <CardTitle>Basic Settings</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
+            <CollapsibleSection title="Basic Settings" defaultCollapsed={false} persistKey="sources-form.basic">
+              <div className="space-y-4">
                 <div className="space-y-2">
                   <Label htmlFor="name">Group Name</Label>
                   <Input
@@ -374,26 +364,13 @@ export function EventGroupForm() {
                     </p>
                   </div>
                 </div>
-              </CardContent>
-            </Card>
+              </div>
+            </CollapsibleSection>
           )}
 
           {/* Basic Info (edit mode) */}
-          {isEdit && <Card>
-            <CardHeader
-              className="cursor-pointer hover:bg-muted/50 rounded-t-lg"
-              onClick={() => setBasicSettingsExpanded(!basicSettingsExpanded)}
-            >
-              <div className="flex items-center gap-2">
-                {basicSettingsExpanded ? (
-                  <ChevronDown className="h-4 w-4 text-muted-foreground" />
-                ) : (
-                  <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                )}
-                <CardTitle>Basic Settings</CardTitle>
-              </div>
-            </CardHeader>
-            {basicSettingsExpanded && <CardContent className="space-y-4">
+          {isEdit && <CollapsibleSection title="Basic Settings" defaultCollapsed={false} persistKey="sources-form.basic">
+            <div className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="name">Group Name</Label>
@@ -462,28 +439,239 @@ export function EventGroupForm() {
                   </p>
                 </div>
               </div>
-            </CardContent>}
-          </Card>}
+            </div>
+          </CollapsibleSection>}
+
+          {/* Subscription Override */}
+          <CollapsibleSection
+            title="Subscription Override"
+            defaultCollapsed
+            persistKey="sources-form.subscription"
+            count={!useGlobalSubscription ? (
+              <span className="text-xs text-amber-500 font-medium">Custom</span>
+            ) : undefined}
+          >
+              <div className="space-y-4">
+                <label className="flex items-center gap-2 mb-2 cursor-pointer">
+                  <Checkbox
+                    checked={useGlobalSubscription}
+                    onCheckedChange={() => {
+                      const newValue = !useGlobalSubscription
+                      setUseGlobalSubscription(newValue)
+                      if (newValue) {
+                        // Revert to global — clear local override state
+                        setOverrideNonSoccerLeagues([])
+                        setOverrideSoccerLeagues([])
+                        setOverrideSoccerMode(null)
+                        setOverrideFollowedTeams([])
+                      } else {
+                        // Entering override mode — seed from global subscription
+                        matchGlobal()
+                      }
+                    }}
+                  />
+                  <span className="text-sm font-normal">
+                    Use global subscription (set on the Subscriptions page)
+                  </span>
+                </label>
+
+                {!useGlobalSubscription && (
+                  <>
+                    <div className="flex items-center justify-between">
+                      <p className="text-sm text-muted-foreground">
+                        Override which leagues this group matches against instead of using the global subscription.
+                      </p>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={matchGlobal}
+                        disabled={matchingGlobal}
+                      >
+                        {matchingGlobal ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : null}
+                        Match Global
+                      </Button>
+                    </div>
+
+                    {/* Non-Soccer Sports */}
+                    <div className="space-y-2">
+                      <Label className="text-sm font-medium">Non-Soccer Sports</Label>
+                      <LeaguePicker
+                        selectedLeagues={overrideNonSoccerLeagues}
+                        onSelectionChange={setOverrideNonSoccerLeagues}
+                        excludeSport="soccer"
+                        maxHeight="max-h-48"
+                        showSearch={true}
+                        showSelectedBadges={true}
+                        maxBadges={8}
+                      />
+                    </div>
+
+                    <div className="border-t" />
+
+                    {/* Soccer */}
+                    <div className="space-y-2">
+                      <Label className="text-sm font-medium">Soccer Leagues</Label>
+                      <SoccerModeSelector
+                        mode={overrideSoccerMode}
+                        onModeChange={setOverrideSoccerMode}
+                        selectedLeagues={overrideSoccerLeagues}
+                        onLeaguesChange={setOverrideSoccerLeagues}
+                        followedTeams={overrideFollowedTeams}
+                        onFollowedTeamsChange={setOverrideFollowedTeams}
+                      />
+                    </div>
+                  </>
+                )}
+              </div>
+          </CollapsibleSection>
+
+          {/* Team Filtering */}
+          <CollapsibleSection title="Team Filtering" defaultCollapsed persistKey="sources-form.teamfilter">
+                <div className="space-y-4">
+                  {/* Use default toggle */}
+                  <label className="flex items-center gap-2 mb-2 cursor-pointer">
+                    <Checkbox
+                      checked={useDefaultTeamFilter}
+                      onCheckedChange={() => {
+                        const newValue = !useDefaultTeamFilter
+                        setUseDefaultTeamFilter(newValue)
+                        if (newValue) {
+                          setFormData({
+                            ...formData,
+                            include_teams: null,
+                            exclude_teams: null,
+                          })
+                        } else {
+                          setFormData({
+                            ...formData,
+                            include_teams: [],
+                            exclude_teams: [],
+                          })
+                        }
+                      }}
+                    />
+                    <span className="text-sm font-normal">
+                      Use default team filter (set in Global Defaults above)
+                    </span>
+                  </label>
+
+                  {!useDefaultTeamFilter && (
+                    <>
+                      <p className="text-sm text-muted-foreground">
+                        Configure a custom team filter for this group.
+                      </p>
+
+                      {/* Mode selector */}
+                      <div className="flex gap-4">
+                        <label className="flex items-center gap-2 cursor-pointer">
+                          <input
+                            type="radio"
+                            name="team_filter_mode"
+                            value="include"
+                            checked={formData.team_filter_mode === "include"}
+                            onChange={() => {
+                              // Move teams to include list when switching modes
+                              const teams = formData.exclude_teams || []
+                              setFormData({
+                                ...formData,
+                                team_filter_mode: "include",
+                                include_teams: teams.length > 0 ? teams : formData.include_teams,
+                                exclude_teams: [],
+                              })
+                            }}
+                            className="accent-primary"
+                          />
+                          <span className="text-sm">Include only selected teams</span>
+                        </label>
+                        <label className="flex items-center gap-2 cursor-pointer">
+                          <input
+                            type="radio"
+                            name="team_filter_mode"
+                            value="exclude"
+                            checked={formData.team_filter_mode === "exclude"}
+                            onChange={() => {
+                              // Move teams to exclude list when switching modes
+                              const teams = formData.include_teams || []
+                              setFormData({
+                                ...formData,
+                                team_filter_mode: "exclude",
+                                exclude_teams: teams.length > 0 ? teams : formData.exclude_teams,
+                                include_teams: [],
+                              })
+                            }}
+                            className="accent-primary"
+                          />
+                          <span className="text-sm">Exclude selected teams</span>
+                        </label>
+                      </div>
+
+                      {/* Team picker */}
+                      <TeamPicker
+                        leagues={formData.leagues}
+                        selectedTeams={
+                          formData.team_filter_mode === "include"
+                            ? (formData.include_teams || [])
+                            : (formData.exclude_teams || [])
+                        }
+                        onSelectionChange={(teams) => {
+                          if (formData.team_filter_mode === "include") {
+                            setFormData({
+                              ...formData,
+                              include_teams: teams,
+                              exclude_teams: [],
+                            })
+                          } else {
+                            setFormData({
+                              ...formData,
+                              exclude_teams: teams,
+                              include_teams: [],
+                            })
+                          }
+                        }}
+                      />
+
+                      {/* Playoff bypass option */}
+                      <label className="flex items-center gap-2 cursor-pointer py-2">
+                        <Checkbox
+                          checked={formData.bypass_filter_for_playoffs ?? false}
+                          onCheckedChange={(checked) =>
+                            setFormData({
+                              ...formData,
+                              bypass_filter_for_playoffs: checked ? true : null,
+                            })
+                          }
+                        />
+                        <span className="text-sm">
+                          Include all playoff games (bypass team filter for postseason)
+                        </span>
+                      </label>
+                      <p className="text-xs text-muted-foreground -mt-1 ml-6">
+                        Unchecked uses the global default from Settings
+                      </p>
+
+                      <div className="space-y-1 mt-2">
+                        <p className="text-xs text-muted-foreground">
+                          {!(formData.include_teams?.length || formData.exclude_teams?.length)
+                            ? "No teams selected. All events will be matched."
+                            : formData.team_filter_mode === "include"
+                              ? `Only events involving ${formData.include_teams?.length} selected team(s) will be matched.`
+                              : `Events involving ${formData.exclude_teams?.length} selected team(s) will be excluded.`}
+                        </p>
+                        {(formData.include_teams?.length || formData.exclude_teams?.length) ? (
+                          <p className="text-xs text-muted-foreground italic">
+                            Filter only applies to leagues where you've made selections.
+                          </p>
+                        ) : null}
+                      </div>
+                    </>
+                  )}
+                </div>
+          </CollapsibleSection>
 
           {/* Custom Regex */}
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between py-3 rounded-t-lg">
-              <button
-                type="button"
-                onClick={() => setRegexExpanded(!regexExpanded)}
-                className="flex items-center gap-2 cursor-pointer hover:opacity-80"
-              >
-                {regexExpanded ? (
-                  <ChevronDown className="h-4 w-4 text-muted-foreground" />
-                ) : (
-                  <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                )}
-                <CardTitle>Custom Regex</CardTitle>
-              </button>
-            </CardHeader>
-
-            {regexExpanded && (
-              <CardContent className="space-y-6 pt-0">
+          <CollapsibleSection title="Custom Regex" defaultCollapsed persistKey="sources-form.regex">
+              <div className="space-y-6">
                 {/* Pattern Tester - only in edit mode */}
                 {isEdit && (
                   <div className="pb-4 border-b">
@@ -918,294 +1106,11 @@ export function EventGroupForm() {
                     </div>
                   )}
                 </div>
-              </CardContent>
-            )}
-          </Card>
-
-          {/* Subscription Override */}
-          <Card>
-            <button
-              type="button"
-              onClick={() => setSubscriptionOverrideExpanded(!subscriptionOverrideExpanded)}
-              className="w-full"
-            >
-              <CardHeader className="flex flex-row items-center justify-between py-3 cursor-pointer hover:bg-muted/50 rounded-t-lg">
-                <div className="flex items-center gap-2">
-                  {subscriptionOverrideExpanded ? (
-                    <ChevronDown className="h-4 w-4 text-muted-foreground" />
-                  ) : (
-                    <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                  )}
-                  <CardTitle>Subscription Override</CardTitle>
-                  {!subscriptionOverrideExpanded && !useGlobalSubscription && (
-                    <span className="text-xs text-amber-500 font-medium ml-2">Custom</span>
-                  )}
-                </div>
-              </CardHeader>
-            </button>
-
-            {subscriptionOverrideExpanded && (
-              <CardContent className="space-y-4 pt-0">
-                <label className="flex items-center gap-2 mb-2 cursor-pointer">
-                  <Checkbox
-                    checked={useGlobalSubscription}
-                    onCheckedChange={() => {
-                      const newValue = !useGlobalSubscription
-                      setUseGlobalSubscription(newValue)
-                      if (newValue) {
-                        // Revert to global — clear local override state
-                        setOverrideNonSoccerLeagues([])
-                        setOverrideSoccerLeagues([])
-                        setOverrideSoccerMode(null)
-                        setOverrideFollowedTeams([])
-                      } else {
-                        // Entering override mode — seed from global subscription
-                        matchGlobal()
-                      }
-                    }}
-                  />
-                  <span className="text-sm font-normal">
-                    Use global subscription (set on the Subscriptions page)
-                  </span>
-                </label>
-
-                {!useGlobalSubscription && (
-                  <>
-                    <div className="flex items-center justify-between">
-                      <p className="text-sm text-muted-foreground">
-                        Override which leagues this group matches against instead of using the global subscription.
-                      </p>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={matchGlobal}
-                        disabled={matchingGlobal}
-                      >
-                        {matchingGlobal ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : null}
-                        Match Global
-                      </Button>
-                    </div>
-
-                    {/* Non-Soccer Sports */}
-                    <div className="space-y-2">
-                      <Label className="text-sm font-medium">Non-Soccer Sports</Label>
-                      <LeaguePicker
-                        selectedLeagues={overrideNonSoccerLeagues}
-                        onSelectionChange={setOverrideNonSoccerLeagues}
-                        excludeSport="soccer"
-                        maxHeight="max-h-48"
-                        showSearch={true}
-                        showSelectedBadges={true}
-                        maxBadges={8}
-                      />
-                    </div>
-
-                    <div className="border-t" />
-
-                    {/* Soccer */}
-                    <div className="space-y-2">
-                      <Label className="text-sm font-medium">Soccer Leagues</Label>
-                      <SoccerModeSelector
-                        mode={overrideSoccerMode}
-                        onModeChange={setOverrideSoccerMode}
-                        selectedLeagues={overrideSoccerLeagues}
-                        onLeaguesChange={setOverrideSoccerLeagues}
-                        followedTeams={overrideFollowedTeams}
-                        onFollowedTeamsChange={setOverrideFollowedTeams}
-                      />
-                    </div>
-                  </>
-                )}
-              </CardContent>
-            )}
-          </Card>
-
-          {/* Team Filtering */}
-          <Card>
-              <button
-                type="button"
-                onClick={() => setTeamFilterExpanded(!teamFilterExpanded)}
-                className="w-full"
-              >
-                <CardHeader className="flex flex-row items-center justify-between py-3 cursor-pointer hover:bg-muted/50 rounded-t-lg">
-                  <div className="flex items-center gap-2">
-                    {teamFilterExpanded ? (
-                      <ChevronDown className="h-4 w-4 text-muted-foreground" />
-                    ) : (
-                      <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                    )}
-                    <CardTitle>Team Filtering</CardTitle>
-                  </div>
-                </CardHeader>
-              </button>
-
-              {teamFilterExpanded && (
-                <CardContent className="space-y-4 pt-0">
-                  {/* Use default toggle */}
-                  <label className="flex items-center gap-2 mb-2 cursor-pointer">
-                    <Checkbox
-                      checked={useDefaultTeamFilter}
-                      onCheckedChange={() => {
-                        const newValue = !useDefaultTeamFilter
-                        setUseDefaultTeamFilter(newValue)
-                        if (newValue) {
-                          setFormData({
-                            ...formData,
-                            include_teams: null,
-                            exclude_teams: null,
-                          })
-                        } else {
-                          setFormData({
-                            ...formData,
-                            include_teams: [],
-                            exclude_teams: [],
-                          })
-                        }
-                      }}
-                    />
-                    <span className="text-sm font-normal">
-                      Use default team filter (set in Global Defaults above)
-                    </span>
-                  </label>
-
-                  {!useDefaultTeamFilter && (
-                    <>
-                      <p className="text-sm text-muted-foreground">
-                        Configure a custom team filter for this group.
-                      </p>
-
-                      {/* Mode selector */}
-                      <div className="flex gap-4">
-                        <label className="flex items-center gap-2 cursor-pointer">
-                          <input
-                            type="radio"
-                            name="team_filter_mode"
-                            value="include"
-                            checked={formData.team_filter_mode === "include"}
-                            onChange={() => {
-                              // Move teams to include list when switching modes
-                              const teams = formData.exclude_teams || []
-                              setFormData({
-                                ...formData,
-                                team_filter_mode: "include",
-                                include_teams: teams.length > 0 ? teams : formData.include_teams,
-                                exclude_teams: [],
-                              })
-                            }}
-                            className="accent-primary"
-                          />
-                          <span className="text-sm">Include only selected teams</span>
-                        </label>
-                        <label className="flex items-center gap-2 cursor-pointer">
-                          <input
-                            type="radio"
-                            name="team_filter_mode"
-                            value="exclude"
-                            checked={formData.team_filter_mode === "exclude"}
-                            onChange={() => {
-                              // Move teams to exclude list when switching modes
-                              const teams = formData.include_teams || []
-                              setFormData({
-                                ...formData,
-                                team_filter_mode: "exclude",
-                                exclude_teams: teams.length > 0 ? teams : formData.exclude_teams,
-                                include_teams: [],
-                              })
-                            }}
-                            className="accent-primary"
-                          />
-                          <span className="text-sm">Exclude selected teams</span>
-                        </label>
-                      </div>
-
-                      {/* Team picker */}
-                      <TeamPicker
-                        leagues={formData.leagues}
-                        selectedTeams={
-                          formData.team_filter_mode === "include"
-                            ? (formData.include_teams || [])
-                            : (formData.exclude_teams || [])
-                        }
-                        onSelectionChange={(teams) => {
-                          if (formData.team_filter_mode === "include") {
-                            setFormData({
-                              ...formData,
-                              include_teams: teams,
-                              exclude_teams: [],
-                            })
-                          } else {
-                            setFormData({
-                              ...formData,
-                              exclude_teams: teams,
-                              include_teams: [],
-                            })
-                          }
-                        }}
-                      />
-
-                      {/* Playoff bypass option */}
-                      <label className="flex items-center gap-2 cursor-pointer py-2">
-                        <Checkbox
-                          checked={formData.bypass_filter_for_playoffs ?? false}
-                          onCheckedChange={(checked) =>
-                            setFormData({
-                              ...formData,
-                              bypass_filter_for_playoffs: checked ? true : null,
-                            })
-                          }
-                        />
-                        <span className="text-sm">
-                          Include all playoff games (bypass team filter for postseason)
-                        </span>
-                      </label>
-                      <p className="text-xs text-muted-foreground -mt-1 ml-6">
-                        Unchecked uses the global default from Settings
-                      </p>
-
-                      <div className="space-y-1 mt-2">
-                        <p className="text-xs text-muted-foreground">
-                          {!(formData.include_teams?.length || formData.exclude_teams?.length)
-                            ? "No teams selected. All events will be matched."
-                            : formData.team_filter_mode === "include"
-                              ? `Only events involving ${formData.include_teams?.length} selected team(s) will be matched.`
-                              : `Events involving ${formData.exclude_teams?.length} selected team(s) will be excluded.`}
-                        </p>
-                        {(formData.include_teams?.length || formData.exclude_teams?.length) ? (
-                          <p className="text-xs text-muted-foreground italic">
-                            Filter only applies to leagues where you've made selections.
-                          </p>
-                        ) : null}
-                      </div>
-                    </>
-                  )}
-                </CardContent>
-              )}
-          </Card>
+              </div>
+          </CollapsibleSection>
 
           {/* Stream Timezone */}
-          <Card>
-            <CardHeader
-              className="cursor-pointer hover:bg-muted/50 rounded-t-lg"
-              onClick={() => setStreamTimezoneExpanded(!streamTimezoneExpanded)}
-            >
-              <div className="flex items-center gap-2">
-                {streamTimezoneExpanded ? (
-                  <ChevronDown className="h-4 w-4 text-muted-foreground" />
-                ) : (
-                  <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                )}
-                <div>
-                  <CardTitle>Stream Timezone</CardTitle>
-                  {streamTimezoneExpanded && (
-                    <CardDescription>
-                      Timezone used in stream names for date matching
-                    </CardDescription>
-                  )}
-                </div>
-              </div>
-            </CardHeader>
-            {streamTimezoneExpanded && <CardContent>
+          <CollapsibleSection title="Stream Timezone" defaultCollapsed persistKey="sources-form.timezone">
               <StreamTimezoneSelector
                 value={formData.stream_timezone ?? null}
                 onChange={(tz) => setFormData({ ...formData, stream_timezone: tz })}
@@ -1213,8 +1118,7 @@ export function EventGroupForm() {
               <p className="text-xs text-muted-foreground mt-2">
                 Optional. Timezone markers (e.g., "ET", "PT") are auto-detected. Set this only if your provider omits them and uses a different timezone than yours.
               </p>
-            </CardContent>}
-          </Card>
+          </CollapsibleSection>
 
           {/* Actions */}
           <div className="flex justify-end gap-2">
