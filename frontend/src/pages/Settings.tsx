@@ -259,9 +259,6 @@ function BackupRestoreCard() {
               <HardDrive className="h-5 w-5" />
               Backup & Restore
             </CardTitle>
-            <CardDescription>
-              Manage database backups with scheduled automation and restore capabilities
-            </CardDescription>
           </div>
           <Button
             size="sm"
@@ -536,7 +533,7 @@ const TABS: { id: SettingsTab; label: string }[] = [
   { id: "general", label: "General" },
   { id: "dispatcharr", label: "Dispatcharr" },
   { id: "media-servers", label: "Media Servers" },
-  { id: "advanced", label: "System" },
+  { id: "advanced", label: "Advanced" },
 ]
 
 export function Settings() {
@@ -1313,6 +1310,129 @@ export function Settings() {
           </Button>
         </CardContent>
       </Card>
+
+      {/* Update Notifications */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle>Update Notifications</CardTitle>
+            </div>
+            {updateInfoQuery.data?.update_available && (
+              <Badge variant="warning">Update Available</Badge>
+            )}
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {/* Current Version and Update Status */}
+          <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
+            <div>
+              <p className="text-sm font-medium">
+                Current Version: {updateInfoQuery.data?.current_version ?? "Loading..."}
+              </p>
+              {updateInfoQuery.data?.update_available && updateInfoQuery.data?.latest_version && (
+                <p className="text-sm text-muted-foreground">
+                  Latest: {updateInfoQuery.data.latest_version}
+                  {updateInfoQuery.data.build_type === "dev" && " (dev)"}
+                  {updateInfoQuery.data.latest_date && (
+                    <span className="ml-2 text-xs">
+                      ({formatDateTime(updateInfoQuery.data.latest_date)})
+                    </span>
+                  )}
+                </p>
+              )}
+              {!updateInfoQuery.data?.update_available && updateInfoQuery.data?.latest_date && (
+                <p className="text-xs text-muted-foreground">
+                  Released: {formatDateTime(updateInfoQuery.data.latest_date)}
+                </p>
+              )}
+              {updateInfoQuery.data?.checked_at && (
+                <p className="text-xs text-muted-foreground">
+                  Last checked: {formatRelativeTime(updateInfoQuery.data.checked_at)}
+                </p>
+              )}
+            </div>
+            <div className="flex gap-2">
+              {updateInfoQuery.data?.update_available && updateInfoQuery.data?.download_url && (
+                <Button
+                  variant="default"
+                  size="sm"
+                  onClick={() => window.open(updateInfoQuery.data!.download_url!, "_blank")}
+                >
+                  <ExternalLink className="h-4 w-4 mr-1" />
+                  View Update
+                </Button>
+              )}
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => forceCheckUpdates.mutate()}
+                disabled={forceCheckUpdates.isPending}
+              >
+                {forceCheckUpdates.isPending ? (
+                  <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                ) : (
+                  <RefreshCw className="h-4 w-4 mr-1" />
+                )}
+                Check Now
+              </Button>
+            </div>
+          </div>
+
+          {/* Update Check Settings */}
+          <div className="space-y-4 pt-2 border-t">
+            <div className="flex items-center gap-2">
+              <Switch
+                checked={updateCheck.enabled}
+                onCheckedChange={(checked) => setUpdateCheck({ ...updateCheck, enabled: checked })}
+              />
+              <Label>Enable Automatic Update Checks</Label>
+            </div>
+
+            {updateCheck.enabled && (
+              <>
+                <div className="flex items-center gap-4 pl-6">
+                  <div className="flex items-center gap-2">
+                    <Switch
+                      checked={updateCheck.notify_stable}
+                      onCheckedChange={(checked) =>
+                        setUpdateCheck({ ...updateCheck, notify_stable: checked })
+                      }
+                    />
+                    <Label className="text-sm">Notify about stable releases</Label>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Switch
+                      checked={updateCheck.notify_dev}
+                      onCheckedChange={(checked) =>
+                        setUpdateCheck({ ...updateCheck, notify_dev: checked })
+                      }
+                    />
+                    <Label className="text-sm">Notify about dev builds</Label>
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
+
+          <Button
+            onClick={() => {
+              updateUpdateCheck.mutate(updateCheck, {
+                onSuccess: () => toast.success("Update check settings saved"),
+                onError: () => toast.error("Failed to save update check settings"),
+              })
+            }}
+            disabled={updateUpdateCheck.isPending}
+          >
+            {updateUpdateCheck.isPending ? (
+              <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+            ) : (
+              <Save className="h-4 w-4 mr-1" />
+            )}
+            Save
+          </Button>
+        </CardContent>
+      </Card>
       </>
       )}
 
@@ -1858,129 +1978,6 @@ export function Settings() {
         <h2 className="text-lg font-semibold">Advanced</h2>
       </div>
 
-      {/* Update Notifications */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <div>
-              <CardTitle>Update Notifications</CardTitle>
-            </div>
-            {updateInfoQuery.data?.update_available && (
-              <Badge variant="warning">Update Available</Badge>
-            )}
-          </div>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {/* Current Version and Update Status */}
-          <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
-            <div>
-              <p className="text-sm font-medium">
-                Current Version: {updateInfoQuery.data?.current_version ?? "Loading..."}
-              </p>
-              {updateInfoQuery.data?.update_available && updateInfoQuery.data?.latest_version && (
-                <p className="text-sm text-muted-foreground">
-                  Latest: {updateInfoQuery.data.latest_version}
-                  {updateInfoQuery.data.build_type === "dev" && " (dev)"}
-                  {updateInfoQuery.data.latest_date && (
-                    <span className="ml-2 text-xs">
-                      ({formatDateTime(updateInfoQuery.data.latest_date)})
-                    </span>
-                  )}
-                </p>
-              )}
-              {!updateInfoQuery.data?.update_available && updateInfoQuery.data?.latest_date && (
-                <p className="text-xs text-muted-foreground">
-                  Released: {formatDateTime(updateInfoQuery.data.latest_date)}
-                </p>
-              )}
-              {updateInfoQuery.data?.checked_at && (
-                <p className="text-xs text-muted-foreground">
-                  Last checked: {formatRelativeTime(updateInfoQuery.data.checked_at)}
-                </p>
-              )}
-            </div>
-            <div className="flex gap-2">
-              {updateInfoQuery.data?.update_available && updateInfoQuery.data?.download_url && (
-                <Button
-                  variant="default"
-                  size="sm"
-                  onClick={() => window.open(updateInfoQuery.data!.download_url!, "_blank")}
-                >
-                  <ExternalLink className="h-4 w-4 mr-1" />
-                  View Update
-                </Button>
-              )}
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => forceCheckUpdates.mutate()}
-                disabled={forceCheckUpdates.isPending}
-              >
-                {forceCheckUpdates.isPending ? (
-                  <Loader2 className="h-4 w-4 mr-1 animate-spin" />
-                ) : (
-                  <RefreshCw className="h-4 w-4 mr-1" />
-                )}
-                Check Now
-              </Button>
-            </div>
-          </div>
-
-          {/* Update Check Settings */}
-          <div className="space-y-4 pt-2 border-t">
-            <div className="flex items-center gap-2">
-              <Switch
-                checked={updateCheck.enabled}
-                onCheckedChange={(checked) => setUpdateCheck({ ...updateCheck, enabled: checked })}
-              />
-              <Label>Enable Automatic Update Checks</Label>
-            </div>
-
-            {updateCheck.enabled && (
-              <>
-                <div className="flex items-center gap-4 pl-6">
-                  <div className="flex items-center gap-2">
-                    <Switch
-                      checked={updateCheck.notify_stable}
-                      onCheckedChange={(checked) =>
-                        setUpdateCheck({ ...updateCheck, notify_stable: checked })
-                      }
-                    />
-                    <Label className="text-sm">Notify about stable releases</Label>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Switch
-                      checked={updateCheck.notify_dev}
-                      onCheckedChange={(checked) =>
-                        setUpdateCheck({ ...updateCheck, notify_dev: checked })
-                      }
-                    />
-                    <Label className="text-sm">Notify about dev builds</Label>
-                  </div>
-                </div>
-              </>
-            )}
-          </div>
-
-          <Button
-            onClick={() => {
-              updateUpdateCheck.mutate(updateCheck, {
-                onSuccess: () => toast.success("Update check settings saved"),
-                onError: () => toast.error("Failed to save update check settings"),
-              })
-            }}
-            disabled={updateUpdateCheck.isPending}
-          >
-            {updateUpdateCheck.isPending ? (
-              <Loader2 className="h-4 w-4 mr-1 animate-spin" />
-            ) : (
-              <Save className="h-4 w-4 mr-1" />
-            )}
-            Save
-          </Button>
-        </CardContent>
-      </Card>
-
       {/* Backup & Restore */}
       <BackupRestoreCard />
 
@@ -1993,7 +1990,6 @@ export function Settings() {
                 <Database className="h-5 w-5" />
                 Data Caches
               </CardTitle>
-              <CardDescription>Team/league directory and cached game data from providers</CardDescription>
             </div>
             {cacheStatus?.is_stale && (
               <Badge variant="warning">Directory Stale</Badge>
@@ -2004,7 +2000,7 @@ export function Settings() {
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-6 lg:divide-x">
             {/* Team & League Directory Section */}
             <div className="flex flex-col gap-4 lg:pr-6">
-              <h4 className="text-sm font-medium">Team & League Directory</h4>
+              <h4 className="text-sm font-medium text-center">Team & League Directory</h4>
               <div className="grid grid-cols-2 gap-3">
                 <div className="text-center">
                   <div className="text-2xl font-bold">{cacheStatus?.leagues_count ?? 0}</div>
@@ -2047,7 +2043,7 @@ export function Settings() {
 
             {/* Game Data Cache Section */}
             <div className="flex flex-col gap-4 lg:pl-6">
-              <h4 className="text-sm font-medium">Game Data Cache</h4>
+              <h4 className="text-sm font-medium text-center">Game Data Cache</h4>
               <div className="grid grid-cols-2 gap-3">
                 <div className="text-center">
                   <div className="text-2xl font-bold">{gameDataCacheStats?.active_entries ?? 0}</div>
@@ -2085,7 +2081,7 @@ export function Settings() {
 
             {/* Stream Match Cache Section */}
             <div className="flex flex-col gap-4 lg:pl-6">
-              <h4 className="text-sm font-medium">Stream Match Cache</h4>
+              <h4 className="text-sm font-medium text-center">Stream Match Cache</h4>
               <div className="text-center">
                 <div className="text-2xl font-bold">{matchCacheStats?.total_entries ?? 0}</div>
                 <div className="text-xs text-muted-foreground">Cached Matches</div>
@@ -2117,7 +2113,7 @@ export function Settings() {
 
             {/* Run History Cleanup Section */}
             <div className="flex flex-col gap-4 lg:pl-6">
-              <h4 className="text-sm font-medium">Run History</h4>
+              <h4 className="text-sm font-medium text-center">Run History</h4>
               <div className="text-center">
                 <div className="text-xs text-muted-foreground">
                   Processing run logs and statistics
@@ -2155,7 +2151,6 @@ export function Settings() {
       <Card>
         <CardHeader>
           <CardTitle>XMLTV Generator Metadata</CardTitle>
-          <CardDescription>Customize XMLTV output file metadata</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
