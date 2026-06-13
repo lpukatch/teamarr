@@ -402,30 +402,31 @@ export function ManagedChannelsTable() {
         title="Managed Channels"
         icon={<Tv className="h-5 w-5 text-muted-foreground" />}
         persistKey="channels.active"
-        actions={
-          <>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => {
-                refetchReconciliation()
-                setOrphansModalOpen(true)
-              }}
-            >
-              <Search className="h-4 w-4 mr-1" />
-              Find Orphans
-            </Button>
-            <Button
-              variant="destructive"
-              size="sm"
-              onClick={handleOpenResetModal}
-            >
-              <AlertTriangle className="h-4 w-4 mr-1" />
-              Reset All
-            </Button>
-          </>
-        }
       >
+
+      {/* Section actions — live inside the collapsible body so they only show
+          when the section is expanded. */}
+      <div className="flex justify-end gap-2">
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => {
+            refetchReconciliation()
+            setOrphansModalOpen(true)
+          }}
+        >
+          <Search className="h-4 w-4 mr-1" />
+          Find Orphans
+        </Button>
+        <Button
+          variant="destructive"
+          size="sm"
+          onClick={handleOpenResetModal}
+        >
+          <AlertTriangle className="h-4 w-4 mr-1" />
+          Reset All
+        </Button>
+      </div>
 
       {/* Fixed Batch Operations Bar */}
       {selectedIds.size > 0 && (
