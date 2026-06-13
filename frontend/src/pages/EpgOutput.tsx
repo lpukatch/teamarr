@@ -1,4 +1,4 @@
-import { EpgOutputSettings } from "@/components/EpgOutputSettings"
+import { EpgOutputSettings, DefaultDurations } from "@/components/EpgOutputSettings"
 import { XmltvMetadataCard } from "@/components/XmltvMetadataCard"
 
 /**
@@ -14,6 +14,7 @@ export function EpgOutput() {
       <div className="space-y-4 pt-2">
         <EpgOutputSettings />
         <XmltvMetadataCard />
+        <DefaultDurations />
       </div>
     </div>
   )
