@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
 import { Switch } from "@/components/ui/switch"
+import { RadioCards } from "@/components/ui/radio-cards"
 import { SortPriorityManager } from "@/components/SortPriorityManager"
 import { getLeagues, getSports } from "@/api/teams"
 import { getSportDisplayName } from "@/lib/utils"
@@ -127,44 +128,27 @@ export function ChannelNumbering() {
           {/* Numbering Mode Toggle */}
           <div className="space-y-3">
             <Label className="text-sm font-medium">Numbering Mode</Label>
-            <div className="grid grid-cols-2 gap-3">
-              <label className={`flex flex-col p-3 rounded-lg border-2 cursor-pointer transition-colors ${
-                channelNumbering.global_channel_mode === "auto"
-                  ? "border-primary bg-muted/30"
-                  : "border-border hover:border-muted-foreground/50"
-              }`}>
-                <div className="flex items-center gap-2 mb-1">
-                  <input type="radio" name="channel-mode" value="auto"
-                    checked={channelNumbering.global_channel_mode === "auto"}
-                    onChange={() => setChannelNumbering({
-                      ...channelNumbering, global_channel_mode: "auto",
-                    })}
-                    className="accent-primary" />
-                  <span className="font-medium text-sm">Auto</span>
-                </div>
-                <p className="text-xs text-muted-foreground leading-tight ml-5">
-                  Sequential numbering from channel range start. Ordered by sport/league priority.
-                </p>
-              </label>
-              <label className={`flex flex-col p-3 rounded-lg border-2 cursor-pointer transition-colors ${
-                channelNumbering.global_channel_mode === "manual"
-                  ? "border-primary bg-muted/30"
-                  : "border-border hover:border-muted-foreground/50"
-              }`}>
-                <div className="flex items-center gap-2 mb-1">
-                  <input type="radio" name="channel-mode" value="manual"
-                    checked={channelNumbering.global_channel_mode === "manual"}
-                    onChange={() => setChannelNumbering({
-                      ...channelNumbering, global_channel_mode: "manual",
-                    })}
-                    className="accent-primary" />
-                  <span className="font-medium text-sm">Manual</span>
-                </div>
-                <p className="text-xs text-muted-foreground leading-tight ml-5">
-                  Per-league starting channel numbers. Each league gets its own number range.
-                </p>
-              </label>
-            </div>
+            <RadioCards
+              name="channel-mode"
+              value={channelNumbering.global_channel_mode}
+              onChange={(v) =>
+                setChannelNumbering({ ...channelNumbering, global_channel_mode: v })
+              }
+              options={[
+                {
+                  value: "auto",
+                  label: "Auto",
+                  description:
+                    "Sequential numbering from channel range start. Ordered by sport/league priority.",
+                },
+                {
+                  value: "manual",
+                  label: "Manual",
+                  description:
+                    "Per-league starting channel numbers. Each league gets its own number range.",
+                },
+              ]}
+            />
           </div>
 
           {/* Channel Range (both modes) */}

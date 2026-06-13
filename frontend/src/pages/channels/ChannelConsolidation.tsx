@@ -4,6 +4,7 @@ import { Loader2, Save } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Label } from "@/components/ui/label"
+import { RadioCards } from "@/components/ui/radio-cards"
 import { ExceptionKeywordsCard } from "@/components/ExceptionKeywordsCard"
 import { FeedSeparationCard } from "@/components/FeedSeparationCard"
 import {
@@ -48,49 +49,27 @@ export function ChannelConsolidation() {
         <CardContent className="space-y-4">
           <div className="space-y-3">
             <Label className="text-sm font-medium">Default Mode</Label>
-            <div className="grid grid-cols-2 gap-3">
-              <label className={`flex flex-col p-3 rounded-lg border-2 cursor-pointer transition-colors ${
-                channelNumbering.global_consolidation_mode === "consolidate"
-                  ? "border-primary bg-muted/30"
-                  : "border-border hover:border-muted-foreground/50"
-              }`}>
-                <div className="flex items-center gap-2 mb-1">
-                  <input type="radio" name="consolidation-mode"
-                    value="consolidate"
-                    checked={channelNumbering.global_consolidation_mode === "consolidate"}
-                    onChange={() => setChannelNumbering({
-                      ...channelNumbering,
-                      global_consolidation_mode: "consolidate",
-                    })}
-                    className="accent-primary" />
-                  <span className="font-medium text-sm">Consolidate</span>
-                </div>
-                <p className="text-xs text-muted-foreground leading-tight ml-5">
-                  Merge multiple streams for the same event into one channel.
-                  Exception keywords can override per-stream.
-                </p>
-              </label>
-              <label className={`flex flex-col p-3 rounded-lg border-2 cursor-pointer transition-colors ${
-                channelNumbering.global_consolidation_mode === "separate"
-                  ? "border-primary bg-muted/30"
-                  : "border-border hover:border-muted-foreground/50"
-              }`}>
-                <div className="flex items-center gap-2 mb-1">
-                  <input type="radio" name="consolidation-mode"
-                    value="separate"
-                    checked={channelNumbering.global_consolidation_mode === "separate"}
-                    onChange={() => setChannelNumbering({
-                      ...channelNumbering,
-                      global_consolidation_mode: "separate",
-                    })}
-                    className="accent-primary" />
-                  <span className="font-medium text-sm">Separate</span>
-                </div>
-                <p className="text-xs text-muted-foreground leading-tight ml-5">
-                  Each stream gets its own channel. More channels, no merging.
-                </p>
-              </label>
-            </div>
+            <RadioCards
+              name="consolidation-mode"
+              value={channelNumbering.global_consolidation_mode}
+              onChange={(v) =>
+                setChannelNumbering({ ...channelNumbering, global_consolidation_mode: v })
+              }
+              options={[
+                {
+                  value: "consolidate",
+                  label: "Consolidate",
+                  description:
+                    "Merge multiple streams for the same event into one channel. Exception keywords can override per-stream.",
+                },
+                {
+                  value: "separate",
+                  label: "Separate",
+                  description:
+                    "Each stream gets its own channel. More channels, no merging.",
+                },
+              ]}
+            />
           </div>
 
           <Button
