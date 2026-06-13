@@ -17,6 +17,14 @@ import { Badge } from "@/components/ui/badge"
 import { CheckboxListPicker } from "@/components/ui/checkbox-list-picker"
 import type { CheckboxListGroup } from "@/components/ui/checkbox-list-picker"
 import {
+  Table,
+  TableHeader,
+  TableBody,
+  TableRow,
+  TableHead,
+  TableCell,
+} from "@/components/ui/table"
+import {
   useSubscriptionTemplates,
   useCreateSubscriptionTemplate,
   useUpdateSubscriptionTemplate,
@@ -215,20 +223,20 @@ export function TemplateAssignmentManager({
           {/* Assignments table */}
           {assignments.length > 0 ? (
             <div className="border rounded-lg overflow-hidden">
-              <table className="w-full text-sm">
-                <thead className="bg-muted/50">
-                  <tr>
-                    <th className="text-left px-3 py-2 font-medium">Template</th>
-                    <th className="text-left px-3 py-2 font-medium">Filter</th>
-                    <th className="text-left px-3 py-2 font-medium">Specificity</th>
-                    <th className="text-right px-3 py-2 font-medium w-24">Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
+              <Table>
+                <TableHeader className="bg-muted/50">
+                  <TableRow>
+                    <TableHead>Template</TableHead>
+                    <TableHead>Filter</TableHead>
+                    <TableHead>Specificity</TableHead>
+                    <TableHead className="text-right w-24">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
                   {assignments.map((a: SubscriptionTemplate) => (
-                    <tr key={a.id} className="border-t">
-                      <td className="px-3 py-2">{a.template_name || `Template ${a.template_id}`}</td>
-                      <td className="px-3 py-2">
+                    <TableRow key={a.id}>
+                      <TableCell>{a.template_name || `Template ${a.template_id}`}</TableCell>
+                      <TableCell>
                         <div className="flex flex-wrap gap-1">
                           {a.leagues?.map((l: string) => (
                             <Badge key={l} variant="secondary" className="text-xs">
@@ -244,8 +252,8 @@ export function TemplateAssignmentManager({
                             <span className="text-muted-foreground text-xs">All events</span>
                           )}
                         </div>
-                      </td>
-                      <td className="px-3 py-2">
+                      </TableCell>
+                      <TableCell>
                         <Badge
                           variant={
                             getSpecificityLabel(a) === "League"
@@ -258,8 +266,8 @@ export function TemplateAssignmentManager({
                         >
                           {getSpecificityLabel(a)}
                         </Badge>
-                      </td>
-                      <td className="px-3 py-2 text-right">
+                      </TableCell>
+                      <TableCell className="text-right">
                         <div className="flex justify-end gap-1">
                           <Button
                             variant="ghost"
@@ -278,11 +286,11 @@ export function TemplateAssignmentManager({
                             <Trash2 className="h-3.5 w-3.5" />
                           </Button>
                         </div>
-                      </td>
-                    </tr>
+                      </TableCell>
+                    </TableRow>
                   ))}
-                </tbody>
-              </table>
+                </TableBody>
+              </Table>
             </div>
           ) : (
             <div className="text-center py-8 text-muted-foreground text-sm">

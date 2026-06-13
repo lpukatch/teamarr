@@ -6,6 +6,14 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Input } from "@/components/ui/input"
 import { Select } from "@/components/ui/select"
 import {
+  Table,
+  TableHeader,
+  TableBody,
+  TableRow,
+  TableHead,
+  TableCell,
+} from "@/components/ui/table"
+import {
   useExceptionKeywords,
   useCreateExceptionKeyword,
   useDeleteExceptionKeyword,
@@ -90,19 +98,19 @@ export function ExceptionKeywordsCard() {
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="border rounded-md">
-          <table className="w-full text-sm">
-            <thead className="bg-muted">
-              <tr>
-                <th className="px-3 py-2 text-left font-medium w-32">Label</th>
-                <th className="px-3 py-2 text-left font-medium">Match Terms (comma-separated)</th>
-                <th className="px-3 py-2 text-left font-medium w-40">Behavior</th>
-                <th className="px-3 py-2 w-20"></th>
-              </tr>
-            </thead>
-            <tbody>
+          <Table>
+            <TableHeader className="bg-muted">
+              <TableRow>
+                <TableHead className="w-32">Label</TableHead>
+                <TableHead>Match Terms (comma-separated)</TableHead>
+                <TableHead className="w-40">Behavior</TableHead>
+                <TableHead className="w-20"></TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
               {keywordsQuery.data?.keywords.map((kw) => (
-                <tr key={kw.id} className="border-t">
-                  <td className="px-3 py-2">
+                <TableRow key={kw.id}>
+                  <TableCell>
                     {editingKeyword?.id === kw.id ? (
                       <Input
                         value={editingKeyword.label}
@@ -118,8 +126,8 @@ export function ExceptionKeywordsCard() {
                     ) : (
                       <span className="font-medium">{kw.label}</span>
                     )}
-                  </td>
-                  <td className="px-3 py-2">
+                  </TableCell>
+                  <TableCell>
                     {editingKeyword?.id === kw.id ? (
                       <Input
                         value={editingKeyword.match_terms}
@@ -134,8 +142,8 @@ export function ExceptionKeywordsCard() {
                     ) : (
                       <span className="text-muted-foreground">{kw.match_terms}</span>
                     )}
-                  </td>
-                  <td className="px-3 py-2">
+                  </TableCell>
+                  <TableCell>
                     <Select
                       value={kw.behavior}
                       onChange={async (e) => {
@@ -159,8 +167,8 @@ export function ExceptionKeywordsCard() {
                       <option value="separate">Separate</option>
                       <option value="ignore">Ignore</option>
                     </Select>
-                  </td>
-                  <td className="px-3 py-2">
+                  </TableCell>
+                  <TableCell>
                     <div className="flex gap-1">
                       {editingKeyword?.id === kw.id ? (
                         <>
@@ -193,18 +201,18 @@ export function ExceptionKeywordsCard() {
                         </>
                       )}
                     </div>
-                  </td>
-                </tr>
+                  </TableCell>
+                </TableRow>
               ))}
               {(!keywordsQuery.data?.keywords || keywordsQuery.data.keywords.length === 0) && (
-                <tr>
-                  <td colSpan={4} className="px-3 py-4 text-center text-muted-foreground">
+                <TableRow>
+                  <TableCell colSpan={4} className="py-4 text-center text-muted-foreground">
                     No exception keywords defined
-                  </td>
-                </tr>
+                  </TableCell>
+                </TableRow>
               )}
-            </tbody>
-          </table>
+            </TableBody>
+          </Table>
         </div>
 
         <div className="flex gap-2">

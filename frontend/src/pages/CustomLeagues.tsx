@@ -8,6 +8,14 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select } from "@/components/ui/select"
 import {
+  Table,
+  TableHeader,
+  TableBody,
+  TableRow,
+  TableHead,
+  TableCell,
+} from "@/components/ui/table"
+import {
   Dialog,
   DialogContent,
   DialogFooter,
@@ -108,26 +116,26 @@ export function CustomLeaguesManager({
       ) : (
         <Card>
           <CardContent className="p-0">
-            <table className="w-full text-sm">
-              <thead className="border-b text-left text-muted-foreground">
-                <tr>
-                  <th className="px-4 py-2 font-medium">League</th>
-                  <th className="px-4 py-2 font-medium">Code</th>
-                  <th className="px-4 py-2 font-medium">Sport</th>
-                  <th className="px-4 py-2 font-medium">TSDB ID</th>
-                  <th className="px-4 py-2 text-right font-medium">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>League</TableHead>
+                  <TableHead>Code</TableHead>
+                  <TableHead>Sport</TableHead>
+                  <TableHead>TSDB ID</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
                 {leagues.map((league) => (
-                  <tr key={league.league_code} className="border-b last:border-0">
-                    <td className="px-4 py-2 font-medium">{league.display_name}</td>
-                    <td className="px-4 py-2 font-mono text-xs text-muted-foreground">
+                  <TableRow key={league.league_code}>
+                    <TableCell className="font-medium">{league.display_name}</TableCell>
+                    <TableCell className="font-mono text-xs text-muted-foreground">
                       {league.league_code}
-                    </td>
-                    <td className="px-4 py-2">{league.sport}</td>
-                    <td className="px-4 py-2 font-mono text-xs">{league.provider_league_id}</td>
-                    <td className="px-4 py-2">
+                    </TableCell>
+                    <TableCell>{league.sport}</TableCell>
+                    <TableCell className="font-mono text-xs">{league.provider_league_id}</TableCell>
+                    <TableCell>
                       <div className="flex justify-end gap-1">
                         <Button variant="ghost" size="icon" onClick={() => openEdit(league)}>
                           <Pencil className="h-4 w-4" />
@@ -140,11 +148,11 @@ export function CustomLeaguesManager({
                           <Trash2 className="h-4 w-4 text-destructive" />
                         </Button>
                       </div>
-                    </td>
-                  </tr>
+                    </TableCell>
+                  </TableRow>
                 ))}
-              </tbody>
-            </table>
+              </TableBody>
+            </Table>
           </CardContent>
         </Card>
       )}
