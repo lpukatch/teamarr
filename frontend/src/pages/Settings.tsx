@@ -1584,9 +1584,42 @@ export function Settings() {
         </CardContent>
       </Card>
 
-      {/* Default profiles, channel group, and logo cleanup moved to the
-          Channels page (DispatcharrOutputSettings) in the v2.7.0 IA overhaul.
-          Connection Settings + EPG Source stay here. */}
+      {/* Card 3: Logo Cleanup — a Dispatcharr-instance housekeeping behavior, so
+          it lives with the connection/EPG-source config. (Default profiles,
+          channel group, and group mode moved to Channels → Dispatcharr Output in
+          the v2.7.0 IA overhaul; logo cleanup is maintenance, not channel routing.) */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Logo Cleanup</CardTitle>
+          <CardDescription>Remove unused logos from Dispatcharr</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-2">
+            <div className="flex items-center gap-2">
+              <Switch
+                checked={dispatcharr.cleanup_unused_logos ?? false}
+                onCheckedChange={(checked) =>
+                  setDispatcharr({ ...dispatcharr, cleanup_unused_logos: checked })
+                }
+              />
+              <Label>Clean up unused logos after generation</Label>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              When enabled, removes <strong>all</strong> unused logos from Dispatcharr after EPG generation.
+              This affects all unused logos, not just ones uploaded by Teamarr.
+            </p>
+          </div>
+
+          <Button onClick={handleSaveDispatcharr} disabled={updateDispatcharr.isPending}>
+            {updateDispatcharr.isPending ? (
+              <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+            ) : (
+              <Save className="h-4 w-4 mr-1" />
+            )}
+            Save
+          </Button>
+        </CardContent>
+      </Card>
 
       </>
       )}

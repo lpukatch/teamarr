@@ -22,10 +22,12 @@ import {
 import type { DispatcharrSettings } from "@/api/settings"
 
 /**
- * Dispatcharr Output — default channel profiles, stream profile, channel group
- * (+ mode), and logo cleanup. Lifted out of the Settings Dispatcharr tab into
- * the Channels home (v2.7.0 IA); connection/credentials + EPG source stay in
- * Settings. Self-contained via its own hooks.
+ * Dispatcharr Output — default channel profiles, stream profile, and channel
+ * group (+ mode). Lifted out of the Settings Dispatcharr tab into the Channels
+ * home (v2.7.0 IA); connection/credentials, EPG source, and logo cleanup (a
+ * housekeeping behavior, not channel routing) stay in Settings → Dispatcharr.
+ * Self-contained via its own hooks. cleanup_unused_logos is still round-tripped
+ * in the save below so writing channel-output settings never resets it.
  *
  * SAFETY: the save replicates Settings' handleSaveDispatcharr exactly — it sends
  * the FULL Dispatcharr blob (url/username/epg_id loaded fresh from settings +
@@ -301,30 +303,6 @@ export function DispatcharrOutputSettings() {
             </div>
           )}
 
-          <SaveButton />
-        </CardContent>
-      </Card>
-
-      {/* Logo Cleanup */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Logo Cleanup</CardTitle>
-          <CardDescription>Remove unused logos from Dispatcharr</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="space-y-2">
-            <div className="flex items-center gap-2">
-              <Switch
-                checked={dispatcharr.cleanup_unused_logos ?? false}
-                onCheckedChange={(checked) => setDispatcharr({ ...dispatcharr, cleanup_unused_logos: checked })}
-              />
-              <Label>Clean up unused logos after generation</Label>
-            </div>
-            <p className="text-xs text-muted-foreground">
-              When enabled, removes <strong>all</strong> unused logos from Dispatcharr after EPG generation.
-              This affects all unused logos, not just ones uploaded by Teamarr.
-            </p>
-          </div>
           <SaveButton />
         </CardContent>
       </Card>
