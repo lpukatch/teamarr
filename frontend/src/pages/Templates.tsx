@@ -1,10 +1,12 @@
 import { useState, useRef } from "react"
 import { useNavigate } from "react-router-dom"
 import { toast } from "sonner"
-import { Plus, Trash2, Pencil, Loader2, Copy, Download, Upload } from "lucide-react"
+import { Plus, Trash2, Pencil, Loader2, Copy, Download, Upload, Layers } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { StepTabs } from "@/components/StepTabs"
 import { EpgOutputSettings } from "@/components/EpgOutputSettings"
+import { TemplateAssignmentModal } from "@/components/TemplateAssignmentModal"
+import { useSubscription, useSubscriptionTemplates } from "@/hooks/useSubscription"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import {
@@ -38,7 +40,14 @@ export function Templates() {
 
   const [deleteConfirm, setDeleteConfirm] = useState<Template | null>(null)
   const [isImporting, setIsImporting] = useState(false)
+  const [assignmentModalOpen, setAssignmentModalOpen] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
+
+  // Subscribed leagues drive the league options in the assignment modal
+  const { data: subscription } = useSubscription()
+  const { data: assignmentsData } = useSubscriptionTemplates()
+  const subscribedLeagues = subscription?.leagues ?? []
+  const assignmentCount = assignmentsData?.templates?.length ?? 0
 
   const handleDelete = async () => {
     if (!deleteConfirm) return
@@ -218,6 +227,10 @@ export function Templates() {
           <p className="text-sm text-muted-foreground">Configure EPG title and description templates</p>
         </div>
         <div className="flex gap-2">
+          <Button variant="outline" size="sm" onClick={() => setAssignmentModalOpen(true)}>
+            <Layers className="h-4 w-4 mr-1" />
+            Manage Template Assignments ({assignmentCount})
+          </Button>
           <Button variant="outline" size="sm" onClick={handleImportClick} disabled={isImporting}>
             {isImporting ? (
               <Loader2 className="h-4 w-4 mr-1 animate-spin" />
@@ -373,6 +386,13 @@ export function Templates() {
       <div className="pt-2">
         <EpgOutputSettings />
       </div>
+
+      {/* Template Assignment Modal (moved from Subscriptions / Global Defaults) */}
+      <TemplateAssignmentModal
+        open={assignmentModalOpen}
+        onOpenChange={setAssignmentModalOpen}
+        subscribedLeagues={subscribedLeagues}
+      />
 
       {/* Delete Confirmation */}
       <Dialog

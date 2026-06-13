@@ -1,10 +1,11 @@
 /**
  * GlobalDefaults — global sports/league subscription + team filter management.
  *
- * Collapsible card at the top of the Event Groups page. Manages:
+ * Rendered inside the Subscriptions page tile sub-nav. Stays mounted across the
+ * "sportleague" / "soccer" / "teams" tiles so the shared subscription state is
+ * preserved, rendering only the section matching the active tile. Manages:
  * - Non-soccer league selection (via LeaguePicker)
  * - Soccer configuration (via SoccerModeSelector)
- * - Template assignments (via TemplateAssignmentModal)
  * - Default team filter (include/exclude teams, playoff bypass)
  *
  * Explicit Save buttons — league changes trigger EPG regeneration.
@@ -16,30 +17,28 @@ import { toast } from "sonner"
 import {
   Save,
   Loader2,
-  Layers,
-  Trophy,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
+import { Card, CardContent } from "@/components/ui/card"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
 import { LeaguePicker } from "@/components/LeaguePicker"
 import { SoccerModeSelector, type SoccerMode } from "@/components/SoccerModeSelector"
-import { TemplateAssignmentModal } from "@/components/TemplateAssignmentModal"
 import { TeamPicker } from "@/components/TeamPicker"
-import { useSubscription, useUpdateSubscription, useSubscriptionTemplates } from "@/hooks/useSubscription"
+import { useSubscription, useUpdateSubscription } from "@/hooks/useSubscription"
 import { useTeamFilterSettings, useUpdateTeamFilterSettings } from "@/hooks/useSettings"
 import { getLeagues } from "@/api/teams"
 import type { SoccerFollowedTeam } from "@/api/types"
 import type { TeamFilterSettings } from "@/api/settings"
 
-export function GlobalDefaults() {
-  const [templateModalOpen, setTemplateModalOpen] = useState(false)
-
+export function GlobalDefaults({
+  activeTile,
+}: {
+  activeTile: "sportleague" | "soccer" | "teams"
+}) {
   // Fetch subscription state from server
   const { data: subscription, isLoading: subLoading } = useSubscription()
-  const { data: templatesData } = useSubscriptionTemplates()
   const updateMutation = useUpdateSubscription()
 
   // Fetch leagues for sport counting
@@ -99,13 +98,11 @@ export function GlobalDefaults() {
     }
   }, [teamFilterData])
 
-  // Combined leagues for template modal and team picker
+  // Combined leagues for team picker
   const allSubscribedLeagues = useMemo(
     () => [...nonSoccerLeagues, ...soccerLeagues],
     [nonSoccerLeagues, soccerLeagues]
   )
-
-  const templateCount = templatesData?.templates?.length || 0
 
   // Handle non-soccer league change
   const handleNonSoccerChange = useCallback((leagues: string[]) => {
@@ -168,101 +165,89 @@ export function GlobalDefaults() {
     })
   }, [teamFilter, updateTeamFilter])
 
+  if (subLoading || !leaguesData) {
+    return (
+      <Card>
+        <CardContent>
+          <div className="flex items-center justify-center gap-2 py-8 text-muted-foreground">
+            <Loader2 className="h-4 w-4 animate-spin" /> Loading subscriptions…
+          </div>
+        </CardContent>
+      </Card>
+    )
+  }
+
   return (
     <>
-      <Card>
-        <CardHeader>
-          <div className="flex items-center gap-2">
-            <Trophy className="h-4 w-4 text-muted-foreground" />
-            <div className="flex-1">
-              <CardTitle>Global Defaults</CardTitle>
-              <CardDescription>
-                Configure default league subscriptions and team filtering for all event groups
-              </CardDescription>
-            </div>
+      {/* ── Tile: Sport / League ── */}
+      {activeTile === "sportleague" && (
+        <div className="rounded-lg border bg-card p-4 space-y-4">
+          <div className="flex items-center justify-between">
+            <Label className="text-base font-medium">Non-Soccer Sports</Label>
             {hasLocalChanges && (
               <span className="text-xs text-amber-500 font-medium">Unsaved changes</span>
             )}
           </div>
-        </CardHeader>
+          <LeaguePicker
+            selectedLeagues={nonSoccerLeagues}
+            onSelectionChange={handleNonSoccerChange}
+            excludeSport="soccer"
+            maxHeight="max-h-64"
+            showSearch={true}
+            showSelectedBadges={true}
+            maxBadges={10}
+          />
+          <div className="flex justify-end pt-2">
+            <Button
+              onClick={handleSave}
+              disabled={!hasLocalChanges || updateMutation.isPending}
+            >
+              {updateMutation.isPending ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              ) : (
+                <Save className="h-4 w-4 mr-2" />
+              )}
+              Save
+            </Button>
+          </div>
+        </div>
+      )}
 
-        <CardContent className="space-y-4">
-          {subLoading || !leaguesData ? (
-            <div className="flex items-center justify-center gap-2 py-8 text-muted-foreground">
-              <Loader2 className="h-4 w-4 animate-spin" /> Loading subscriptions…
-            </div>
-          ) : (
-          <>
-            {/* ── Section 1: Template Assignments ── */}
-            <div className="rounded-lg border bg-card p-4 space-y-3">
-              <div className="flex items-center justify-between">
-                <div>
-                  <Label className="text-base font-medium">Template Assignments</Label>
-                  <p className="text-sm text-muted-foreground mt-1">
-                    Assign templates by sport or league. More specific matches take priority (league &gt; sport &gt; default).
-                  </p>
-                </div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    setTemplateModalOpen(true)
-                  }}
-                >
-                  <Layers className="h-4 w-4 mr-1" />
-                  Manage ({templateCount})
-                </Button>
-              </div>
-            </div>
+      {/* ── Tile: Soccer ── */}
+      {activeTile === "soccer" && (
+        <div className="rounded-lg border bg-card p-4 space-y-4">
+          <div className="flex items-center justify-between">
+            <Label className="text-base font-medium">Soccer Leagues</Label>
+            {hasLocalChanges && (
+              <span className="text-xs text-amber-500 font-medium">Unsaved changes</span>
+            )}
+          </div>
+          <SoccerModeSelector
+            mode={soccerMode}
+            onModeChange={handleSoccerModeChange}
+            selectedLeagues={soccerLeagues}
+            onLeaguesChange={handleSoccerLeaguesChange}
+            followedTeams={followedTeams}
+            onFollowedTeamsChange={handleFollowedTeamsChange}
+          />
+          <div className="flex justify-end pt-2">
+            <Button
+              onClick={handleSave}
+              disabled={!hasLocalChanges || updateMutation.isPending}
+            >
+              {updateMutation.isPending ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              ) : (
+                <Save className="h-4 w-4 mr-2" />
+              )}
+              Save
+            </Button>
+          </div>
+        </div>
+      )}
 
-            {/* ── Section 2: Sport / League Subscriptions ── */}
-            <div className="rounded-lg border bg-card p-4 space-y-4">
-              <Label className="text-base font-medium">Sport / League Subscriptions</Label>
-
-              <div className="space-y-3">
-                <Label className="text-sm font-medium text-muted-foreground">Non-Soccer Sports</Label>
-                <LeaguePicker
-                  selectedLeagues={nonSoccerLeagues}
-                  onSelectionChange={handleNonSoccerChange}
-                  excludeSport="soccer"
-                  maxHeight="max-h-64"
-                  showSearch={true}
-                  showSelectedBadges={true}
-                  maxBadges={10}
-                />
-              </div>
-
-              <div className="border-t" />
-
-              <div className="space-y-3">
-                <Label className="text-sm font-medium text-muted-foreground">Soccer Leagues</Label>
-                <SoccerModeSelector
-                  mode={soccerMode}
-                  onModeChange={handleSoccerModeChange}
-                  selectedLeagues={soccerLeagues}
-                  onLeaguesChange={handleSoccerLeaguesChange}
-                  followedTeams={followedTeams}
-                  onFollowedTeamsChange={handleFollowedTeamsChange}
-                />
-              </div>
-
-              <div className="flex justify-end pt-2">
-                <Button
-                  onClick={handleSave}
-                  disabled={!hasLocalChanges || updateMutation.isPending}
-                >
-                  {updateMutation.isPending ? (
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  ) : (
-                    <Save className="h-4 w-4 mr-2" />
-                  )}
-                  Save Subscriptions
-                </Button>
-              </div>
-            </div>
-
-            {/* ── Section 3: Default Team Filter ── */}
+      {/* ── Tile: Teams (Default Team Filter) ── */}
+      {activeTile === "teams" && (
             <div className="rounded-lg border bg-card p-4 space-y-4">
               <div className="flex items-center justify-between">
                 <Label className="text-base font-medium">Default Team Filter</Label>
@@ -364,17 +349,7 @@ export function GlobalDefaults() {
                 </Button>
               </div>
             </div>
-          </>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Template Assignment Modal */}
-      <TemplateAssignmentModal
-        open={templateModalOpen}
-        onOpenChange={setTemplateModalOpen}
-        subscribedLeagues={allSubscribedLeagues}
-      />
+      )}
     </>
   )
 }

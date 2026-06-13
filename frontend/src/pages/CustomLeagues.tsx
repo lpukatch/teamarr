@@ -1,8 +1,6 @@
 import { useState } from "react"
-import { useNavigate } from "react-router-dom"
 import { toast } from "sonner"
-import { FlaskConical, Loader2, Lock, Pencil, Plus, Trash2 } from "lucide-react"
-import { StepTabs } from "@/components/StepTabs"
+import { FlaskConical, Loader2, Pencil, Plus, Trash2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -24,7 +22,6 @@ import type {
 } from "@/api/customLeagues"
 import {
   useCreateCustomLeague,
-  useCustomLeagueCapability,
   useCustomLeagues,
   useDeleteCustomLeague,
   useTestCustomLeague,
@@ -43,7 +40,6 @@ interface FormState {
   display_name: string
   sport: string
   event_type: string
-  tsdb_tier: string
   allow_empty: boolean
 }
 
@@ -54,7 +50,6 @@ const EMPTY_FORM: FormState = {
   display_name: "",
   sport: "",
   event_type: "team_vs_team",
-  tsdb_tier: "",
   allow_empty: false,
 }
 
@@ -64,66 +59,7 @@ function errMessage(err: unknown, fallback: string): string {
   return fallback
 }
 
-export function CustomLeagues() {
-  const capabilityQuery = useCustomLeagueCapability()
-  const capability = capabilityQuery.data
-
-  if (capabilityQuery.isLoading) {
-    return (
-      <div className="flex items-center gap-2 p-6 text-muted-foreground">
-        <Loader2 className="h-4 w-4 animate-spin" /> Loading…
-      </div>
-    )
-  }
-
-  return (
-    <div className="space-y-4">
-      <div>
-        <h1 className="text-xl font-bold">Subscriptions</h1>
-        <p className="text-sm text-muted-foreground">
-          Add your own TheSportsDB leagues — no code changes or restart required.
-        </p>
-      </div>
-
-      <StepTabs
-        tabs={[
-          { to: "/subscriptions", label: "Leagues", end: true },
-          { to: "/subscriptions/leagues", label: "Custom Leagues" },
-        ]}
-      />
-
-      {capability && !capability.enabled ? (
-        <PremiumGate />
-      ) : (
-        <CustomLeaguesManager capability={capability} />
-      )}
-    </div>
-  )
-}
-
-function PremiumGate() {
-  const navigate = useNavigate()
-  return (
-    <Card className="border-amber-500/30 bg-amber-500/5">
-      <CardContent className="flex flex-col items-start gap-3 pt-6">
-        <div className="flex items-center gap-2 text-amber-600">
-          <Lock className="h-4 w-4" />
-          <span className="font-medium">Custom Leagues requires a TheSportsDB premium key</span>
-        </div>
-        <p className="text-sm text-muted-foreground">
-          The free TheSportsDB tier is too limited for arbitrary leagues (it returns only a few
-          events per day), so this feature is gated behind a premium key. Add one in Settings to
-          unlock custom leagues.
-        </p>
-        <Button variant="outline" size="sm" onClick={() => navigate("/settings")}>
-          Open Settings
-        </Button>
-      </CardContent>
-    </Card>
-  )
-}
-
-function CustomLeaguesManager({
+export function CustomLeaguesManager({
   capability,
 }: {
   capability: CustomLeagueCapability | undefined
@@ -179,7 +115,6 @@ function CustomLeaguesManager({
                   <th className="px-4 py-2 font-medium">Code</th>
                   <th className="px-4 py-2 font-medium">Sport</th>
                   <th className="px-4 py-2 font-medium">TSDB ID</th>
-                  <th className="px-4 py-2 font-medium">Tier</th>
                   <th className="px-4 py-2 text-right font-medium">Actions</th>
                 </tr>
               </thead>
@@ -192,13 +127,6 @@ function CustomLeaguesManager({
                     </td>
                     <td className="px-4 py-2">{league.sport}</td>
                     <td className="px-4 py-2 font-mono text-xs">{league.provider_league_id}</td>
-                    <td className="px-4 py-2">
-                      {league.tsdb_tier ? (
-                        <Badge variant="secondary">{league.tsdb_tier}</Badge>
-                      ) : (
-                        <span className="text-muted-foreground">—</span>
-                      )}
-                    </td>
                     <td className="px-4 py-2">
                       <div className="flex justify-end gap-1">
                         <Button variant="ghost" size="icon" onClick={() => openEdit(league)}>
@@ -254,7 +182,6 @@ function CustomLeagueDialog({
           display_name: editing.display_name,
           sport: editing.sport,
           event_type: editing.event_type,
-          tsdb_tier: editing.tsdb_tier ?? "",
           allow_empty: false,
         }
       : EMPTY_FORM
@@ -302,7 +229,6 @@ function CustomLeagueDialog({
             display_name: form.display_name.trim(),
             sport: form.sport,
             event_type: form.event_type,
-            tsdb_tier: form.tsdb_tier || null,
           },
         })
         toast.success("Custom league updated")
@@ -314,7 +240,6 @@ function CustomLeagueDialog({
           display_name: form.display_name.trim(),
           sport: form.sport,
           event_type: form.event_type,
-          tsdb_tier: form.tsdb_tier || null,
           allow_empty: form.allow_empty,
         })
         const refresh = result.team_refresh
@@ -390,7 +315,7 @@ function CustomLeagueDialog({
             </div>
           </div>
 
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1">
               <Label>Sport</Label>
               <Select value={form.sport} onChange={(e) => set({ sport: e.target.value })}>
@@ -413,14 +338,6 @@ function CustomLeagueDialog({
                     {t.label}
                   </option>
                 ))}
-              </Select>
-            </div>
-            <div className="space-y-1">
-              <Label>TSDB Tier</Label>
-              <Select value={form.tsdb_tier} onChange={(e) => set({ tsdb_tier: e.target.value })}>
-                <option value="">Unspecified</option>
-                <option value="free">Free</option>
-                <option value="premium">Premium</option>
               </Select>
             </div>
           </div>

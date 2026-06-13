@@ -6,7 +6,6 @@ import { StartupOverlay } from "@/components/StartupOverlay"
 import {
   Dashboard,
   Subscriptions,
-  CustomLeagues,
   DetectionLibrary,
   Templates,
   TemplateForm,
@@ -60,7 +59,7 @@ function AppContent() {
 
             {/* ② Subscriptions (Global Defaults + Custom Leagues) */}
             <Route path="subscriptions" element={<Subscriptions />} />
-            <Route path="subscriptions/leagues" element={<CustomLeagues />} />
+            <Route path="subscriptions/leagues" element={<Redirect to="/subscriptions" />} />
 
             {/* ③ Matching (was Detection Library) */}
             <Route path="matching" element={<DetectionLibrary />} />
