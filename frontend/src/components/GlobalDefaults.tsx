@@ -183,7 +183,7 @@ export function GlobalDefaults({
       {activeTile === "sportleague" && (
         <div className="rounded-lg border bg-card p-4 space-y-4">
           <div className="flex items-center justify-between">
-            <Label className="text-base font-medium">Non-Soccer Sports</Label>
+            <Label className="text-base font-medium">Sports (Non-Soccer)</Label>
             {hasLocalChanges && (
               <span className="text-xs text-amber-500 font-medium">Unsaved changes</span>
             )}
