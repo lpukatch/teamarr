@@ -995,7 +995,6 @@ export function Settings() {
     <div className="space-y-2">
       <div>
         <h1 className="text-xl font-bold">Settings</h1>
-        <p className="text-sm text-muted-foreground">Configure Teamarr application settings</p>
       </div>
 
       {/* Tab Navigation */}
@@ -1029,7 +1028,6 @@ export function Settings() {
       <Card>
         <CardHeader>
           <CardTitle>Time/Localization Settings</CardTitle>
-          <CardDescription>How times are displayed in the UI and written into generated EPG output</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           {/* Explainer: the two timezones */}
@@ -1077,7 +1075,6 @@ export function Settings() {
             <Label className="text-sm font-semibold">Time Formatting</Label>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label>Time Format</Label>
                 <div className="flex gap-2">
                   <Button
                     type="button"
@@ -1101,8 +1098,7 @@ export function Settings() {
                 </p>
               </div>
               <div className="space-y-2">
-                <Label>Timezone Abbreviation</Label>
-                <div className="flex items-center gap-2 pt-1">
+                <div className="flex items-center gap-2">
                   <Switch
                     checked={display?.show_timezone ?? true}
                     onCheckedChange={(checked) =>
@@ -1136,7 +1132,6 @@ export function Settings() {
       <Card>
         <CardHeader>
           <CardTitle>Schedule</CardTitle>
-          <CardDescription>Run EPG generation automatically on a schedule</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="space-y-4">
@@ -1260,7 +1255,10 @@ export function Settings() {
               {display?.tsdb_api_key && display.tsdb_api_key.length > 3 ? "Premium" : "Free Tier"}
             </Badge>
           </div>
-          <CardDescription>Optional premium API key for full event coverage and higher rate limits</CardDescription>
+          <CardDescription>
+            Optional premium key ($9/mo) for full event coverage and higher rate limits (100 vs 30 req/min) — get one at{" "}
+            <a href="https://www.thesportsdb.com/pricing" target="_blank" rel="noopener noreferrer" className="underline">thesportsdb.com/pricing</a>
+          </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="space-y-2">
@@ -1303,10 +1301,6 @@ export function Settings() {
                 {tsdbValidation.message}
               </p>
             )}
-            <p className="text-xs text-muted-foreground">
-              Premium key ($9/mo) unlocks full event coverage for leagues like Svenska Cupen, plus 100 req/min (vs 30 free).
-              Get a key at <a href="https://www.thesportsdb.com/pricing" target="_blank" rel="noopener noreferrer" className="underline">thesportsdb.com/pricing</a>
-            </p>
           </div>
 
           <Button onClick={() => handleSaveDisplay("TSDB API key saved")} disabled={updateDisplay.isPending}>
@@ -1341,7 +1335,6 @@ export function Settings() {
           <div className="flex items-center justify-between">
             <div>
               <CardTitle>Connection Settings</CardTitle>
-              <CardDescription>Server URL and credentials</CardDescription>
             </div>
             <div className="flex items-center gap-2">
               <Button onClick={handleTestConnection} variant="outline" size="sm" disabled={testConnection.isPending}>
@@ -1440,7 +1433,6 @@ export function Settings() {
       <Card>
         <CardHeader>
           <CardTitle>EPG Source</CardTitle>
-          <CardDescription>Link channels to an EPG source in Dispatcharr</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="space-y-2">
@@ -1491,6 +1483,9 @@ export function Settings() {
       <>
       <div className="mb-4">
         <h2 className="text-lg font-semibold">Media Servers</h2>
+        <p className="text-sm text-muted-foreground">
+          Connect media servers to auto-refresh their live TV guides after EPG generation.
+        </p>
       </div>
 
       <Card>
@@ -1498,7 +1493,6 @@ export function Settings() {
           <div className="flex items-center justify-between">
             <div>
               <CardTitle>Emby</CardTitle>
-              <CardDescription>Auto-refresh Live TV guide after EPG generation</CardDescription>
             </div>
             <div className="flex items-center gap-2">
               <Button onClick={handleTestEmby} variant="outline" size="sm" disabled={testEmby.isPending}>
@@ -1600,7 +1594,6 @@ export function Settings() {
           <div className="flex items-center justify-between">
             <div>
               <CardTitle>Jellyfin</CardTitle>
-              <CardDescription>Auto-refresh Live TV guide after EPG generation</CardDescription>
             </div>
             <div className="flex items-center gap-2">
               <Button onClick={handleTestJellyfin} variant="outline" size="sm" disabled={testJellyfin.isPending}>
@@ -1702,7 +1695,6 @@ export function Settings() {
           <div className="flex items-center justify-between">
             <div>
               <CardTitle>Channels DVR</CardTitle>
-              <CardDescription>Auto-refresh an M3U source after EPG generation</CardDescription>
             </div>
             <div className="flex items-center gap-2">
               <Button onClick={handleTestChannelsDVR} variant="outline" size="sm" disabled={testChannelsDVR.isPending}>
@@ -1872,7 +1864,6 @@ export function Settings() {
           <div className="flex items-center justify-between">
             <div>
               <CardTitle>Update Notifications</CardTitle>
-              <CardDescription>Check for new versions of Teamarr</CardDescription>
             </div>
             {updateInfoQuery.data?.update_available && (
               <Badge variant="warning">Update Available</Badge>
