@@ -106,7 +106,6 @@ export function ManagedChannelsTable() {
   const [sportFilter, setSportFilter] = useState<string>("")
   const [leagueFilter, setLeagueFilter] = useState<string>("")
   const [statusFilter, setStatusFilter] = useState<string>("")
-  const [includeDeleted, setIncludeDeleted] = useState(false)
 
   // UI states
   const [deleteConfirm, setDeleteConfirm] = useState<ManagedChannel | null>(null)
@@ -135,7 +134,7 @@ export function ManagedChannelsTable() {
     isLoading,
     error,
     refetch,
-  } = useManagedChannels(undefined, includeDeleted)
+  } = useManagedChannels(undefined, false)
   const { data: pendingData } = usePendingDeletions()
 
   // Fetch all channels including deleted for the Recently Deleted section
@@ -401,6 +400,7 @@ export function ManagedChannelsTable() {
       <CollapsibleSection
         title="Managed Channels"
         icon={<Tv className="h-5 w-5 text-muted-foreground" />}
+        count={`(${channelsData?.channels.length ?? 0})`}
         persistKey="channels.active"
       >
 
@@ -480,25 +480,16 @@ export function ManagedChannelsTable() {
       {/* Channels List */}
       <Card>
         <CardHeader className="pb-2">
-          <div className="flex items-center justify-between">
-            <CardTitle className="flex items-center gap-2">
-              <Tv className="h-5 w-5" />
-              Channels ({filteredChannels.length}
-              {filteredChannels.length !== (channelsData?.channels.length ?? 0) && (
-                <span className="text-muted-foreground font-normal">
-                  {" "}of {channelsData?.channels.length ?? 0}
-                </span>
-              )}
-              )
-            </CardTitle>
-            <label className="flex items-center gap-2 text-sm font-normal cursor-pointer">
-              <Checkbox
-                checked={includeDeleted}
-                onCheckedChange={(checked) => setIncludeDeleted(!!checked)}
-              />
-              <span>Show deleted</span>
-            </label>
-          </div>
+          <CardTitle className="flex items-center gap-2">
+            <Tv className="h-5 w-5" />
+            Channels ({filteredChannels.length}
+            {filteredChannels.length !== (channelsData?.channels.length ?? 0) && (
+              <span className="text-muted-foreground font-normal">
+                {" "}of {channelsData?.channels.length ?? 0}
+              </span>
+            )}
+            )
+          </CardTitle>
         </CardHeader>
         <CardContent>
           {isLoading ? (
