@@ -1,5 +1,5 @@
 import { useState, useMemo, useRef, useCallback } from "react"
-import { Loader2, CheckCircle, AlertTriangle, Search } from "lucide-react"
+import { Loader2, CheckCircle, AlertTriangle, Search, Terminal } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { CollapsibleSection } from "@/components/ui/collapsible-section"
@@ -146,6 +146,7 @@ export function EpgOutput() {
   return (
     <CollapsibleSection
       title="XML Preview"
+      icon={<Terminal className="h-4 w-4 text-muted-foreground" />}
       persistKey="epg-xml-preview"
       count={epgContent ? `${epgContent.total_lines} lines · ${formatBytes(epgContent.size_bytes)}` : undefined}
     >
