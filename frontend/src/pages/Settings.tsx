@@ -129,6 +129,8 @@ function BackupRestoreCard() {
   const restoreFromBackupMutation = useRestoreFromBackup()
   const [deletingFile, setDeletingFile] = useState<string | null>(null)
   const [restoringFile, setRestoringFile] = useState<string | null>(null)
+  // Which backup is selected in the compact file dropdown
+  const [selectedBackup, setSelectedBackup] = useState<string>("")
 
   // File upload restore state
   const [isRestoring, setIsRestoring] = useState(false)
@@ -144,6 +146,19 @@ function BackupRestoreCard() {
       setHasChanges(false)
     }
   }, [settings])
+
+  // Keep the dropdown selection valid: default to the newest backup, and
+  // re-point if the currently selected file was deleted/rotated away.
+  useEffect(() => {
+    const files = backupsData?.backups ?? []
+    if (!files.length) {
+      if (selectedBackup) setSelectedBackup("")
+      return
+    }
+    if (!files.some((b) => b.filename === selectedBackup)) {
+      setSelectedBackup(files[0].filename)
+    }
+  }, [backupsData, selectedBackup])
 
   const handleSaveSettings = async () => {
     try {
@@ -365,115 +380,102 @@ function BackupRestoreCard() {
         </div>
 
         {/* Backup Files Section */}
-        <div className="space-y-4">
+        <div className="space-y-2">
           <h4 className="text-sm font-medium border-b pb-2">Backup Files</h4>
 
           {backupsLoading ? (
-            <div className="flex justify-center py-8">
-              <Loader2 className="h-6 w-6 animate-spin" />
+            <div className="flex justify-center py-3">
+              <Loader2 className="h-5 w-5 animate-spin" />
             </div>
           ) : !backupsData?.backups.length ? (
-            <div className="text-center py-8 text-muted-foreground">
-              <HardDrive className="h-12 w-12 mx-auto mb-2 opacity-20" />
-              <p>No backup files found</p>
-              <p className="text-xs">Create a backup to get started</p>
-            </div>
-          ) : (
-            <div className="border rounded-lg overflow-hidden">
-              <table className="w-full text-sm">
-                <thead className="bg-muted/50">
-                  <tr>
-                    <th className="text-left px-4 py-2 font-medium">Filename</th>
-                    <th className="text-left px-4 py-2 font-medium">Size</th>
-                    <th className="text-left px-4 py-2 font-medium">Created</th>
-                    <th className="text-left px-4 py-2 font-medium">Type</th>
-                    <th className="text-right px-4 py-2 font-medium">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y">
-                  {backupsData.backups.map((backup) => (
-                    <tr key={backup.filename} className="hover:bg-muted/30">
-                      <td className="px-4 py-2 font-mono text-xs">
-                        <div className="flex items-center gap-2">
-                          {backup.is_protected && (
-                            <span title="Protected">
-                              <Shield className="h-4 w-4 text-amber-500" />
-                            </span>
-                          )}
-                          {backup.filename}
-                        </div>
-                      </td>
-                      <td className="px-4 py-2 text-muted-foreground">
-                        {formatBytes(backup.size_bytes)}
-                      </td>
-                      <td className="px-4 py-2 text-muted-foreground">
-                        {formatDate(backup.created_at)}
-                      </td>
-                      <td className="px-4 py-2">
-                        <Badge variant={backup.backup_type === "scheduled" ? "secondary" : "outline"}>
-                          {backup.backup_type}
-                        </Badge>
-                      </td>
-                      <td className="px-4 py-2">
-                        <div className="flex justify-end gap-1">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8"
-                            onClick={() => downloadSpecificBackup(backup.filename)}
-                            title="Download"
-                          >
-                            <Download className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8"
-                            onClick={() => handleRestoreFromFile(backup.filename)}
-                            disabled={restoringFile === backup.filename}
-                            title="Restore"
-                          >
-                            {restoringFile === backup.filename ? (
-                              <Loader2 className="h-4 w-4 animate-spin" />
-                            ) : (
-                              <Upload className="h-4 w-4" />
-                            )}
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8"
-                            onClick={() => handleToggleProtection(backup.filename, backup.is_protected)}
-                            title={backup.is_protected ? "Unprotect" : "Protect"}
-                          >
-                            {backup.is_protected ? (
-                              <ShieldOff className="h-4 w-4" />
-                            ) : (
-                              <Shield className="h-4 w-4" />
-                            )}
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8 text-destructive hover:text-destructive"
-                            onClick={() => handleDelete(backup.filename)}
-                            disabled={deletingFile === backup.filename || backup.is_protected}
-                            title={backup.is_protected ? "Cannot delete protected backup" : "Delete"}
-                          >
-                            {deletingFile === backup.filename ? (
-                              <Loader2 className="h-4 w-4 animate-spin" />
-                            ) : (
-                              <Trash2 className="h-4 w-4" />
-                            )}
-                          </Button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
+            <p className="text-sm text-muted-foreground">
+              No backups yet — use “Create Backup” above.
+            </p>
+          ) : (() => {
+            const selected = backupsData.backups.find((b) => b.filename === selectedBackup)
+            return (
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <Select
+                    value={selectedBackup}
+                    onChange={(e) => setSelectedBackup(e.target.value)}
+                    className="flex-1 font-mono text-xs"
+                  >
+                    {backupsData.backups.map((backup) => (
+                      <option key={backup.filename} value={backup.filename}>
+                        {backup.is_protected ? "🔒 " : ""}{backup.filename} · {formatBytes(backup.size_bytes)} · {formatDate(backup.created_at)}
+                      </option>
+                    ))}
+                  </Select>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-9 w-9 shrink-0"
+                    onClick={() => selected && downloadSpecificBackup(selected.filename)}
+                    disabled={!selected}
+                    title="Download"
+                  >
+                    <Download className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-9 w-9 shrink-0"
+                    onClick={() => selected && handleRestoreFromFile(selected.filename)}
+                    disabled={!selected || restoringFile === selected?.filename}
+                    title="Restore"
+                  >
+                    {restoringFile === selected?.filename ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Upload className="h-4 w-4" />
+                    )}
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-9 w-9 shrink-0"
+                    onClick={() => selected && handleToggleProtection(selected.filename, selected.is_protected)}
+                    disabled={!selected}
+                    title={selected?.is_protected ? "Unprotect" : "Protect"}
+                  >
+                    {selected?.is_protected ? (
+                      <ShieldOff className="h-4 w-4" />
+                    ) : (
+                      <Shield className="h-4 w-4" />
+                    )}
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-9 w-9 shrink-0 text-destructive hover:text-destructive"
+                    onClick={() => selected && handleDelete(selected.filename)}
+                    disabled={!selected || deletingFile === selected?.filename || selected?.is_protected}
+                    title={selected?.is_protected ? "Cannot delete protected backup" : "Delete"}
+                  >
+                    {deletingFile === selected?.filename ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Trash2 className="h-4 w-4" />
+                    )}
+                  </Button>
+                </div>
+                {selected && (
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                    <Badge variant={selected.backup_type === "scheduled" ? "secondary" : "outline"}>
+                      {selected.backup_type}
+                    </Badge>
+                    {selected.is_protected && (
+                      <span className="inline-flex items-center gap-1 text-amber-500">
+                        <Shield className="h-3 w-3" /> Protected
+                      </span>
+                    )}
+                    <span>{backupsData.backups.length} backup{backupsData.backups.length === 1 ? "" : "s"} total</span>
+                  </div>
+                )}
+              </div>
+            )
+          })()}
         </div>
 
         {/* Restore from File Section */}
