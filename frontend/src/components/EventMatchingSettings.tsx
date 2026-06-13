@@ -211,8 +211,11 @@ export function EventLookaheadSetting() {
 
   return (
     <Card>
-      <CardContent className="pt-6 space-y-4">
-        <div className="space-y-2">
+      <CardHeader>
+        <CardTitle className="text-base">Event Lookahead</CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="space-y-2 max-w-xs">
           <Select
             id="event-lookahead"
             value={String(epg?.event_match_days_ahead ?? 3)}
