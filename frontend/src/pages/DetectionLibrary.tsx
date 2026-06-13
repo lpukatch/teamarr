@@ -11,10 +11,12 @@ import {
   ToggleRight,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { EventMatchingSettings } from "@/components/EventMatchingSettings"
+import { EpgMatchingSettings, EventLookaheadSetting } from "@/components/EventMatchingSettings"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Select } from "@/components/ui/select"
 import { Switch } from "@/components/ui/switch"
 import {
   Table,
@@ -53,6 +55,7 @@ import {
 } from "@/api/aliases"
 import { TeamPicker } from "@/components/TeamPicker"
 import { LeaguePicker } from "@/components/LeaguePicker"
+import { SubNav } from "@/components/ui/sub-nav"
 import type { TeamFilterEntry } from "@/api/types"
 
 // Tab types - detection keyword categories plus team_aliases
@@ -119,6 +122,9 @@ function prepareKeyword(category: TabType, raw: string): string {
 }
 
 export function DetectionLibrary() {
+  const [activeView, setActiveView] = useState<
+    "custom_rules" | "epg_matching" | "event_lookahead"
+  >("custom_rules")
   const [activeTab, setActiveTab] = useState<TabType>("team_aliases")
   const [showAddDialog, setShowAddDialog] = useState(false)
   const [editingKeyword, setEditingKeyword] = useState<DetectionKeyword | null>(null)
@@ -435,30 +441,12 @@ export function DetectionLibrary() {
 
   return (
     <div className="space-y-2">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-xl font-bold">Matching</h1>
-          <p className="text-sm text-muted-foreground">
-            Detection patterns and team aliases that classify streams to events
-          </p>
-        </div>
-        <div className="flex gap-2">
-          <Button variant="outline" size="sm" onClick={handleExport}>
-            <Download className="h-4 w-4 mr-1" />
-            Export
-          </Button>
-          <Button variant="outline" size="sm" onClick={handleImportClick} disabled={isImporting}>
-            {isImporting ? (
-              <Loader2 className="h-4 w-4 mr-1 animate-spin" />
-            ) : (
-              <Upload className="h-4 w-4 mr-1" />
-            )}
-            Import
-          </Button>
-          <Button size="sm" onClick={openAddDialog}>
-            <Plus className="h-4 w-4 mr-1" />
-            {activeTab === "team_aliases" ? "Add Alias" : "Add Keyword"}
-          </Button>
+      <div className="flex items-start justify-between gap-4">
+        <h1 className="text-xl font-bold shrink-0">Matching</h1>
+        {/* Custom Regex signpost — compact one-liner beside the heading */}
+        <div className="whitespace-nowrap rounded-md border border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-950 px-3 py-1.5 text-xs text-blue-800 dark:text-blue-200">
+          <span className="font-semibold text-blue-900 dark:text-blue-100">Tip:</span>{" "}
+          per-source <strong>Custom Regex</strong> is your strongest matching lever — set it in Sources.
         </div>
         <input
           ref={fileInputRef}
@@ -469,24 +457,60 @@ export function DetectionLibrary() {
         />
       </div>
 
-      {/* Matching settings (lifted from Settings) */}
-      <EventMatchingSettings />
+      {/* Page-level view nav */}
+      <SubNav
+        items={[
+          { key: "custom_rules", label: "Custom Rules" },
+          { key: "epg_matching", label: "EPG Matching" },
+          { key: "event_lookahead", label: "Event Lookahead" },
+        ]}
+        value={activeView}
+        onChange={(k) =>
+          setActiveView(k as "custom_rules" | "epg_matching" | "event_lookahead")
+        }
+      />
 
-      {/* Tabs */}
-      <div className="flex gap-1 border-b border-border overflow-x-auto">
-        {TAB_ORDER.map((tabId) => (
-          <button
-            key={tabId}
-            onClick={() => setActiveTab(tabId)}
-            className={`px-3 py-1.5 text-sm font-medium rounded-t transition-colors whitespace-nowrap ${
-              activeTab === tabId
-                ? "bg-card text-foreground border border-border border-b-card -mb-px"
-                : "text-muted-foreground hover:text-foreground hover:bg-secondary/50"
-            }`}
-          >
-            {TAB_NAMES[tabId]}
-          </button>
-        ))}
+      {activeView === "epg_matching" && <EpgMatchingSettings />}
+
+      {activeView === "event_lookahead" && <EventLookaheadSetting />}
+
+      {activeView === "custom_rules" && (
+      <>
+      {/* Category selector */}
+      <div className="flex items-center gap-2">
+        <Label htmlFor="detection-category">Category</Label>
+        <Select
+          id="detection-category"
+          className="max-w-xs"
+          value={activeTab}
+          onChange={(e) => setActiveTab(e.target.value as TabType)}
+        >
+          {TAB_ORDER.map((tabId) => (
+            <option key={tabId} value={tabId}>
+              {TAB_NAMES[tabId]}
+            </option>
+          ))}
+        </Select>
+      </div>
+
+      {/* Toolbar (relocated): Add + Import + Export, next to the table */}
+      <div className="flex items-center justify-end gap-2">
+        <Button size="sm" onClick={openAddDialog}>
+          <Plus className="h-4 w-4 mr-1" />
+          {activeTab === "team_aliases" ? "Add Alias" : "Add Keyword"}
+        </Button>
+        <Button variant="outline" size="sm" onClick={handleImportClick} disabled={isImporting}>
+          {isImporting ? (
+            <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+          ) : (
+            <Upload className="h-4 w-4 mr-1" />
+          )}
+          Import
+        </Button>
+        <Button variant="outline" size="sm" onClick={handleExport}>
+          <Download className="h-4 w-4 mr-1" />
+          Export
+        </Button>
       </div>
 
       {/* Tab Description */}
@@ -666,6 +690,8 @@ export function DetectionLibrary() {
           )
         )}
       </div>
+      </>
+      )}
 
       {/* Add Keyword Dialog */}
       <Dialog
