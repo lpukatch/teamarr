@@ -9,6 +9,8 @@ import {
   DetectionLibrary,
   Templates,
   TemplateForm,
+  TemplateAssignments,
+  EpgOutput,
   Teams,
   TeamImport,
   EventGroups,
@@ -64,13 +66,15 @@ function AppContent() {
             {/* ③ Matching (was Detection Library) */}
             <Route path="matching" element={<DetectionLibrary />} />
 
-            {/* ④ EPG — Templates (default) + Team EPG; Output parked pending move to Dashboard */}
+            {/* ④ EPG — Templates (default) + Template Assignments + Team EPG + EPG Output */}
             <Route path="epg" element={<Redirect to="/epg/templates" />} />
             <Route path="epg/templates" element={<Templates />} />
             <Route path="epg/templates/new" element={<TemplateForm />} />
             <Route path="epg/templates/:templateId" element={<TemplateForm />} />
+            <Route path="epg/assignments" element={<TemplateAssignments />} />
             <Route path="epg/teams" element={<Teams />} />
             <Route path="epg/teams/import" element={<TeamImport />} />
+            <Route path="epg/output" element={<EpgOutput />} />
 
             {/* ⑤ Channels */}
             <Route path="channels" element={<Channels />} />

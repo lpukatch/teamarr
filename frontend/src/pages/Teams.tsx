@@ -13,7 +13,7 @@ import {
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
-import { SubNav } from "@/components/ui/sub-nav"
+import { EpgSubNav } from "@/components/EpgSubNav"
 import { TeamEpgSettingsCard } from "@/components/TeamEpgSettingsCard"
 import { Badge } from "@/components/ui/badge"
 import {
@@ -547,12 +547,7 @@ export function Teams() {
 
   return (
     <div className="space-y-2">
-      <SubNav
-        items={[
-          { to: "/epg/templates", label: "Templates" },
-          { to: "/epg/teams", label: "Team EPG" },
-        ].map((t) => ({ key: t.to, label: t.label, to: t.to }))}
-      />
+      <EpgSubNav />
 
       {/* Header - Compact */}
       <div className="flex items-center justify-between">

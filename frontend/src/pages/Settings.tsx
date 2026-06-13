@@ -2140,42 +2140,6 @@ export function Settings() {
         </CardContent>
       </Card>
 
-      {/* XMLTV Generator Metadata */}
-      <Card>
-        <CardHeader>
-          <CardTitle>XMLTV Generator Metadata</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="xmltv-name">XMLTV Generator Name</Label>
-              <Input
-                id="xmltv-name"
-                value={display?.xmltv_generator_name ?? "Teamarr"}
-                onChange={(e) => display && setDisplay({ ...display, xmltv_generator_name: e.target.value })}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="xmltv-url">XMLTV Generator URL</Label>
-              <Input
-                id="xmltv-url"
-                value={display?.xmltv_generator_url ?? "https://github.com/Pharaoh-Labs/teamarr"}
-                onChange={(e) => display && setDisplay({ ...display, xmltv_generator_url: e.target.value })}
-                placeholder="https://github.com/Pharaoh-Labs/teamarr"
-              />
-            </div>
-          </div>
-
-          <Button onClick={() => handleSaveDisplay("XMLTV metadata saved")} disabled={updateDisplay.isPending}>
-            {updateDisplay.isPending ? (
-              <Loader2 className="h-4 w-4 mr-1 animate-spin" />
-            ) : (
-              <Save className="h-4 w-4 mr-1" />
-            )}
-            Save
-          </Button>
-        </CardContent>
-      </Card>
       </>
       )}
 

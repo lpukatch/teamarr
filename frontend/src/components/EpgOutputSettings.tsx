@@ -135,28 +135,38 @@ export function EpgOutputSettings() {
           <CardDescription>Default event durations by sport (in hours)</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="grid grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-6 gap-y-2">
             {durations &&
-              Object.entries(durations).map(([sport, hours]) => (
-                <div key={sport} className="space-y-1">
-                  <Label htmlFor={`duration-${sport}`}>
-                    {getSportDisplayName(sport, sportsMap)}
-                  </Label>
-                  <Input
-                    id={`duration-${sport}`}
-                    type="number"
-                    step="0.5"
-                    min={0.5}
-                    value={hours}
-                    onChange={(e) =>
-                      setDurations({
-                        ...durations,
-                        [sport]: parseFloat(e.target.value) || 3,
-                      })
-                    }
-                  />
-                </div>
-              ))}
+              Object.entries(durations)
+                .sort((a, b) =>
+                  getSportDisplayName(a[0], sportsMap).localeCompare(
+                    getSportDisplayName(b[0], sportsMap)
+                  )
+                )
+                .map(([sport, hours]) => (
+                  <div key={sport} className="flex items-center justify-between gap-3">
+                    <Label htmlFor={`duration-${sport}`} className="text-sm">
+                      {getSportDisplayName(sport, sportsMap)}
+                    </Label>
+                    <div className="flex items-center gap-1.5">
+                      <Input
+                        id={`duration-${sport}`}
+                        className="w-16 h-8"
+                        type="number"
+                        step="0.5"
+                        min={0.5}
+                        value={hours}
+                        onChange={(e) =>
+                          setDurations({
+                            ...durations,
+                            [sport]: parseFloat(e.target.value) || 3,
+                          })
+                        }
+                      />
+                      <span className="text-sm text-muted-foreground">hrs</span>
+                    </div>
+                  </div>
+                ))}
           </div>
 
           <Button onClick={handleSaveDurations} disabled={updateDurations.isPending}>
