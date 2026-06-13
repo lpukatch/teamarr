@@ -1897,28 +1897,48 @@ class EventGroupProcessor:
         """
         import re
 
-        for team in (home_team, away_team):
-            candidates = [team.name]
-            if team.short_name and team.short_name != team.name:
-                candidates.append(team.short_name)
-            if team.abbreviation and len(team.abbreviation) >= 3:
-                candidates.append(team.abbreviation)
+        def _get_candidates(t) -> list[str]:
+            c = [t.name.lower()]
+            if t.short_name and t.short_name.lower() != t.name.lower():
+                c.append(t.short_name.lower())
+            if t.abbreviation and len(t.abbreviation) >= 3:
+                c.append(t.abbreviation.lower())
+            return c
 
+        home_candidates = _get_candidates(home_team)
+        away_candidates = _get_candidates(away_team)
+
+        for team, candidates, other_candidates in [
+            (home_team, home_candidates, away_candidates),
+            (away_team, away_candidates, home_candidates),
+        ]:
             for candidate in candidates:
-                esc = re.escape(candidate.lower())
+                esc = re.escape(candidate)
                 # Team in parentheses: "(Penguins)" or "(Penguins Feed)"
                 if re.search(rf"\(\s*{esc}(?:\s+feed)?\s*\)", stream_name_lower):
                     return team
-                # Feed/broadcast keyword: "Penguins Feed", "Feed: Penguins"
-                if re.search(rf"\b{esc}\s+(?:feed|broadcast)\b", stream_name_lower):
-                    return team
-                if re.search(rf"\b(?:feed|broadcast)[:\s]+{esc}\b", stream_name_lower):
-                    return team
-                # Home/away adjacent: "Penguins Home", "Home Penguins"
-                if re.search(rf"\b{esc}\s+(?:home|away)\b", stream_name_lower):
-                    return team
-                if re.search(rf"\b(?:home|away)\s+{esc}\b", stream_name_lower):
-                    return team
+                
+                patterns = [
+                    rf"\b{esc}\s+(?:feed|broadcast)\b",
+                    rf"\b(?:feed|broadcast)[:\s]+{esc}\b",
+                    rf"\b{esc}\s+(?:home|away)\b",
+                    rf"\b(?:home|away)\s+{esc}\b",
+                ]
+
+                for pattern in patterns:
+                    for match in re.finditer(pattern, stream_name_lower):
+                        remainder = stream_name_lower[match.end():]
+                        
+                        # Check if the opposing team is mentioned *after* the feed keyword match.
+                        # This prevents false positives when a feed keyword merely precedes a matchup 
+                        # string, such as "4K FEED TEAM". 
+                        other_team_after = any(
+                            re.search(rf"\b{re.escape(other)}\b", remainder)
+                            for other in other_candidates
+                        )
+                        
+                        if not other_team_after:
+                            return team
 
         return None
 
