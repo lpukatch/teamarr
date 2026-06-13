@@ -4,7 +4,6 @@ import { toast } from "sonner"
 import { Loader2, Save } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { CollapsibleSection } from "@/components/ui/collapsible-section"
 import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
 import {
@@ -106,9 +105,8 @@ export function EpgOutputSettings() {
 }
 
 /**
- * Default per-sport event durations. Advanced/rarely-touched config, so it's a
- * CollapsibleSection (collapsed by default) and lives at the bottom of the EPG
- * Output page. Uses the standard full-width table styling.
+ * Default per-sport event durations. Lives at the bottom of the EPG Output page.
+ * Uses the standard full-width table styling.
  */
 export function DefaultDurations() {
   const { data: durationsData } = useDurationSettings()
@@ -137,63 +135,64 @@ export function DefaultDurations() {
   }
 
   return (
-    <CollapsibleSection title="Default Durations" persistKey="epg.default-durations">
-      <p className="text-sm text-muted-foreground mb-3">
-        Default event durations by sport, in hours.
-      </p>
-      <div className="border border-border rounded-lg overflow-hidden">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Sport</TableHead>
-              <TableHead className="text-right">Hours</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {durations &&
-              Object.entries(durations)
-                .sort((a, b) =>
-                  getSportDisplayName(a[0], sportsMap).localeCompare(
-                    getSportDisplayName(b[0], sportsMap)
+    <Card>
+      <CardHeader>
+        <CardTitle>Default Durations</CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <p className="text-sm text-muted-foreground">
+          Default event durations by sport, in hours.
+        </p>
+        <div className="border border-border rounded-lg overflow-hidden">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Sport</TableHead>
+                <TableHead className="text-right">Hours</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {durations &&
+                Object.entries(durations)
+                  .sort((a, b) =>
+                    getSportDisplayName(a[0], sportsMap).localeCompare(
+                      getSportDisplayName(b[0], sportsMap)
+                    )
                   )
-                )
-                .map(([sport, hours]) => (
-                  <TableRow key={sport}>
-                    <TableCell>{getSportDisplayName(sport, sportsMap)}</TableCell>
-                    <TableCell className="text-right">
-                      <Input
-                        id={`duration-${sport}`}
-                        className="w-20 h-8 ml-auto"
-                        type="number"
-                        step="0.5"
-                        min={0.5}
-                        value={hours}
-                        onChange={(e) =>
-                          setDurations({
-                            ...durations,
-                            [sport]: parseFloat(e.target.value) || 3,
-                          })
-                        }
-                      />
-                    </TableCell>
-                  </TableRow>
-                ))}
-          </TableBody>
-        </Table>
-      </div>
+                  .map(([sport, hours]) => (
+                    <TableRow key={sport}>
+                      <TableCell>{getSportDisplayName(sport, sportsMap)}</TableCell>
+                      <TableCell className="text-right">
+                        <Input
+                          id={`duration-${sport}`}
+                          className="w-20 h-8 ml-auto"
+                          type="number"
+                          step="0.5"
+                          min={0.5}
+                          value={hours}
+                          onChange={(e) =>
+                            setDurations({
+                              ...durations,
+                              [sport]: parseFloat(e.target.value) || 3,
+                            })
+                          }
+                        />
+                      </TableCell>
+                    </TableRow>
+                  ))}
+            </TableBody>
+          </Table>
+        </div>
 
-      <Button
-        className="mt-3"
-        onClick={handleSaveDurations}
-        disabled={updateDurations.isPending}
-      >
-        {updateDurations.isPending ? (
-          <Loader2 className="h-4 w-4 mr-1 animate-spin" />
-        ) : (
-          <Save className="h-4 w-4 mr-1" />
-        )}
-        Save
-      </Button>
-    </CollapsibleSection>
+        <Button onClick={handleSaveDurations} disabled={updateDurations.isPending}>
+          {updateDurations.isPending ? (
+            <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+          ) : (
+            <Save className="h-4 w-4 mr-1" />
+          )}
+          Save
+        </Button>
+      </CardContent>
+    </Card>
   )
 }
