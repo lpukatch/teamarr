@@ -3,6 +3,7 @@ import { Loader2, CheckCircle, AlertTriangle, Search, Terminal } from "lucide-re
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { CollapsibleSection } from "@/components/ui/collapsible-section"
+import { Alert } from "@/components/ui/alert"
 import { useEPGAnalysis, useEPGContent } from "@/hooks/useEPG"
 
 function formatBytes(bytes: number | undefined | null): string {
@@ -157,12 +158,12 @@ export function EpgOutput() {
             <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
           </div>
         ) : analysis && hasIssues ? (
-          <div className="border border-yellow-500/30 bg-yellow-500/10 rounded-lg p-3 space-y-2">
-            <div className="flex items-center gap-2 text-yellow-600 font-medium text-sm">
-              <AlertTriangle className="h-4 w-4" />
-              Detected Issues
-            </div>
-
+          <Alert
+            variant="warning"
+            className="space-y-2"
+            icon={<AlertTriangle className="h-4 w-4" />}
+            title="Detected Issues"
+          >
             {analysis.unreplaced_variables.length > 0 && (
               <div>
                 <div className="text-xs font-medium mb-1">
@@ -221,17 +222,17 @@ export function EpgOutput() {
                 </div>
               </div>
             )}
-          </div>
+          </Alert>
         ) : analysis ? (
-          <div className="border border-green-500/30 bg-green-500/10 rounded-lg p-3">
-            <div className="flex items-center gap-2 text-green-600 font-medium text-sm">
-              <CheckCircle className="h-4 w-4" />
-              No Issues Detected
-            </div>
-            <p className="text-xs text-muted-foreground mt-1">
+          <Alert
+            variant="success"
+            icon={<CheckCircle className="h-4 w-4" />}
+            title="No Issues Detected"
+          >
+            <p className="text-xs text-muted-foreground">
               All template variables resolved and no coverage gaps found.
             </p>
-          </div>
+          </Alert>
         ) : null}
 
         {/* XML content */}

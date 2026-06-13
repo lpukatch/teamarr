@@ -3,6 +3,7 @@ import { useNavigate, useParams } from "react-router-dom"
 import { toast } from "sonner"
 import { ArrowLeft, Loader2, ChevronDown, Search, X, BookOpen, Download, Upload, Trash2, ChevronRight, AlertTriangle } from "lucide-react"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
+import { Alert } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { SaveButton } from "@/components/ui/save-button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -2435,9 +2436,9 @@ function XmltvTab({ formData, setFormData }: TabProps) {
           </p>
         </CardHeader>
         <CardContent className="space-y-3">
-          <div className="bg-amber-500/10 border border-amber-500/20 rounded-md p-3 text-xs text-amber-600 dark:text-amber-400">
+          <Alert variant="warning" className="text-xs">
             <strong>Note:</strong> Teamarr does not detect actual stream resolution. This setting will apply to <strong>all</strong> channels using this template, regardless of their actual quality.
-          </div>
+          </Alert>
           <label className="flex items-center gap-2 cursor-pointer">
             <Checkbox
               checked={formData.xmltv_video?.enabled || false}

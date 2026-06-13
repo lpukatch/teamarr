@@ -17,6 +17,7 @@ import {
   ArrowUpDown,
   RotateCcw,
 } from "lucide-react"
+import { Alert } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -1194,11 +1195,11 @@ export function EventGroups() {
 
               {/* Errors */}
               {previewData.errors.length > 0 && (
-                <div className="p-3 bg-destructive/10 border border-destructive/20 rounded-lg text-sm text-destructive">
+                <Alert variant="destructive">
                   {previewData.errors.map((err, i) => (
                     <div key={i}>{err}</div>
                   ))}
-                </div>
+                </Alert>
               )}
 
               {/* Stream table */}

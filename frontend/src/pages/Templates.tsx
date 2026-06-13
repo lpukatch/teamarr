@@ -2,6 +2,7 @@ import { useState, useRef } from "react"
 import { useNavigate } from "react-router-dom"
 import { toast } from "sonner"
 import { Plus, Trash2, Pencil, Loader2, Copy, Download, Upload } from "lucide-react"
+import { Alert } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -393,15 +394,14 @@ export function Templates() {
             (deleteConfirm.template_type === "team" && deleteConfirm.team_count && deleteConfirm.team_count > 0) ||
             (deleteConfirm.template_type === "event" && deleteConfirm.global_assignments && deleteConfirm.global_assignments.length > 0)
           ) && (
-            <div className="bg-destructive/10 border border-destructive/20 rounded-md p-3 text-sm">
-              <p className="font-medium text-destructive">Warning</p>
-              <p className="text-muted-foreground mt-1">
+            <Alert variant="destructive" title="Warning">
+              <p className="text-muted-foreground">
                 {deleteConfirm.template_type === "team"
                   ? `${deleteConfirm.team_count} team${deleteConfirm.team_count !== 1 ? "s are" : " is"} currently using this template. They will become unassigned and won't generate EPG data until you assign them a new template.`
                   : "This template has global assignments. Deleting it will remove those assignments and affected event groups won't generate EPG data until you assign a new template."
                 }
               </p>
-            </div>
+            </Alert>
           )}
 
           <DialogFooter>

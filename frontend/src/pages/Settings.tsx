@@ -23,6 +23,7 @@ import {
   apiToProfileIds,
 } from "@/components/ChannelProfileSelector"
 import { useGenerationProgress } from "@/contexts/GenerationContext"
+import { Alert } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { SaveButton } from "@/components/ui/save-button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -507,18 +508,16 @@ function BackupRestoreCard() {
         </div>
 
         {/* Warning */}
-        <div className="rounded-md bg-amber-500/10 border border-amber-500/20 p-3">
-          <div className="flex gap-2">
-            <AlertTriangle className="h-4 w-4 text-amber-500 shrink-0 mt-0.5" />
-            <div className="text-sm text-amber-500">
-              <p className="font-medium">Important</p>
-              <p className="text-xs">
-                Restoring a backup will replace ALL current data. The application needs to be restarted for changes to take effect.
-                Protected backups (<Shield className="h-3 w-3 inline" />) are excluded from automatic rotation.
-              </p>
-            </div>
-          </div>
-        </div>
+        <Alert
+          variant="warning"
+          icon={<AlertTriangle className="h-4 w-4 text-amber-500" />}
+          title="Important"
+        >
+          <p className="text-xs">
+            Restoring a backup will replace ALL current data. The application needs to be restarted for changes to take effect.
+            Protected backups (<Shield className="h-3 w-3 inline" />) are excluded from automatic rotation.
+          </p>
+        </Alert>
       </CardContent>
     </Card>
   )
@@ -1017,16 +1016,15 @@ export function Settings() {
         </CardHeader>
         <CardContent className="space-y-4">
           {/* Explainer: the two timezones */}
-          <div className="p-3 bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-md text-sm">
-            <p className="font-medium text-blue-900 dark:text-blue-100">Teamarr uses two timezones</p>
-            <ul className="list-disc list-inside mt-1 space-y-0.5 text-blue-800 dark:text-blue-200">
+          <Alert variant="info" title="Teamarr uses two timezones">
+            <ul className="list-disc list-inside space-y-0.5">
               <li><strong>UI Display</strong> — how times appear in this interface. Set by the <code>TZ</code> environment variable.</li>
               <li><strong>EPG Output</strong> — the timezone written into generated EPG/XMLTV and template variables like {"{game_time}"}.</li>
             </ul>
-            <p className="mt-1 text-blue-800 dark:text-blue-200">
+            <p className="mt-1">
               These can differ — e.g. browse in your local time while your media server expects EPG in its own timezone.
             </p>
-          </div>
+          </Alert>
 
           {/* Subsection: Timezones (side by side) */}
           <div className="grid grid-cols-2 gap-4">
@@ -1447,13 +1445,13 @@ export function Settings() {
         <CardContent className="space-y-4">
           {/* Connection error banner */}
           {dispatcharrStatus.data?.configured && dispatcharrStatus.data?.error && (
-            <div className="flex items-start gap-2 p-3 bg-destructive/10 border border-destructive/20 rounded-lg">
-              <AlertTriangle className="h-4 w-4 text-destructive mt-0.5 shrink-0" />
-              <div className="text-sm">
-                <p className="font-medium text-destructive">Connection Failed</p>
-                <p className="text-muted-foreground">{dispatcharrStatus.data.error}</p>
-              </div>
-            </div>
+            <Alert
+              variant="destructive"
+              icon={<AlertTriangle className="h-4 w-4 text-destructive" />}
+              title="Connection Failed"
+            >
+              <p className="text-muted-foreground">{dispatcharrStatus.data.error}</p>
+            </Alert>
           )}
 
           {/* Enable */}

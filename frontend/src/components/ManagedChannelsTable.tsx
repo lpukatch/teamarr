@@ -1,6 +1,7 @@
 import { useState, useMemo } from "react"
 import { toast } from "sonner"
 import { CollapsibleSection } from "@/components/ui/collapsible-section"
+import { Alert } from "@/components/ui/alert"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
 import {
   Trash2,
@@ -926,17 +927,14 @@ export function ManagedChannelsTable() {
               </div>
             ) : (
               <div className="space-y-4">
-                <div className="rounded-lg border border-destructive/50 bg-destructive/10 p-4">
-                  <p className="text-sm font-medium text-destructive">
-                    ⚠️ Warning: Destructive Action
-                  </p>
-                  <p className="text-sm text-muted-foreground mt-1">
+                <Alert variant="destructive" title="⚠️ Warning: Destructive Action">
+                  <p className="text-sm text-muted-foreground">
                     This will permanently delete {resetChannels.length} channel
                     {resetChannels.length > 1 ? "s" : ""} from Dispatcharr that have{" "}
                     <code className="text-xs bg-muted px-1 py-0.5 rounded">teamarr-event-*</code>{" "}
                     tvg_id.
                   </p>
-                </div>
+                </Alert>
                 <div className="max-h-[40vh] overflow-y-auto">
                   <Table>
                     <TableHeader>
