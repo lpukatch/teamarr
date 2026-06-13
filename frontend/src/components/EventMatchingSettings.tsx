@@ -68,9 +68,8 @@ export function EpgMatchingSettings() {
         </CardHeader>
         <CardContent className="space-y-3">
           <p className="text-sm text-muted-foreground">
-            When a channel has no usable Dispatcharr guide, fetch the Xtream (XC) provider's
-            own EPG and match against it — covers channels Dispatcharr can't (e.g. regional
-            sports networks).
+            As a backup, fetch the Xtream (XC) provider's own EPG and match against it —
+            covers streams that don't already belong to a Dispatcharr channel.
           </p>
           {epg?.epg_xtream_fallback_enabled && (
             <div className="max-w-xs">
