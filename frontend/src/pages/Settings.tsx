@@ -530,11 +530,10 @@ function BackupRestoreCard() {
 
 // Per-League Config Row Component
 
-type SettingsTab = "general" | "teams" | "events" | "channels" | "epg" | "dispatcharr" | "media-servers" | "advanced"
+type SettingsTab = "general" | "teams" | "events" | "channels" | "dispatcharr" | "media-servers" | "advanced"
 
 const TABS: { id: SettingsTab; label: string }[] = [
   { id: "general", label: "General" },
-  { id: "epg", label: "EPG" },
   { id: "dispatcharr", label: "Dispatcharr" },
   { id: "media-servers", label: "Media Servers" },
   { id: "advanced", label: "System" },
@@ -1024,44 +1023,59 @@ export function Settings() {
       <>
       <div className="mb-4">
         <h2 className="text-lg font-semibold">General Settings</h2>
-        <p className="text-sm text-muted-foreground">Configure timezone, time format, and display preferences</p>
       </div>
+
+      {/* Tile 1: Time/Localization Settings */}
       <Card>
         <CardHeader>
-          <CardTitle>Display Settings</CardTitle>
+          <CardTitle>Time/Localization Settings</CardTitle>
+          <CardDescription>How times are displayed in the UI and written into generated EPG output</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
-            {/* Left column: Timezones */}
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="ui-timezone">UI Display Timezone</Label>
-                <Input
-                  id="ui-timezone"
-                  value={settings?.ui_timezone ?? "America/New_York"}
-                  disabled
-                  readOnly
-                  className="bg-muted cursor-not-allowed"
-                />
-                <p className="text-xs text-muted-foreground">
-                  This can be changed by setting the TZ environment variable
-                </p>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="epg-timezone">EPG Output Timezone</Label>
-                <Input
-                  id="epg-timezone"
-                  value={epg?.epg_timezone ?? "America/New_York"}
-                  onChange={(e) => epg && setEPG({ ...epg, epg_timezone: e.target.value })}
-                />
-                <p className="text-xs text-muted-foreground">
-                  Used for template variables like {"{game_time}"}
-                </p>
-              </div>
-            </div>
+          {/* Explainer: the two timezones */}
+          <div className="p-3 bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-md text-sm">
+            <p className="font-medium text-blue-900 dark:text-blue-100">Teamarr uses two timezones</p>
+            <ul className="list-disc list-inside mt-1 space-y-0.5 text-blue-800 dark:text-blue-200">
+              <li><strong>UI Display</strong> — how times appear in this interface. Set by the <code>TZ</code> environment variable.</li>
+              <li><strong>EPG Output</strong> — the timezone written into generated EPG/XMLTV and template variables like {"{game_time}"}.</li>
+            </ul>
+            <p className="mt-1 text-blue-800 dark:text-blue-200">
+              These can differ — e.g. browse in your local time while your media server expects EPG in its own timezone.
+            </p>
+          </div>
 
-            {/* Right column: Time Format and Show Timezone */}
-            <div className="space-y-4">
+          {/* Subsection: Timezones (side by side) */}
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="ui-timezone" className="text-sm font-semibold">UI Display Timezone</Label>
+              <Input
+                id="ui-timezone"
+                value={settings?.ui_timezone ?? "America/New_York"}
+                disabled
+                readOnly
+                className="bg-muted cursor-not-allowed"
+              />
+              <p className="text-xs text-muted-foreground">
+                This can be changed by setting the TZ environment variable
+              </p>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="epg-timezone" className="text-sm font-semibold">EPG Output Timezone</Label>
+              <Input
+                id="epg-timezone"
+                value={epg?.epg_timezone ?? "America/New_York"}
+                onChange={(e) => epg && setEPG({ ...epg, epg_timezone: e.target.value })}
+              />
+              <p className="text-xs text-muted-foreground">
+                Used for template variables like {"{game_time}"}
+              </p>
+            </div>
+          </div>
+
+          {/* Subsection: Time Formatting (side by side) */}
+          <div className="space-y-3">
+            <Label className="text-sm font-semibold">Time Formatting</Label>
+            <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Time Format</Label>
                 <div className="flex gap-2">
@@ -1087,14 +1101,15 @@ export function Settings() {
                 </p>
               </div>
               <div className="space-y-2">
-                <div className="flex items-center gap-2">
+                <Label>Timezone Abbreviation</Label>
+                <div className="flex items-center gap-2 pt-1">
                   <Switch
                     checked={display?.show_timezone ?? true}
                     onCheckedChange={(checked) =>
                       display && setDisplay({ ...display, show_timezone: checked })
                     }
                   />
-                  <Label>Show Timezone Abbreviation</Label>
+                  <Label className="font-normal">Show Timezone Abbreviation</Label>
                 </div>
                 <p className="text-xs text-muted-foreground">
                   Applies to UI display and EPG output
@@ -1102,18 +1117,6 @@ export function Settings() {
               </div>
             </div>
           </div>
-
-          {/* Info box when timezones differ */}
-          {settings?.ui_timezone_source === "env" &&
-           settings?.ui_timezone !== epg?.epg_timezone && (
-            <div className="p-3 bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-md text-sm">
-              <p className="font-medium text-blue-900 dark:text-blue-100">Two timezones configured:</p>
-              <ul className="list-disc list-inside mt-1 text-blue-800 dark:text-blue-200">
-                <li><strong>UI Display</strong>: {settings.ui_timezone} (from $TZ)</li>
-                <li><strong>EPG Output</strong>: {epg?.epg_timezone} (user setting)</li>
-              </ul>
-            </div>
-          )}
 
           <Button
             onClick={handleSaveEPGAndDisplay}
@@ -1128,25 +1131,11 @@ export function Settings() {
           </Button>
         </CardContent>
       </Card>
-      </>
-      )}
 
-      {/* Teams Tab */}
-
-      {/* Event Groups Tab */}
-
-      {/* Channel Management Tab */}
-
-      {/* EPG Generation Tab */}
-      {activeTab === "epg" && (
-      <>
-      <div className="mb-4">
-        <h2 className="text-lg font-semibold">EPG Generation</h2>
-        <p className="text-sm text-muted-foreground">Configure EPG output, scheduling, and game durations</p>
-      </div>
+      {/* Tile 2: Schedule */}
       <Card>
         <CardHeader>
-          <CardTitle>Scheduled Generation</CardTitle>
+          <CardTitle>Schedule</CardTitle>
           <CardDescription>Run EPG generation automatically on a schedule</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -1262,18 +1251,89 @@ export function Settings() {
         </CardContent>
       </Card>
 
-      {/* Scheduled Channel Reset moved to the Media Servers tab
-          (ScheduledChannelResetCard) in the v2.7.0 IA overhaul — it's a
-          media-server guide-refresh workaround, not an EPG-generation setting. */}
+      {/* Tile 3: TheSportsDB API Key */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <CardTitle>TheSportsDB API Key</CardTitle>
+            <Badge variant={display?.tsdb_api_key && display.tsdb_api_key.length > 3 ? "default" : "secondary"} className="text-xs">
+              {display?.tsdb_api_key && display.tsdb_api_key.length > 3 ? "Premium" : "Free Tier"}
+            </Badge>
+          </div>
+          <CardDescription>Optional premium API key for full event coverage and higher rate limits</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="tsdb-api-key">API Key</Label>
+            <div className="flex gap-2">
+              <Input
+                id="tsdb-api-key"
+                type="password"
+                value={display?.tsdb_api_key ?? ""}
+                onChange={(e) => {
+                  display && setDisplay({ ...display, tsdb_api_key: e.target.value })
+                  setTsdbValidation(null)
+                }}
+                placeholder="Leave blank to use free tier"
+                className="flex-1"
+              />
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={tsdbValidating || !display?.tsdb_api_key}
+                onClick={async () => {
+                  if (!display?.tsdb_api_key) return
+                  setTsdbValidating(true)
+                  setTsdbValidation(null)
+                  try {
+                    const result = await validateTSDBKey(display.tsdb_api_key)
+                    setTsdbValidation(result)
+                  } catch {
+                    setTsdbValidation({ valid: false, is_premium: false, message: "Connection error" })
+                  } finally {
+                    setTsdbValidating(false)
+                  }
+                }}
+              >
+                {tsdbValidating ? <Loader2 className="h-4 w-4 animate-spin" /> : "Validate"}
+              </Button>
+            </div>
+            {tsdbValidation && (
+              <p className={`text-xs ${tsdbValidation.valid ? (tsdbValidation.is_premium ? "text-green-500" : "text-yellow-500") : "text-red-500"}`}>
+                {tsdbValidation.message}
+              </p>
+            )}
+            <p className="text-xs text-muted-foreground">
+              Premium key ($9/mo) unlocks full event coverage for leagues like Svenska Cupen, plus 100 req/min (vs 30 free).
+              Get a key at <a href="https://www.thesportsdb.com/pricing" target="_blank" rel="noopener noreferrer" className="underline">thesportsdb.com/pricing</a>
+            </p>
+          </div>
+
+          <Button onClick={() => handleSaveDisplay("TSDB API key saved")} disabled={updateDisplay.isPending}>
+            {updateDisplay.isPending ? (
+              <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+            ) : (
+              <Save className="h-4 w-4 mr-1" />
+            )}
+            Save
+          </Button>
+        </CardContent>
+      </Card>
       </>
       )}
+
+      {/* Teams Tab */}
+
+      {/* Event Groups Tab */}
+
+      {/* Channel Management Tab */}
+
 
       {/* Dispatcharr Tab */}
       {activeTab === "dispatcharr" && (
       <>
       <div className="mb-4">
         <h2 className="text-lg font-semibold">Dispatcharr Integration</h2>
-        <p className="text-sm text-muted-foreground">Configure connection to Dispatcharr for channel management</p>
       </div>
       {/* Card 1: Connection Settings */}
       <Card>
@@ -1431,9 +1491,6 @@ export function Settings() {
       <>
       <div className="mb-4">
         <h2 className="text-lg font-semibold">Media Servers</h2>
-        <p className="text-sm text-muted-foreground">
-          Auto-refresh downstream guides/sources after EPG generation. Each integration can be enabled independently.
-        </p>
       </div>
 
       <Card>
@@ -1807,7 +1864,6 @@ export function Settings() {
       <>
       <div className="mb-4">
         <h2 className="text-lg font-semibold">Advanced</h2>
-        <p className="text-sm text-muted-foreground">Advanced configuration options</p>
       </div>
 
       {/* Update Notifications */}
@@ -2101,75 +2157,6 @@ export function Settings() {
               </Button>
             </div>
           </div>
-        </CardContent>
-      </Card>
-
-      {/* TheSportsDB API Key */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <CardTitle>TheSportsDB API Key</CardTitle>
-            <Badge variant={display?.tsdb_api_key && display.tsdb_api_key.length > 3 ? "default" : "secondary"} className="text-xs">
-              {display?.tsdb_api_key && display.tsdb_api_key.length > 3 ? "Premium" : "Free Tier"}
-            </Badge>
-          </div>
-          <CardDescription>Optional premium API key for full event coverage and higher rate limits</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="tsdb-api-key">API Key</Label>
-            <div className="flex gap-2">
-              <Input
-                id="tsdb-api-key"
-                type="password"
-                value={display?.tsdb_api_key ?? ""}
-                onChange={(e) => {
-                  display && setDisplay({ ...display, tsdb_api_key: e.target.value })
-                  setTsdbValidation(null)
-                }}
-                placeholder="Leave blank to use free tier"
-                className="flex-1"
-              />
-              <Button
-                variant="outline"
-                size="sm"
-                disabled={tsdbValidating || !display?.tsdb_api_key}
-                onClick={async () => {
-                  if (!display?.tsdb_api_key) return
-                  setTsdbValidating(true)
-                  setTsdbValidation(null)
-                  try {
-                    const result = await validateTSDBKey(display.tsdb_api_key)
-                    setTsdbValidation(result)
-                  } catch {
-                    setTsdbValidation({ valid: false, is_premium: false, message: "Connection error" })
-                  } finally {
-                    setTsdbValidating(false)
-                  }
-                }}
-              >
-                {tsdbValidating ? <Loader2 className="h-4 w-4 animate-spin" /> : "Validate"}
-              </Button>
-            </div>
-            {tsdbValidation && (
-              <p className={`text-xs ${tsdbValidation.valid ? (tsdbValidation.is_premium ? "text-green-500" : "text-yellow-500") : "text-red-500"}`}>
-                {tsdbValidation.message}
-              </p>
-            )}
-            <p className="text-xs text-muted-foreground">
-              Premium key ($9/mo) unlocks full event coverage for leagues like Svenska Cupen, plus 100 req/min (vs 30 free).
-              Get a key at <a href="https://www.thesportsdb.com/pricing" target="_blank" rel="noopener noreferrer" className="underline">thesportsdb.com/pricing</a>
-            </p>
-          </div>
-
-          <Button onClick={() => handleSaveDisplay("TSDB API key saved")} disabled={updateDisplay.isPending}>
-            {updateDisplay.isPending ? (
-              <Loader2 className="h-4 w-4 mr-1 animate-spin" />
-            ) : (
-              <Save className="h-4 w-4 mr-1" />
-            )}
-            Save
-          </Button>
         </CardContent>
       </Card>
 
