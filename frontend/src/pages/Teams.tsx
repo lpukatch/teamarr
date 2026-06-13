@@ -13,6 +13,7 @@ import {
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
+import { Alert } from "@/components/ui/alert"
 import { TeamEpgSettingsCard } from "@/components/TeamEpgSettingsCard"
 import { Badge } from "@/components/ui/badge"
 import {
@@ -556,15 +557,12 @@ export function Teams() {
       </div>
 
       {/* What is Team EPG — info tile */}
-      <div className="rounded-md border border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-950 p-3 text-sm text-blue-800 dark:text-blue-200">
-        <p className="font-semibold text-blue-900 dark:text-blue-100">What is Team EPG?</p>
-        <p className="mt-1">
-          A secondary flow for teams you already have static channels for in Dispatcharr.
-          Teamarr generates guide data (a team-only EPG) for them but does <strong>not</strong>{" "}
-          create or manage these channels — it just fills in their EPG. Most setups rely on
-          event-based matching from Sources instead.
-        </p>
-      </div>
+      <Alert variant="info" title="What is Team EPG?">
+        A secondary flow for teams you already have static channels for in Dispatcharr.
+        Teamarr generates guide data (a team-only EPG) for them but does <strong>not</strong>{" "}
+        create or manage these channels — it just fills in their EPG. Most setups rely on
+        event-based matching from Sources instead.
+      </Alert>
 
       {/* Team EPG settings (lifted from Settings) */}
       <TeamEpgSettingsCard />

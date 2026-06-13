@@ -1,9 +1,8 @@
 import { useState, useEffect } from "react"
 import { useQuery } from "@tanstack/react-query"
 import { toast } from "sonner"
-import { Loader2, Save } from "lucide-react"
-import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { SaveButton } from "@/components/ui/save-button"
 import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
 import {
@@ -91,14 +90,7 @@ export function EpgOutputSettings() {
           </div>
         </div>
 
-        <Button onClick={handleSaveOutput} disabled={updateEPG.isPending}>
-          {updateEPG.isPending ? (
-            <Loader2 className="h-4 w-4 mr-1 animate-spin" />
-          ) : (
-            <Save className="h-4 w-4 mr-1" />
-          )}
-          Save
-        </Button>
+        <SaveButton onClick={handleSaveOutput} pending={updateEPG.isPending} />
       </CardContent>
     </Card>
   )
@@ -184,14 +176,7 @@ export function DefaultDurations() {
           </Table>
         </div>
 
-        <Button onClick={handleSaveDurations} disabled={updateDurations.isPending}>
-          {updateDurations.isPending ? (
-            <Loader2 className="h-4 w-4 mr-1 animate-spin" />
-          ) : (
-            <Save className="h-4 w-4 mr-1" />
-          )}
-          Save
-        </Button>
+        <SaveButton onClick={handleSaveDurations} pending={updateDurations.isPending} />
       </CardContent>
     </Card>
   )

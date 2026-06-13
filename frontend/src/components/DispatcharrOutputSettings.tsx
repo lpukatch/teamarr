@@ -1,9 +1,8 @@
 import { useState, useEffect } from "react"
 import { useQuery } from "@tanstack/react-query"
 import { toast } from "sonner"
-import { Loader2, Save } from "lucide-react"
-import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
+import { SaveButton as SaveButtonBase } from "@/components/ui/save-button"
 import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
 import { Switch } from "@/components/ui/switch"
@@ -147,14 +146,7 @@ export function DispatcharrOutputSettings() {
   }
 
   const SaveButton = () => (
-    <Button onClick={handleSave} disabled={updateDispatcharr.isPending}>
-      {updateDispatcharr.isPending ? (
-        <Loader2 className="h-4 w-4 mr-1 animate-spin" />
-      ) : (
-        <Save className="h-4 w-4 mr-1" />
-      )}
-      Save
-    </Button>
+    <SaveButtonBase onClick={handleSave} pending={updateDispatcharr.isPending} />
   )
 
   return (
