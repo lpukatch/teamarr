@@ -1,9 +1,10 @@
 import { useState, useEffect, useRef, useMemo } from "react"
 import { useNavigate, useParams } from "react-router-dom"
 import { toast } from "sonner"
-import { ArrowLeft, Loader2, Save, ChevronDown, Search, X, BookOpen, Download, Upload, Trash2, ChevronRight, AlertTriangle } from "lucide-react"
+import { ArrowLeft, Loader2, ChevronDown, Search, X, BookOpen, Download, Upload, Trash2, ChevronRight, AlertTriangle } from "lucide-react"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { Button } from "@/components/ui/button"
+import { SaveButton } from "@/components/ui/save-button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -401,11 +402,9 @@ export function TemplateForm() {
             </div>
           </div>
         </div>
-        <Button onClick={handleSubmit} disabled={isPending}>
-          {isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-          <Save className="h-4 w-4 mr-1" />
+        <SaveButton onClick={handleSubmit} pending={isPending}>
           Save Template
-        </Button>
+        </SaveButton>
       </div>
 
       {/* Template Type Banner (edit mode) */}
@@ -1763,10 +1762,9 @@ function ConditionsTab({ formData, setFormData, resolveTemplate, isTeamTemplate 
             <Button variant="outline" onClick={() => setShowSaveDialog(false)}>
               Cancel
             </Button>
-            <Button onClick={handleSavePreset} disabled={createPresetMutation.isPending}>
-              {createPresetMutation.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+            <SaveButton onClick={handleSavePreset} pending={createPresetMutation.isPending}>
               Save Preset
-            </Button>
+            </SaveButton>
           </DialogFooter>
         </DialogContent>
       </Dialog>

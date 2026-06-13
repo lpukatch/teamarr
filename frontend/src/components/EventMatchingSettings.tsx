@@ -1,8 +1,7 @@
 import { useState, useEffect } from "react"
 import { useQuery } from "@tanstack/react-query"
 import { toast } from "sonner"
-import { Loader2, Save } from "lucide-react"
-import { Button } from "@/components/ui/button"
+import { SaveButton } from "@/components/ui/save-button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
@@ -172,7 +171,7 @@ export function EpgMatchingSettings() {
         </CardContent>
       </Card>
 
-      <Button
+      <SaveButton
         onClick={async () => {
           try {
             if (epg) await updateEPG.mutateAsync(epg)
@@ -181,15 +180,8 @@ export function EpgMatchingSettings() {
             toast.error(err instanceof Error ? err.message : "Failed to save")
           }
         }}
-        disabled={updateEPG.isPending}
-      >
-        {updateEPG.isPending ? (
-          <Loader2 className="h-4 w-4 mr-1 animate-spin" />
-        ) : (
-          <Save className="h-4 w-4 mr-1" />
-        )}
-        Save
-      </Button>
+        pending={updateEPG.isPending}
+      />
     </div>
   )
 }
@@ -237,7 +229,7 @@ export function EventLookaheadSetting() {
           </p>
         </div>
 
-        <Button
+        <SaveButton
           onClick={async () => {
             try {
               if (epg) await updateEPG.mutateAsync(epg)
@@ -246,15 +238,8 @@ export function EventLookaheadSetting() {
               toast.error(err instanceof Error ? err.message : "Failed to save")
             }
           }}
-          disabled={updateEPG.isPending}
-        >
-          {updateEPG.isPending ? (
-            <Loader2 className="h-4 w-4 mr-1 animate-spin" />
-          ) : (
-            <Save className="h-4 w-4 mr-1" />
-          )}
-          Save
-        </Button>
+          pending={updateEPG.isPending}
+        />
       </CardContent>
     </Card>
   )

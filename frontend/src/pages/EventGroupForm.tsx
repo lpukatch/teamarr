@@ -1,9 +1,10 @@
 import { useState, useEffect, useMemo, useCallback } from "react"
 import { useNavigate, useParams, useSearchParams } from "react-router-dom"
 import { toast } from "sonner"
-import { ArrowLeft, Loader2, Save, FlaskConical } from "lucide-react"
+import { ArrowLeft, Loader2, FlaskConical } from "lucide-react"
 import { useQuery } from "@tanstack/react-query"
 import { Button } from "@/components/ui/button"
+import { SaveButton } from "@/components/ui/save-button"
 import { CollapsibleSection } from "@/components/ui/collapsible-section"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -1125,11 +1126,9 @@ export function EventGroupForm() {
             <Button variant="outline" onClick={() => navigate("/sources")}>
               Cancel
             </Button>
-            <Button onClick={handleSubmit} disabled={isPending}>
-              {isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-              <Save className="h-4 w-4 mr-2" />
+            <SaveButton onClick={handleSubmit} pending={isPending}>
               {isEdit ? "Update Stream Source" : "Create Stream Source"}
-            </Button>
+            </SaveButton>
           </div>
         </div>
 

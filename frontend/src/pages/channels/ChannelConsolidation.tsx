@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react"
 import { toast } from "sonner"
-import { Loader2, Save } from "lucide-react"
-import { Button } from "@/components/ui/button"
+import { SaveButton } from "@/components/ui/save-button"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Label } from "@/components/ui/label"
 import { RadioCards } from "@/components/ui/radio-cards"
@@ -72,7 +71,7 @@ export function ChannelConsolidation() {
             />
           </div>
 
-          <Button
+          <SaveButton
             onClick={async () => {
               try {
                 await updateChannelNumbering.mutateAsync(channelNumbering)
@@ -81,15 +80,8 @@ export function ChannelConsolidation() {
                 toast.error(err instanceof Error ? err.message : "Failed to save")
               }
             }}
-            disabled={updateChannelNumbering.isPending}
-          >
-            {updateChannelNumbering.isPending ? (
-              <Loader2 className="h-4 w-4 mr-1 animate-spin" />
-            ) : (
-              <Save className="h-4 w-4 mr-1" />
-            )}
-            Save
-          </Button>
+            pending={updateChannelNumbering.isPending}
+          />
         </CardContent>
       </Card>
 

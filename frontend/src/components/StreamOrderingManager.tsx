@@ -5,7 +5,6 @@ import {
   Plus,
   Trash2,
   Loader2,
-  Save,
   AlertCircle,
   ChevronDown,
   Info,
@@ -13,6 +12,7 @@ import {
   Upload,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { SaveButton } from "@/components/ui/save-button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import {
   Dialog,
@@ -864,17 +864,11 @@ export function StreamOrderingManager() {
             Add Rule
           </Button>
 
-          <Button
+          <SaveButton
             onClick={handleSave}
-            disabled={updateSettings.isPending || !hasChanges}
-          >
-            {updateSettings.isPending ? (
-              <Loader2 className="h-4 w-4 mr-1 animate-spin" />
-            ) : (
-              <Save className="h-4 w-4 mr-1" />
-            )}
-            Save
-          </Button>
+            pending={updateSettings.isPending}
+            disabled={!hasChanges}
+          />
         </div>
 
         <p className="text-xs text-muted-foreground">

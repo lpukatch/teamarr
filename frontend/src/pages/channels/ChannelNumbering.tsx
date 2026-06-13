@@ -1,8 +1,8 @@
 import { useState, useEffect, useRef, useMemo } from "react"
 import { useQuery } from "@tanstack/react-query"
 import { toast } from "sonner"
-import { Loader2, Save, Search } from "lucide-react"
-import { Button } from "@/components/ui/button"
+import { Search } from "lucide-react"
+import { SaveButton } from "@/components/ui/save-button"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
@@ -304,19 +304,10 @@ export function ChannelNumbering() {
           )}
 
           <div className="pt-4 border-t">
-            <Button
+            <SaveButton
               onClick={handleSave}
-              disabled={
-                updateChannelNumbering.isPending || updateLifecycle.isPending
-              }
-            >
-              {updateChannelNumbering.isPending || updateLifecycle.isPending ? (
-                <Loader2 className="h-4 w-4 mr-1 animate-spin" />
-              ) : (
-                <Save className="h-4 w-4 mr-1" />
-              )}
-              Save
-            </Button>
+              pending={updateChannelNumbering.isPending || updateLifecycle.isPending}
+            />
             <p className="text-xs text-muted-foreground mt-2">
               Channel numbers will be updated on the next EPG generation.
             </p>

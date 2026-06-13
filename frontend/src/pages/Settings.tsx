@@ -2,7 +2,6 @@ import { useState, useEffect, useRef } from "react"
 import { toast } from "sonner"
 import {
   Loader2,
-  Save,
   TestTube,
   Play,
   CheckCircle,
@@ -25,6 +24,7 @@ import {
 } from "@/components/ChannelProfileSelector"
 import { useGenerationProgress } from "@/contexts/GenerationContext"
 import { Button } from "@/components/ui/button"
+import { SaveButton } from "@/components/ui/save-button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -365,18 +365,14 @@ function BackupRestoreCard() {
               </div>
             </div>
 
-            <Button
+            <SaveButton
               onClick={handleSaveSettings}
-              disabled={!hasChanges || updateSettings.isPending}
+              pending={updateSettings.isPending}
+              disabled={!hasChanges}
               size="sm"
             >
-              {updateSettings.isPending ? (
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-              ) : (
-                <Save className="h-4 w-4 mr-2" />
-              )}
               Save Settings
-            </Button>
+            </SaveButton>
           </div>
         </div>
 
@@ -1104,17 +1100,10 @@ export function Settings() {
             </div>
           </div>
 
-          <Button
+          <SaveButton
             onClick={handleSaveEPGAndDisplay}
-            disabled={updateDisplay.isPending || updateEPG.isPending}
-          >
-            {(updateDisplay.isPending || updateEPG.isPending) ? (
-              <Loader2 className="h-4 w-4 mr-1 animate-spin" />
-            ) : (
-              <Save className="h-4 w-4 mr-1" />
-            )}
-            Save
-          </Button>
+            pending={updateDisplay.isPending || updateEPG.isPending}
+          />
         </CardContent>
       </Card>
 
@@ -1221,17 +1210,10 @@ export function Settings() {
               )}
               Run Now
             </Button>
-            <Button
+            <SaveButton
               onClick={handleSaveSchedulerSettings}
-              disabled={updateEPG.isPending || updateScheduler.isPending}
-            >
-              {(updateEPG.isPending || updateScheduler.isPending) ? (
-                <Loader2 className="h-4 w-4 mr-1 animate-spin" />
-              ) : (
-                <Save className="h-4 w-4 mr-1" />
-              )}
-              Save
-            </Button>
+              pending={updateEPG.isPending || updateScheduler.isPending}
+            />
           </div>
         </CardContent>
       </Card>
@@ -1293,14 +1275,7 @@ export function Settings() {
             )}
           </div>
 
-          <Button onClick={() => handleSaveDisplay("TSDB API key saved")} disabled={updateDisplay.isPending}>
-            {updateDisplay.isPending ? (
-              <Loader2 className="h-4 w-4 mr-1 animate-spin" />
-            ) : (
-              <Save className="h-4 w-4 mr-1" />
-            )}
-            Save
-          </Button>
+          <SaveButton onClick={() => handleSaveDisplay("TSDB API key saved")} pending={updateDisplay.isPending} />
         </CardContent>
       </Card>
 
@@ -1408,22 +1383,15 @@ export function Settings() {
             )}
           </div>
 
-          <Button
+          <SaveButton
             onClick={() => {
               updateUpdateCheck.mutate(updateCheck, {
                 onSuccess: () => toast.success("Update check settings saved"),
                 onError: () => toast.error("Failed to save update check settings"),
               })
             }}
-            disabled={updateUpdateCheck.isPending}
-          >
-            {updateUpdateCheck.isPending ? (
-              <Loader2 className="h-4 w-4 mr-1 animate-spin" />
-            ) : (
-              <Save className="h-4 w-4 mr-1" />
-            )}
-            Save
-          </Button>
+            pending={updateUpdateCheck.isPending}
+          />
         </CardContent>
       </Card>
       </>
@@ -1531,14 +1499,7 @@ export function Settings() {
           </div>
 
           {/* Save button */}
-          <Button onClick={handleSaveDispatcharr} disabled={updateDispatcharr.isPending}>
-            {updateDispatcharr.isPending ? (
-              <Loader2 className="h-4 w-4 mr-1 animate-spin" />
-            ) : (
-              <Save className="h-4 w-4 mr-1" />
-            )}
-            Save
-          </Button>
+          <SaveButton onClick={handleSaveDispatcharr} pending={updateDispatcharr.isPending} />
         </CardContent>
       </Card>
 
@@ -1573,14 +1534,7 @@ export function Settings() {
             </p>
           </div>
 
-          <Button onClick={handleSaveDispatcharr} disabled={updateDispatcharr.isPending}>
-            {updateDispatcharr.isPending ? (
-              <Loader2 className="h-4 w-4 mr-1 animate-spin" />
-            ) : (
-              <Save className="h-4 w-4 mr-1" />
-            )}
-            Save
-          </Button>
+          <SaveButton onClick={handleSaveDispatcharr} pending={updateDispatcharr.isPending} />
         </CardContent>
       </Card>
 
@@ -1610,14 +1564,7 @@ export function Settings() {
             </p>
           </div>
 
-          <Button onClick={handleSaveDispatcharr} disabled={updateDispatcharr.isPending}>
-            {updateDispatcharr.isPending ? (
-              <Loader2 className="h-4 w-4 mr-1 animate-spin" />
-            ) : (
-              <Save className="h-4 w-4 mr-1" />
-            )}
-            Save
-          </Button>
+          <SaveButton onClick={handleSaveDispatcharr} pending={updateDispatcharr.isPending} />
         </CardContent>
       </Card>
 
@@ -1724,14 +1671,7 @@ export function Settings() {
           </div>
 
           {/* Save button */}
-          <Button onClick={handleSaveEmby} disabled={updateEmby.isPending}>
-            {updateEmby.isPending ? (
-              <Loader2 className="h-4 w-4 mr-1 animate-spin" />
-            ) : (
-              <Save className="h-4 w-4 mr-1" />
-            )}
-            Save
-          </Button>
+          <SaveButton onClick={handleSaveEmby} pending={updateEmby.isPending} />
         </CardContent>
       </Card>
 
@@ -1825,14 +1765,7 @@ export function Settings() {
           </div>
 
           {/* Save button */}
-          <Button onClick={handleSaveJellyfin} disabled={updateJellyfin.isPending}>
-            {updateJellyfin.isPending ? (
-              <Loader2 className="h-4 w-4 mr-1 animate-spin" />
-            ) : (
-              <Save className="h-4 w-4 mr-1" />
-            )}
-            Save
-          </Button>
+          <SaveButton onClick={handleSaveJellyfin} pending={updateJellyfin.isPending} />
         </CardContent>
       </Card>
 
@@ -1982,14 +1915,7 @@ export function Settings() {
           </div>
 
           {/* Save button */}
-          <Button onClick={handleSaveChannelsDVR} disabled={updateChannelsDVR.isPending}>
-            {updateChannelsDVR.isPending ? (
-              <Loader2 className="h-4 w-4 mr-1 animate-spin" />
-            ) : (
-              <Save className="h-4 w-4 mr-1" />
-            )}
-            Save
-          </Button>
+          <SaveButton onClick={handleSaveChannelsDVR} pending={updateChannelsDVR.isPending} />
         </CardContent>
       </Card>
 

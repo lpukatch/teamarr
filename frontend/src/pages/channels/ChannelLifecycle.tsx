@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef } from "react"
 import { toast } from "sonner"
-import { Loader2, Save } from "lucide-react"
-import { Button } from "@/components/ui/button"
+import { SaveButton } from "@/components/ui/save-button"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
@@ -109,7 +108,7 @@ export function ChannelLifecycle() {
           </div>
         </div>
 
-        <Button
+        <SaveButton
           onClick={async () => {
             if (!lifecycle) return
             try {
@@ -119,15 +118,8 @@ export function ChannelLifecycle() {
               toast.error(err instanceof Error ? err.message : "Failed to save")
             }
           }}
-          disabled={updateLifecycle.isPending}
-        >
-          {updateLifecycle.isPending ? (
-            <Loader2 className="h-4 w-4 mr-1 animate-spin" />
-          ) : (
-            <Save className="h-4 w-4 mr-1" />
-          )}
-          Save
-        </Button>
+          pending={updateLifecycle.isPending}
+        />
       </CardContent>
     </Card>
   )

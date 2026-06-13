@@ -14,11 +14,8 @@
 import { useState, useEffect, useMemo, useCallback } from "react"
 import { useQuery } from "@tanstack/react-query"
 import { toast } from "sonner"
-import {
-  Save,
-  Loader2,
-} from "lucide-react"
-import { Button } from "@/components/ui/button"
+import { Loader2 } from "lucide-react"
+import { SaveButton } from "@/components/ui/save-button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Label } from "@/components/ui/label"
@@ -198,17 +195,11 @@ export function GlobalDefaults({
             maxBadges={10}
           />
           <div className="flex justify-end pt-2">
-            <Button
+            <SaveButton
               onClick={handleSave}
-              disabled={!hasLocalChanges || updateMutation.isPending}
-            >
-              {updateMutation.isPending ? (
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-              ) : (
-                <Save className="h-4 w-4 mr-2" />
-              )}
-              Save
-            </Button>
+              pending={updateMutation.isPending}
+              disabled={!hasLocalChanges}
+            />
           </div>
         </div>
       )}
@@ -231,17 +222,11 @@ export function GlobalDefaults({
             onFollowedTeamsChange={handleFollowedTeamsChange}
           />
           <div className="flex justify-end pt-2">
-            <Button
+            <SaveButton
               onClick={handleSave}
-              disabled={!hasLocalChanges || updateMutation.isPending}
-            >
-              {updateMutation.isPending ? (
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-              ) : (
-                <Save className="h-4 w-4 mr-2" />
-              )}
-              Save
-            </Button>
+              pending={updateMutation.isPending}
+              disabled={!hasLocalChanges}
+            />
           </div>
         </div>
       )}
@@ -336,17 +321,12 @@ export function GlobalDefaults({
                         ? `Only events involving ${teamFilter.include_teams?.length} selected team(s) will be matched.`
                         : `Events involving ${teamFilter.exclude_teams?.length} selected team(s) will be excluded.`}
                 </p>
-                <Button
+                <SaveButton
                   onClick={handleSaveTeamFilter}
-                  disabled={updateTeamFilter.isPending}
+                  pending={updateTeamFilter.isPending}
                 >
-                  {updateTeamFilter.isPending ? (
-                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                  ) : (
-                    <Save className="h-4 w-4 mr-2" />
-                  )}
                   Save Team Filter
-                </Button>
+                </SaveButton>
               </div>
             </div>
       )}
