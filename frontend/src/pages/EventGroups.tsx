@@ -7,7 +7,7 @@ import {
   Trash2,
   Pencil,
   Loader2,
-  Download,
+  Plus,
   X,
   Check,
   AlertCircle,
@@ -16,7 +16,6 @@ import {
   ArrowDown,
   ArrowUpDown,
   RotateCcw,
-  Library,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
@@ -307,7 +306,7 @@ export function EventGroups() {
   const handleBulkClearCache = async () => {
     try {
       const result = await clearCachesBulkMutation.mutateAsync(Array.from(selectedIds))
-      toast.success(`Cleared ${result.total_cleared} cache entries across ${result.by_group?.length || 0} groups`)
+      toast.success(`Cleared ${result.total_cleared} cache entries across ${result.by_group?.length || 0} stream sources`)
       setShowBulkClearCache(false)
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed to clear cache")
@@ -514,22 +513,11 @@ export function EventGroups() {
     <div className="space-y-2">
       {/* Header - Compact */}
       <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-xl font-bold">Sources</h1>
-          <p className="text-sm text-muted-foreground">
-            M3U stream groups that feed event-based EPG
-          </p>
-        </div>
-        <div className="flex gap-2">
-          <Button variant="outline" size="sm" onClick={() => navigate("/matching")}>
-            <Library className="h-4 w-4 mr-1" />
-            Matching
-          </Button>
-          <Button size="sm" onClick={() => navigate("/sources/import")}>
-            <Download className="h-4 w-4 mr-1" />
-            Import
-          </Button>
-        </div>
+        <h1 className="text-xl font-bold">Sources</h1>
+        <Button size="sm" onClick={() => navigate("/sources/import")}>
+          <Plus className="h-4 w-4 mr-1" />
+          Add Stream Source
+        </Button>
       </div>
 
       {/* Stats Tiles - V1 Style: Grid with 4 equal columns filling width */}
@@ -544,7 +532,7 @@ export function EventGroups() {
               {stats.streamsByGroup.length > 0 && (
                 <div className="absolute left-0 top-full mt-1 z-50 hidden group-hover:block">
                   <Card className="p-3 shadow-lg border min-w-[200px]">
-                    <div className="text-xs font-medium text-muted-foreground mb-2">By Event Group</div>
+                    <div className="text-xs font-medium text-muted-foreground mb-2">By Stream Source</div>
                     <div className="space-y-1 max-h-48 overflow-y-auto">
                       {stats.streamsByGroup.slice(0, 10).map((g, i) => (
                         <div key={i} className="flex justify-between text-sm">
@@ -670,7 +658,7 @@ export function EventGroups() {
           <div className="container max-w-screen-xl mx-auto px-4 py-3">
             <div className="flex items-center justify-between">
               <span className="text-sm font-medium">
-                {selectedIds.size} group{selectedIds.size > 1 ? "s" : ""} selected
+                {selectedIds.size} stream source{selectedIds.size > 1 ? "s" : ""} selected
               </span>
               <div className="flex items-center gap-1">
                 <Button variant="outline" size="sm" onClick={() => setSelectedIds(new Set())}>
@@ -725,7 +713,7 @@ export function EventGroups() {
             </div>
           ) : data?.groups.length === 0 ? (
             <div className="text-center py-8 text-muted-foreground">
-              No event groups configured. Create one to get started.
+              No stream sources configured. Add one to get started.
             </div>
           ) : (
             <Table className="table-fixed">
@@ -827,7 +815,7 @@ export function EventGroups() {
                 {sortedGroups.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
-                      No groups match the current filters.
+                      No stream sources match the current filters.
                     </TableCell>
                   </TableRow>
                 ) : (
@@ -1039,11 +1027,11 @@ export function EventGroups() {
       >
         <DialogContent onClose={() => setDeleteConfirm(null)}>
           <DialogHeader>
-            <DialogTitle>Delete Event Group</DialogTitle>
+            <DialogTitle>Delete Stream Source</DialogTitle>
             <DialogDescription>
               Are you sure you want to delete "{deleteConfirm ? getDisplayName(deleteConfirm) : ''}"? This will
               also delete all {deleteConfirm?.channel_count ?? 0} managed
-              channels associated with this group.
+              channels associated with this stream source.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
@@ -1098,9 +1086,9 @@ export function EventGroups() {
       <Dialog open={showBulkClearCache} onOpenChange={setShowBulkClearCache}>
         <DialogContent onClose={() => setShowBulkClearCache(false)}>
           <DialogHeader>
-            <DialogTitle>Clear Match Cache for {selectedIds.size} Groups</DialogTitle>
+            <DialogTitle>Clear Match Cache for {selectedIds.size} Stream Sources</DialogTitle>
             <DialogDescription>
-              Clear the stream match cache for {selectedIds.size} selected groups?
+              Clear the stream match cache for {selectedIds.size} selected stream sources?
               This will force re-matching on the next EPG generation run.
             </DialogDescription>
           </DialogHeader>
@@ -1115,7 +1103,7 @@ export function EventGroups() {
               {clearCachesBulkMutation.isPending && (
                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />
               )}
-              Clear Cache for {selectedIds.size} Groups
+              Clear Cache for {selectedIds.size} Stream Sources
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -1128,7 +1116,7 @@ export function EventGroups() {
       }}>
         <DialogContent onClose={() => setShowBulkEdit(false)} className="max-w-3xl">
           <DialogHeader>
-            <DialogTitle>Bulk Edit ({selectedIds.size} groups)</DialogTitle>
+            <DialogTitle>Bulk Edit ({selectedIds.size} stream sources)</DialogTitle>
             <DialogDescription>
               Only checked fields will be updated. Use "Clear" to remove values.
             </DialogDescription>
@@ -1250,7 +1238,7 @@ export function EventGroups() {
 
                   {bulkEditTeamFilterAction === "clear" && (
                     <p className="text-xs text-muted-foreground">
-                      Removes per-group team filter overrides. Groups will use the global default filter.
+                      Removes per-source team filter overrides. Stream sources will use the global default filter.
                     </p>
                   )}
                 </div>
@@ -1321,10 +1309,10 @@ export function EventGroups() {
       <Dialog open={showBulkDelete} onOpenChange={setShowBulkDelete}>
         <DialogContent onClose={() => setShowBulkDelete(false)}>
           <DialogHeader>
-            <DialogTitle>Delete {selectedIds.size} Groups</DialogTitle>
+            <DialogTitle>Delete {selectedIds.size} Stream Sources</DialogTitle>
             <DialogDescription>
-              Are you sure you want to delete {selectedIds.size} groups? This will
-              also delete all managed channels associated with these groups.
+              Are you sure you want to delete {selectedIds.size} stream sources? This will
+              also delete all managed channels associated with them.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>

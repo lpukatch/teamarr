@@ -300,7 +300,7 @@ export function EventGroupForm() {
         </Button>
         <div className="flex-1">
           <h1 className="text-2xl font-bold">
-            {isEdit ? "Edit Event Group" : "Configure Event Group"}
+            {isEdit ? "Edit Stream Source" : "Configure Stream Source"}
           </h1>
           {m3uGroupName && !isEdit && (
             <p className="text-muted-foreground">
@@ -965,7 +965,7 @@ export function EventGroupForm() {
                     }}
                   />
                   <span className="text-sm font-normal">
-                    Use global subscription (set on Event Groups page)
+                    Use global subscription (set on the Subscriptions page)
                   </span>
                 </label>
 
@@ -1224,7 +1224,7 @@ export function EventGroupForm() {
             <Button onClick={handleSubmit} disabled={isPending}>
               {isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
               <Save className="h-4 w-4 mr-2" />
-              {isEdit ? "Update Group" : "Create Group"}
+              {isEdit ? "Update Stream Source" : "Create Stream Source"}
             </Button>
           </div>
         </div>
