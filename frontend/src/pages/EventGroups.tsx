@@ -51,6 +51,7 @@ import {
   usePreviewGroup,
   useReorderGroups,
 } from "@/hooks/useGroups"
+import { useMatchRate, matchRateColor } from "@/hooks/useMatchRate"
 import type { EventGroup, PreviewGroupResponse, TeamFilterEntry } from "@/api/types"
 import { getLeagues } from "@/api/teams"
 import { StreamTimezoneSelector } from "@/components/StreamTimezoneSelector"
@@ -182,69 +183,8 @@ export function EventGroups() {
     return [...filteredGroups].sort(sortFn)
   }, [filteredGroups, sortColumn, sortDirection])
 
-  // Calculate rich stats like V1
-  const stats = useMemo(() => {
-    if (!data?.groups) return {
-      totalStreams: 0,
-      totalFiltered: 0,
-      filteredIncludeRegex: 0,
-      filteredExcludeRegex: 0,
-      filteredNotEvent: 0,
-      failedCount: 0,
-      streamsExcluded: 0,
-      excludedEventFinal: 0,
-      excludedEventPast: 0,
-      excludedBeforeWindow: 0,
-      excludedLeagueNotIncluded: 0,
-      matched: 0,
-      matchRate: 0,
-      // Per-group breakdowns for tooltips
-      streamsByGroup: [] as { name: string; count: number }[],
-    }
-
-    // Sum all groups (parents + children) - each has distinct streams from different M3U accounts
-    const groups = data.groups
-    const totalStreams = groups.reduce((sum, g) => sum + (g.total_stream_count || 0), 0)
-    const filteredIncludeRegex = groups.reduce((sum, g) => sum + (g.filtered_include_regex || 0), 0)
-    const filteredExcludeRegex = groups.reduce((sum, g) => sum + (g.filtered_exclude_regex || 0), 0)
-    const filteredNotEvent = groups.reduce((sum, g) => sum + (g.filtered_not_event || 0), 0)
-    const filteredTeam = groups.reduce((sum, g) => sum + (g.filtered_team || 0), 0)
-    const streamsExcluded = groups.reduce((sum, g) => sum + (g.streams_excluded || 0), 0)
-    const excludedEventFinal = groups.reduce((sum, g) => sum + (g.excluded_event_final || 0), 0)
-    const excludedEventPast = groups.reduce((sum, g) => sum + (g.excluded_event_past || 0), 0)
-    const excludedBeforeWindow = groups.reduce((sum, g) => sum + (g.excluded_before_window || 0), 0)
-    const excludedLeagueNotIncluded = groups.reduce((sum, g) => sum + (g.excluded_league_not_included || 0), 0)
-    const totalFiltered = filteredIncludeRegex + filteredExcludeRegex + filteredNotEvent + filteredTeam
-    const matched = groups.reduce((sum, g) => sum + (g.matched_count || 0), 0)
-    const failedCount = groups.reduce((sum, g) => sum + (g.failed_count || 0), 0)
-    // Match rate = matched / (matched + failed) - percentage of match attempts that succeeded
-    const totalAttempted = matched + failedCount
-    const matchRate = totalAttempted > 0 ? Math.round((matched / totalAttempted) * 100) : 0
-
-    // Per-group breakdowns for tooltips (all groups, not just parents)
-    const streamsByGroup = groups
-      .filter(g => (g.total_stream_count || 0) > 0)
-      .map(g => ({ name: getDisplayName(g), count: g.total_stream_count || 0 }))
-      .sort((a, b) => b.count - a.count)
-
-    return {
-      totalStreams,
-      totalFiltered,
-      filteredIncludeRegex,
-      filteredExcludeRegex,
-      filteredNotEvent,
-      filteredTeam,
-      failedCount,
-      streamsExcluded,
-      excludedEventFinal,
-      excludedEventPast,
-      excludedBeforeWindow,
-      excludedLeagueNotIncluded,
-      matched,
-      matchRate,
-      streamsByGroup,
-    }
-  }, [data?.groups])
+  // Overall match rate (shared definition via useMatchRate)
+  const matchRate = useMatchRate()
 
   // League slug -> display name lookup (uses {league} variable resolution: alias first, then name)
   const getLeagueDisplay = useMemo(() => {
@@ -513,144 +453,20 @@ export function EventGroups() {
     <div className="space-y-2">
       {/* Header - Compact */}
       <div className="flex items-center justify-between">
-        <h1 className="text-xl font-bold">Sources</h1>
+        <div className="flex items-baseline gap-3">
+          <h1 className="text-xl font-bold">Sources</h1>
+          {matchRate.hasData && (
+            <span className="text-sm text-muted-foreground">
+              <span className={`font-semibold ${matchRateColor(matchRate.rate)}`}>{matchRate.rate}%</span> matched
+            </span>
+          )}
+        </div>
         <Button size="sm" onClick={() => navigate("/sources/import")}>
           <Plus className="h-4 w-4 mr-1" />
           Add Stream Source
         </Button>
       </div>
 
-      {/* Stats Tiles - V1 Style: Grid with 4 equal columns filling width */}
-      {data?.groups && data.groups.length > 0 && (
-        <div className="grid grid-cols-4 gap-3">
-            {/* Total Streams */}
-            <div className="group relative">
-              <div className="bg-secondary rounded px-3 py-2 cursor-help">
-                <div className="text-xl font-bold">{stats.totalStreams}</div>
-                <div className="text-[0.65rem] text-muted-foreground uppercase tracking-wider">Streams</div>
-              </div>
-              {stats.streamsByGroup.length > 0 && (
-                <div className="absolute left-0 top-full mt-1 z-50 hidden group-hover:block">
-                  <Card className="p-3 shadow-lg border min-w-[200px]">
-                    <div className="text-xs font-medium text-muted-foreground mb-2">By Stream Source</div>
-                    <div className="space-y-1 max-h-48 overflow-y-auto">
-                      {stats.streamsByGroup.slice(0, 10).map((g, i) => (
-                        <div key={i} className="flex justify-between text-sm">
-                          <span className="truncate max-w-[140px]">{g.name}</span>
-                          <span className="font-medium ml-2">{g.count}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </Card>
-                </div>
-              )}
-            </div>
-
-            {/* Filtered */}
-            <div className="group relative">
-              <div className="bg-secondary rounded px-3 py-2 cursor-help">
-                <div className={`text-xl font-bold ${stats.totalFiltered > 0 ? 'text-amber-500' : ''}`}>{stats.totalFiltered}</div>
-                <div className="text-[0.65rem] text-muted-foreground uppercase tracking-wider">Filtered</div>
-              </div>
-              {stats.totalFiltered > 0 && (
-                <div className="absolute left-0 top-full mt-1 z-50 hidden group-hover:block">
-                  <Card className="p-3 shadow-lg border min-w-[200px]">
-                    <div className="text-xs font-medium text-muted-foreground mb-2">Filter Breakdown</div>
-                    <div className="space-y-1">
-                      {stats.filteredNotEvent > 0 && (
-                        <div className="flex justify-between text-sm">
-                          <span>Not Event Stream</span>
-                          <span className="font-medium">{stats.filteredNotEvent}</span>
-                        </div>
-                      )}
-                      {stats.filteredIncludeRegex > 0 && (
-                        <div className="flex justify-between text-sm">
-                          <span>Include Regex not Matched</span>
-                          <span className="font-medium">{stats.filteredIncludeRegex}</span>
-                        </div>
-                      )}
-                      {stats.filteredExcludeRegex > 0 && (
-                        <div className="flex justify-between text-sm">
-                          <span>Exclude Regex Matched</span>
-                          <span className="font-medium">{stats.filteredExcludeRegex}</span>
-                        </div>
-                      )}
-                      {(stats.filteredTeam ?? 0) > 0 && (
-                        <div className="flex justify-between text-sm">
-                          <span>Team Filter</span>
-                          <span className="font-medium">{stats.filteredTeam}</span>
-                        </div>
-                      )}
-                      <div className="flex justify-between text-sm font-medium pt-1 border-t">
-                        <span>Total</span>
-                        <span>{stats.totalFiltered}</span>
-                      </div>
-                    </div>
-                  </Card>
-                </div>
-              )}
-            </div>
-
-            {/* Excluded */}
-            <div className="group relative">
-              <div className="bg-secondary rounded px-3 py-2 cursor-help">
-                <div className={`text-xl font-bold ${stats.streamsExcluded > 0 ? 'text-yellow-500' : ''}`}>{stats.streamsExcluded}</div>
-                <div className="text-[0.65rem] text-muted-foreground uppercase tracking-wider">Excluded</div>
-              </div>
-              {stats.streamsExcluded > 0 && (
-                <div className="absolute left-0 top-full mt-1 z-50 hidden group-hover:block">
-                  <Card className="p-3 shadow-lg border min-w-[200px]">
-                    <div className="text-xs font-medium text-muted-foreground mb-2">Exclusion Breakdown</div>
-                    <div className="space-y-1">
-                      {stats.excludedLeagueNotIncluded > 0 && (
-                        <div className="flex justify-between text-sm">
-                          <span>League Not Enabled</span>
-                          <span className="font-medium">{stats.excludedLeagueNotIncluded}</span>
-                        </div>
-                      )}
-                      {stats.excludedEventFinal > 0 && (
-                        <div className="flex justify-between text-sm">
-                          <span>Event Final</span>
-                          <span className="font-medium">{stats.excludedEventFinal}</span>
-                        </div>
-                      )}
-                      {stats.excludedEventPast > 0 && (
-                        <div className="flex justify-between text-sm">
-                          <span>Event in Past</span>
-                          <span className="font-medium">{stats.excludedEventPast}</span>
-                        </div>
-                      )}
-                      {stats.excludedBeforeWindow > 0 && (
-                        <div className="flex justify-between text-sm">
-                          <span>Event in Future</span>
-                          <span className="font-medium">{stats.excludedBeforeWindow}</span>
-                        </div>
-                      )}
-                      <div className="flex justify-between text-sm font-medium pt-1 border-t">
-                        <span>Total</span>
-                        <span>{stats.streamsExcluded}</span>
-                      </div>
-                    </div>
-                  </Card>
-                </div>
-              )}
-            </div>
-
-            {/* Matched - color based on match rate */}
-            <div className="bg-secondary rounded px-3 py-2">
-              <div className={`text-xl font-bold ${
-                stats.matchRate >= 85 ? 'text-green-500' :
-                stats.matchRate >= 60 ? 'text-orange-500' :
-                stats.matchRate > 0 ? 'text-red-500' : ''
-              }`}>
-                {stats.matched}/{stats.matched + stats.failedCount}
-              </div>
-              <div className="text-[0.65rem] text-muted-foreground uppercase tracking-wider">
-                Matched ({stats.matchRate}%)
-              </div>
-            </div>
-        </div>
-      )}
 
       {/* Fixed Batch Operations Bar */}
       {selectedIds.size > 0 && (

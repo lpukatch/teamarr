@@ -1,7 +1,8 @@
 import { useState } from "react"
 import { toast } from "sonner"
-import { CheckCircle, XCircle, AlertTriangle, Clock, Tv, Copy, Check } from "lucide-react"
+import { CheckCircle, XCircle, AlertTriangle, Clock, Tv, Target, Copy, Check } from "lucide-react"
 import { useDispatcharrStatus } from "@/hooks/useSettings"
+import { useMatchRate, matchRateColor } from "@/hooks/useMatchRate"
 import { useDateFormat } from "@/hooks/useDateFormat"
 import { getTeamXmltvUrl } from "@/api/epg"
 import type { ProcessingRun } from "@/api/epg"
@@ -26,6 +27,7 @@ function formatDuration(ms: number | null | undefined): string | null {
  */
 export function StatusStrip({ lastRun }: { lastRun?: ProcessingRun }) {
   const dispatcharr = useDispatcharrStatus()
+  const matchRate = useMatchRate()
   const { formatRelativeTime } = useDateFormat()
   const [copied, setCopied] = useState(false)
 
@@ -128,6 +130,17 @@ export function StatusStrip({ lastRun }: { lastRun?: ProcessingRun }) {
         <span className="font-medium">{liveChannels ?? "—"}</span>
         <span className="text-muted-foreground">managed channels</span>
       </div>
+
+      {matchRate.hasData && (
+        <>
+          <span className="hidden h-4 w-px bg-border sm:inline-block" />
+          <div className="flex items-center gap-2">
+            <Target className={`h-4 w-4 ${matchRateColor(matchRate.rate)}`} />
+            <span className={`font-medium ${matchRateColor(matchRate.rate)}`}>{matchRate.rate}%</span>
+            <span className="text-muted-foreground">matched</span>
+          </div>
+        </>
+      )}
 
       {/* XMLTV URL + copy — pushed to the right */}
       <div className="ml-auto flex min-w-0 items-center gap-2">
