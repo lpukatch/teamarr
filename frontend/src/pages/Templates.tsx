@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom"
 import { toast } from "sonner"
 import { Plus, Trash2, Pencil, Loader2, Copy, Download, Upload, Layers } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { StepTabs } from "@/components/StepTabs"
+import { SubNav } from "@/components/ui/sub-nav"
 import { EpgOutputSettings } from "@/components/EpgOutputSettings"
 import { TemplateAssignmentModal } from "@/components/TemplateAssignmentModal"
 import { useSubscription, useSubscriptionTemplates } from "@/hooks/useSubscription"
@@ -215,11 +215,11 @@ export function Templates() {
 
   return (
     <div className="space-y-2">
-      <StepTabs
-        tabs={[
+      <SubNav
+        items={[
           { to: "/epg/templates", label: "Templates" },
           { to: "/epg/teams", label: "Team EPG" },
-        ]}
+        ].map((t) => ({ key: t.to, label: t.label, to: t.to }))}
       />
       <div className="flex items-center justify-between">
         <div>

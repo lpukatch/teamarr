@@ -31,6 +31,7 @@ import { Label } from "@/components/ui/label"
 import { Select } from "@/components/ui/select"
 import { Switch } from "@/components/ui/switch"
 import { Badge } from "@/components/ui/badge"
+import { SubNav } from "@/components/ui/sub-nav"
 import { CronPreview } from "@/components/CronPreview"
 import { ScheduledChannelResetCard } from "@/components/ScheduledChannelResetCard"
 import {
@@ -997,21 +998,11 @@ export function Settings() {
       </div>
 
       {/* Tab Navigation */}
-      <div className="flex gap-1 border-b border-border pb-px">
-        {TABS.map((tab) => (
-          <button
-            key={tab.id}
-            onClick={() => setActiveTab(tab.id)}
-            className={`px-3 py-1.5 text-sm font-medium rounded-t transition-colors ${
-              activeTab === tab.id
-                ? "bg-card text-foreground border border-border border-b-card -mb-px"
-                : "text-muted-foreground hover:text-foreground hover:bg-secondary/50"
-            }`}
-          >
-            {tab.label}
-          </button>
-        ))}
-      </div>
+      <SubNav
+        items={TABS.map((t) => ({ key: t.id, label: t.label }))}
+        value={activeTab}
+        onChange={(k) => setActiveTab(k as SettingsTab)}
+      />
 
       {/* Tab Content */}
       <div className="space-y-3 min-h-[400px]">
