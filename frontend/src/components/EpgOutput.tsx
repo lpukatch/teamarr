@@ -15,24 +15,14 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
-import { useDateFormat } from "@/hooks/useDateFormat"
+import { usePersistentCollapse } from "@/hooks/usePersistentCollapse"
 import {
-  useStats,
   useEPGAnalysis,
   useEPGContent,
 } from "@/hooks/useEPG"
 import {
   getTeamXmltvUrl,
 } from "@/api/epg"
-
-function formatDuration(ms: number | null): string {
-  if (!ms) return "-"
-  const seconds = Math.round(ms / 1000)
-  if (seconds < 60) return `${seconds}s`
-  const mins = Math.floor(seconds / 60)
-  const secs = seconds % 60
-  return secs > 0 ? `${mins}m ${secs}s` : `${mins}m`
-}
 
 function formatBytes(bytes: number | undefined | null): string {
   if (bytes == null || isNaN(bytes) || bytes === 0) return "0 B"
@@ -48,10 +38,9 @@ function formatDateRange(start: string | null, end: string | null): string {
 }
 
 export function EpgOutput() {
-  const { data: stats, isLoading: statsLoading } = useStats()
   const { data: analysis, isLoading: analysisLoading } = useEPGAnalysis()
   const { data: epgContent, isLoading: contentLoading } = useEPGContent(0) // 0 = no limit
-  const { formatRelativeTime } = useDateFormat()
+  const [collapsed, setCollapsed] = usePersistentCollapse("epg-output", true)
 
   const [copied, setCopied] = useState(false)
   const [showXmlPreview, setShowXmlPreview] = useState(false)
@@ -204,6 +193,21 @@ export function EpgOutput() {
 
   return (
     <div className="space-y-2">
+      {/* Collapsible header */}
+      <button
+        onClick={() => setCollapsed(!collapsed)}
+        className="flex w-full items-center justify-between rounded-lg border bg-muted/30 px-4 py-2.5 text-sm font-semibold transition-colors hover:bg-muted/50"
+      >
+        <span>EPG Output</span>
+        {collapsed ? (
+          <ChevronDown className="h-4 w-4 text-muted-foreground" />
+        ) : (
+          <ChevronUp className="h-4 w-4 text-muted-foreground" />
+        )}
+      </button>
+
+      {!collapsed && (
+      <div className="space-y-2">
       {/* EPG URL for IPTV apps */}
       <div className="flex flex-wrap items-center gap-3 bg-secondary border border-border rounded px-3 py-2">
         <span className="text-xs font-medium text-muted-foreground shrink-0">EPG URL</span>
@@ -453,55 +457,8 @@ export function EpgOutput() {
         )}
       </Card>
 
-      {/* All-time Stats */}
-      <Card>
-        <CardHeader>
-          <CardTitle>All-Time Totals</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {statsLoading ? (
-            <div className="flex items-center justify-center py-4">
-              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-            </div>
-          ) : (
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-              <div>
-                <span className="text-muted-foreground">Total Runs:</span>{" "}
-                <strong>{stats?.total_runs ?? 0}</strong>
-              </div>
-              <div>
-                <span className="text-muted-foreground">Programmes Generated:</span>{" "}
-                <strong>{stats?.totals?.programmes_generated ?? 0}</strong>
-              </div>
-              <div>
-                <span className="text-muted-foreground">Streams Matched:</span>{" "}
-                <strong>{stats?.totals?.streams_matched ?? 0}</strong>
-              </div>
-              <div>
-                <span className="text-muted-foreground">Channels Created:</span>{" "}
-                <strong>{stats?.totals?.channels_created ?? 0}</strong>
-              </div>
-              <div>
-                <span className="text-muted-foreground">Avg Duration:</span>{" "}
-                <strong>{formatDuration(stats?.avg_duration_ms ?? 0)}</strong>
-              </div>
-              <div>
-                <span className="text-muted-foreground">Last Run:</span>{" "}
-                <strong>{formatRelativeTime(stats?.last_run ?? null)}</strong>
-              </div>
-              <div>
-                <span className="text-muted-foreground">Cache Hits:</span>{" "}
-                <strong>{stats?.totals?.streams_cached ?? 0}</strong>
-              </div>
-              <div>
-                <span className="text-muted-foreground">Channels Deleted:</span>{" "}
-                <strong>{stats?.totals?.channels_deleted ?? 0}</strong>
-              </div>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
+      </div>
+      )}
     </div>
   )
 }

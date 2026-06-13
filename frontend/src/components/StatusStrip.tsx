@@ -126,7 +126,7 @@ export function StatusStrip({ lastRun }: { lastRun?: ProcessingRun }) {
       <div className="flex items-center gap-2">
         <Tv className="h-4 w-4 text-muted-foreground" />
         <span className="font-medium">{liveChannels ?? "—"}</span>
-        <span className="text-muted-foreground">live channels</span>
+        <span className="text-muted-foreground">managed channels</span>
       </div>
 
       {/* XMLTV URL copy — pushed to the right */}

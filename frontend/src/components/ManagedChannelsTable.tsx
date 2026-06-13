@@ -1,5 +1,6 @@
 import { useState, useMemo } from "react"
 import { toast } from "sonner"
+import { usePersistentCollapse } from "@/hooks/usePersistentCollapse"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
 import {
   Trash2,
@@ -119,8 +120,8 @@ export function ManagedChannelsTable() {
   const [resetLoading, setResetLoading] = useState(false)
   const [resetExecuting, setResetExecuting] = useState(false)
   const [resetChannels, setResetChannels] = useState<ResetChannelInfo[]>([])
-  const [deletedCollapsed, setDeletedCollapsed] = useState(true)
-  const [activeCollapsed, setActiveCollapsed] = useState(true)
+  const [activeCollapsed, setActiveCollapsed] = usePersistentCollapse("channels.active", true)
+  const [deletedCollapsed, setDeletedCollapsed] = usePersistentCollapse("channels.deleted", true)
 
   const queryClient = useQueryClient()
 

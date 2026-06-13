@@ -1,23 +1,42 @@
+import { useState } from "react"
+import { Button } from "@/components/ui/button"
 import { RunHistoryTable } from "@/components/RunHistoryTable"
 import { EpgOutput } from "@/components/EpgOutput"
 import { ManagedChannelsTable } from "@/components/ManagedChannelsTable"
 import { EventMatcherModal, useEventMatcher } from "@/components/EventMatcherModal"
 import { StatusStrip } from "@/components/StatusStrip"
-import { useRecentRuns } from "@/hooks/useEPG"
+import { useRecentRuns, useStats } from "@/hooks/useEPG"
+
+const RUNS_PREVIEW = 4
+
+function formatDuration(ms: number | null | undefined): string {
+  if (!ms) return "0s"
+  const seconds = Math.round(ms / 1000)
+  if (seconds < 60) return `${seconds}s`
+  const mins = Math.floor(seconds / 60)
+  const secs = seconds % 60
+  return secs > 0 ? `${mins}m ${secs}s` : `${mins}m`
+}
 
 /**
  * Dashboard — the landing page. A lean health-and-control panel (epic 7rfd):
- * status strip up top, recent runs, then collapsed output/diagnostics, with a
- * de-emphasized all-time footer. Composition detail (per-league/group/channel
- * breakdowns) lives on its home tabs, not here.
+ * status strip up top, recent runs, the managed-channel tables, then collapsed
+ * EPG output/diagnostics, with a de-emphasized all-time footer. Composition
+ * detail (per-league/group/channel breakdowns) lives on its home tabs, not here.
  */
 export function Dashboard() {
   // EPG generation history (shared hook with the EPG output section)
   const { data: runsData } = useRecentRuns(10, "full_epg")
   const runs = runsData?.runs ?? []
 
+  // All-time totals (de-emphasized footer)
+  const { data: stats } = useStats()
+
   // Event matcher (manual stream correction, opened from the run history rows)
   const matcher = useEventMatcher()
+
+  const [showAllRuns, setShowAllRuns] = useState(false)
+  const visibleRuns = showAllRuns ? runs : runs.slice(0, RUNS_PREVIEW)
 
   return (
     <div className="space-y-2">
@@ -34,18 +53,39 @@ export function Dashboard() {
         <div>
           <h2 className="text-lg font-semibold mb-3">EPG Generation History</h2>
           <div className="border rounded-lg overflow-hidden">
-            <RunHistoryTable runs={runs} onFixStream={matcher.handleOpen} />
+            <RunHistoryTable runs={visibleRuns} onFixStream={matcher.handleOpen} />
           </div>
+          {runs.length > RUNS_PREVIEW && (
+            <Button
+              variant="link"
+              size="sm"
+              className="px-0 mt-1"
+              onClick={() => setShowAllRuns((v) => !v)}
+            >
+              {showAllRuns ? "Show fewer" : `Show more (${runs.length - RUNS_PREVIEW} more)`}
+            </Button>
+          )}
         </div>
       )}
 
-      {/* EPG output diagnostics: URL, coverage analysis, XML preview */}
-      <EpgOutput />
-
-      {/* Managed channels (output) — collapsible active + recently-deleted tables */}
+      {/* Managed channels (output) — collapsible active + recently-deleted tables.
+          Placed right after history: this is important, frequently-checked output. */}
       <ManagedChannelsTable />
 
+      {/* EPG output diagnostics: URL, coverage analysis, XML preview (collapsed) */}
+      <EpgOutput />
+
       {/* Getting Started slot — first-run experience handled by epic 297x */}
+
+      {/* All-time totals — de-emphasized footer */}
+      {stats && (
+        <p className="pt-2 text-xs text-muted-foreground">
+          All-time · {stats.total_runs ?? 0} runs · {stats.totals?.programmes_generated ?? 0} programmes ·{" "}
+          {stats.totals?.streams_matched ?? 0} streams matched · {stats.totals?.channels_created ?? 0} channels created ·{" "}
+          {stats.totals?.streams_cached ?? 0} cache hits · {stats.totals?.channels_deleted ?? 0} deleted · avg{" "}
+          {formatDuration(stats.avg_duration_ms)}
+        </p>
+      )}
 
       {/* Event Matcher Modal */}
       <EventMatcherModal
