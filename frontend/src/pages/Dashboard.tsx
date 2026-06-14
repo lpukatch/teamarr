@@ -1,4 +1,5 @@
 import { useState } from "react"
+import { Activity } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { RunHistoryTable } from "@/components/RunHistoryTable"
 import { EpgOutput } from "@/components/EpgOutput"
@@ -16,6 +17,11 @@ function formatDuration(ms: number | null | undefined): string {
   const mins = Math.floor(seconds / 60)
   const secs = seconds % 60
   return secs > 0 ? `${mins}m ${secs}s` : `${mins}m`
+}
+
+/** Thousands-separated integer (376460 → "376,460"). */
+function fmtCount(n: number | null | undefined): string {
+  return (n ?? 0).toLocaleString()
 }
 
 /**
@@ -81,13 +87,31 @@ export function Dashboard() {
 
       {/* Getting Started slot — first-run experience handled by epic 297x */}
 
-      {/* All-time totals — de-emphasized styled tile */}
+      {/* All-time totals — compact de-emphasized footer */}
       {stats && (
-        <div className="mt-2 rounded-lg border bg-muted/20 px-4 py-2 text-xs text-muted-foreground">
-          <span className="font-medium text-foreground/70">All-time</span> · {stats.total_runs ?? 0} runs ·{" "}
-          {stats.totals?.programmes_generated ?? 0} programmes · {stats.totals?.streams_matched ?? 0} streams matched ·{" "}
-          {stats.totals?.channels_created ?? 0} channels created · {stats.totals?.streams_cached ?? 0} cache hits ·{" "}
-          {stats.totals?.channels_deleted ?? 0} deleted · avg {formatDuration(stats.avg_duration_ms)}
+        <div className="rounded-lg border bg-muted/20 px-3 py-2 text-muted-foreground">
+          <div className="flex items-center justify-between gap-x-5 overflow-x-auto">
+            <span className="flex shrink-0 items-center gap-1 text-[10px] font-semibold uppercase tracking-wider">
+              <Activity className="h-3 w-3" />
+              All-Time Totals
+            </span>
+            <div className="flex shrink-0 items-center gap-x-5">
+              {[
+                { label: "generations", value: fmtCount(stats.total_runs) },
+                { label: "programmes", value: fmtCount(stats.totals?.programmes_generated) },
+                { label: "streams matched", value: fmtCount(stats.totals?.streams_matched) },
+                { label: "channels created", value: fmtCount(stats.totals?.channels_created) },
+                { label: "channels deleted", value: fmtCount(stats.totals?.channels_deleted) },
+                { label: "cache hits", value: fmtCount(stats.totals?.streams_cached) },
+                { label: "avg run time", value: formatDuration(stats.avg_duration_ms) },
+              ].map((s) => (
+                <span key={s.label} className="whitespace-nowrap text-xs">
+                  <span className="font-semibold tabular-nums text-foreground/80">{s.value}</span>{" "}
+                  {s.label}
+                </span>
+              ))}
+            </div>
+          </div>
         </div>
       )}
 
