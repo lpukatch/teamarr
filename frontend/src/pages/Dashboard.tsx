@@ -55,10 +55,10 @@ export function Dashboard() {
       {/* Status strip — at-a-glance system health */}
       <StatusStrip lastRun={runs[0]} />
 
-      {/* EPG Generation History */}
+      {/* Generation History — full pipeline runs (matching, channels, EPG) */}
       {runs.length > 0 && (
         <div>
-          <h2 className="text-lg font-semibold mb-3">EPG Generation History</h2>
+          <h2 className="text-lg font-semibold mb-3">Generation History</h2>
           <div className="border rounded-lg overflow-hidden">
             <RunHistoryTable runs={visibleRuns} onFixStream={matcher.handleOpen} />
           </div>
