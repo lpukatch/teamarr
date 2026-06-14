@@ -282,7 +282,7 @@ export function RunHistoryTable({ runs, onFixStream }: RunHistoryTableProps) {
                 </TableCell>
                 <TableCell className="text-center">
                   <button
-                    className="text-green-600 hover:underline font-medium"
+                    className="cursor-pointer text-green-600 hover:underline font-medium"
                     onClick={() => setMatchedModalRunId(run.id)}
                   >
                     {matched}
@@ -290,7 +290,7 @@ export function RunHistoryTable({ runs, onFixStream }: RunHistoryTableProps) {
                 </TableCell>
                 <TableCell className="text-center">
                   <button
-                    className="text-red-600 hover:underline font-medium"
+                    className="cursor-pointer text-red-600 hover:underline font-medium"
                     onClick={() => setFailedModalRunId(run.id)}
                   >
                     {unmatched}

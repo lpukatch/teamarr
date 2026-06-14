@@ -31,6 +31,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select } from "@/components/ui/select"
 import { Switch } from "@/components/ui/switch"
+import { ToggleCard } from "@/components/ui/toggle-card"
 import { Badge } from "@/components/ui/badge"
 import { SubNav } from "@/components/ui/sub-nav"
 import { CronPreview } from "@/components/CronPreview"
@@ -1226,7 +1227,7 @@ export function Settings() {
             </Badge>
           </div>
           <CardDescription>
-            Optional premium key ($9/mo) for full event coverage and higher rate limits (100 vs 30 req/min) — get one at{" "}
+            Optional premium key for TSDB league coverage, adding custom leagues, and higher rate limits — get one at{" "}
             <a href="https://www.thesportsdb.com/pricing" target="_blank" rel="noopener noreferrer" className="underline">thesportsdb.com/pricing</a>
           </CardDescription>
         </CardHeader>
@@ -1277,20 +1278,17 @@ export function Settings() {
         </CardContent>
       </Card>
 
-      {/* Update Notifications */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <div>
-              <CardTitle>Update Notifications</CardTitle>
-            </div>
-            {updateInfoQuery.data?.update_available && (
-              <Badge variant="warning">Update Available</Badge>
-            )}
-          </div>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {/* Current Version and Update Status */}
+      {/* Update Notifications — first adopter of the ToggleCard primitive */}
+      <ToggleCard
+        title="Update Notifications"
+        enabled={updateCheck.enabled}
+        onEnabledChange={(checked) => setUpdateCheck({ ...updateCheck, enabled: checked })}
+        headerExtra={
+          updateInfoQuery.data?.update_available ? (
+            <Badge variant="warning">Update Available</Badge>
+          ) : undefined
+        }
+        always={
           <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
             <div>
               <p className="text-sm font-medium">
@@ -1344,43 +1342,8 @@ export function Settings() {
               </Button>
             </div>
           </div>
-
-          {/* Update Check Settings */}
-          <div className="space-y-4 pt-2 border-t">
-            <div className="flex items-center gap-2">
-              <Switch
-                checked={updateCheck.enabled}
-                onCheckedChange={(checked) => setUpdateCheck({ ...updateCheck, enabled: checked })}
-              />
-              <Label>Enable Automatic Update Checks</Label>
-            </div>
-
-            {updateCheck.enabled && (
-              <>
-                <div className="flex items-center gap-4 pl-6">
-                  <div className="flex items-center gap-2">
-                    <Switch
-                      checked={updateCheck.notify_stable}
-                      onCheckedChange={(checked) =>
-                        setUpdateCheck({ ...updateCheck, notify_stable: checked })
-                      }
-                    />
-                    <Label className="text-sm">Notify about stable releases</Label>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Switch
-                      checked={updateCheck.notify_dev}
-                      onCheckedChange={(checked) =>
-                        setUpdateCheck({ ...updateCheck, notify_dev: checked })
-                      }
-                    />
-                    <Label className="text-sm">Notify about dev builds</Label>
-                  </div>
-                </div>
-              </>
-            )}
-          </div>
-
+        }
+        footer={
           <SaveButton
             onClick={() => {
               updateUpdateCheck.mutate(updateCheck, {
@@ -1390,8 +1353,33 @@ export function Settings() {
             }}
             pending={updateUpdateCheck.isPending}
           />
-        </CardContent>
-      </Card>
+        }
+      >
+        {/* Notification preferences — revealed by the header toggle */}
+        <div className="space-y-3 pt-2 border-t">
+          <Label className="text-sm text-muted-foreground">Notify me about</Label>
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2">
+              <Switch
+                checked={updateCheck.notify_stable}
+                onCheckedChange={(checked) =>
+                  setUpdateCheck({ ...updateCheck, notify_stable: checked })
+                }
+              />
+              <Label className="text-sm">Stable releases</Label>
+            </div>
+            <div className="flex items-center gap-2">
+              <Switch
+                checked={updateCheck.notify_dev}
+                onCheckedChange={(checked) =>
+                  setUpdateCheck({ ...updateCheck, notify_dev: checked })
+                }
+              />
+              <Label className="text-sm">Dev builds</Label>
+            </div>
+          </div>
+        </div>
+      </ToggleCard>
       </>
       )}
 
