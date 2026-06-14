@@ -11,6 +11,7 @@ import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
 import { Checkbox } from "@/components/ui/checkbox"
 import { cn } from "@/lib/utils"
+import { jsToPython, pythonToJs } from "@/lib/regex-utils"
 import {
   useGroup,
   useCreateGroup,
@@ -161,26 +162,26 @@ export function EventGroupForm() {
         m3u_account_id: group.m3u_account_id,
         m3u_account_name: group.m3u_account_name,
         // Stream filtering
-        stream_include_regex: group.stream_include_regex,
+        stream_include_regex: group.stream_include_regex ? pythonToJs(group.stream_include_regex) : null,
         stream_include_regex_enabled: group.stream_include_regex_enabled,
-        stream_exclude_regex: group.stream_exclude_regex,
+        stream_exclude_regex: group.stream_exclude_regex ? pythonToJs(group.stream_exclude_regex) : null,
         stream_exclude_regex_enabled: group.stream_exclude_regex_enabled,
-        custom_regex_teams: group.custom_regex_teams,
+        custom_regex_teams: group.custom_regex_teams ? pythonToJs(group.custom_regex_teams) : null,
         custom_regex_teams_enabled: group.custom_regex_teams_enabled,
-        custom_regex_date: group.custom_regex_date,
+        custom_regex_date: group.custom_regex_date ? pythonToJs(group.custom_regex_date) : null,
         custom_regex_date_enabled: group.custom_regex_date_enabled,
-        custom_regex_month: group.custom_regex_month,
+        custom_regex_month: group.custom_regex_month ? pythonToJs(group.custom_regex_month) : null,
         custom_regex_month_enabled: group.custom_regex_month_enabled,
-        custom_regex_day: group.custom_regex_day,
+        custom_regex_day: group.custom_regex_day ? pythonToJs(group.custom_regex_day) : null,
         custom_regex_day_enabled: group.custom_regex_day_enabled,
-        custom_regex_time: group.custom_regex_time,
+        custom_regex_time: group.custom_regex_time ? pythonToJs(group.custom_regex_time) : null,
         custom_regex_time_enabled: group.custom_regex_time_enabled,
-        custom_regex_league: group.custom_regex_league,
+        custom_regex_league: group.custom_regex_league ? pythonToJs(group.custom_regex_league) : null,
         custom_regex_league_enabled: group.custom_regex_league_enabled,
         // EVENT_CARD specific
-        custom_regex_fighters: group.custom_regex_fighters,
+        custom_regex_fighters: group.custom_regex_fighters ? pythonToJs(group.custom_regex_fighters) : null,
         custom_regex_fighters_enabled: group.custom_regex_fighters_enabled,
-        custom_regex_event_name: group.custom_regex_event_name,
+        custom_regex_event_name: group.custom_regex_event_name ? pythonToJs(group.custom_regex_event_name) : null,
         custom_regex_event_name_enabled: group.custom_regex_event_name_enabled,
         skip_builtin_filter: group.skip_builtin_filter,
         team_streams_enabled: group.team_streams_enabled,
@@ -230,6 +231,16 @@ export function EventGroupForm() {
     try {
       const submitData = {
         ...formData,
+        stream_include_regex: formData.stream_include_regex ? jsToPython(formData.stream_include_regex) : null,
+        stream_exclude_regex: formData.stream_exclude_regex ? jsToPython(formData.stream_exclude_regex) : null,
+        custom_regex_teams: formData.custom_regex_teams ? jsToPython(formData.custom_regex_teams) : null,
+        custom_regex_date: formData.custom_regex_date ? jsToPython(formData.custom_regex_date) : null,
+        custom_regex_month: formData.custom_regex_month ? jsToPython(formData.custom_regex_month) : null,
+        custom_regex_day: formData.custom_regex_day ? jsToPython(formData.custom_regex_day) : null,
+        custom_regex_time: formData.custom_regex_time ? jsToPython(formData.custom_regex_time) : null,
+        custom_regex_league: formData.custom_regex_league ? jsToPython(formData.custom_regex_league) : null,
+        custom_regex_fighters: formData.custom_regex_fighters ? jsToPython(formData.custom_regex_fighters) : null,
+        custom_regex_event_name: formData.custom_regex_event_name ? jsToPython(formData.custom_regex_event_name) : null,
         // Subscription override fields
         subscription_leagues: useGlobalSubscription
           ? null
@@ -822,12 +833,12 @@ export function EventGroupForm() {
                           onChange={(e) =>
                             setFormData({ ...formData, custom_regex_teams: e.target.value || null })
                           }
-                          placeholder="(?P<team1>[A-Z]{2,3})\s*[@vs]+\s*(?P<team2>[A-Z]{2,3})"
+                          placeholder="(?<team1>[A-Z]{2,3})\s*[@vs]+\s*(?<team2>[A-Z]{2,3})"
                           disabled={!formData.custom_regex_teams_enabled}
                           className={cn("font-mono text-sm", !formData.custom_regex_teams_enabled && "opacity-50")}
                         />
                         <p className="text-xs text-muted-foreground">
-                          Use named groups: (?P&lt;team1&gt;...) and (?P&lt;team2&gt;...)
+                          Use named groups: (?&lt;team1&gt;...) and (?&lt;team2&gt;...)
                         </p>
                       </div>
 
@@ -847,12 +858,12 @@ export function EventGroupForm() {
                           onChange={(e) =>
                             setFormData({ ...formData, custom_regex_date: e.target.value || null })
                           }
-                          placeholder="(?P<date>\d{1,2}/\d{1,2})"
+                          placeholder="(?<date>\d{1,2}/\d{1,2})"
                           disabled={!formData.custom_regex_date_enabled}
                           className={cn("font-mono text-sm", !formData.custom_regex_date_enabled && "opacity-50")}
                         />
                         <p className="text-xs text-muted-foreground">
-                          Use named group: (?P&lt;date&gt;...)
+                          Use named group: (?&lt;date&gt;...)
                         </p>
 
                         {/* Month/Day sub-options */}
@@ -873,7 +884,7 @@ export function EventGroupForm() {
                               onChange={(e) =>
                                 setFormData({ ...formData, custom_regex_month: e.target.value || null })
                               }
-                              placeholder="(?P<month>\w+)"
+                              placeholder="(?<month>\w+)"
                               disabled={!formData.custom_regex_month_enabled}
                               className={cn("font-mono text-sm", !formData.custom_regex_month_enabled && "opacity-50")}
                             />
@@ -893,7 +904,7 @@ export function EventGroupForm() {
                               onChange={(e) =>
                                 setFormData({ ...formData, custom_regex_day: e.target.value || null })
                               }
-                              placeholder="(?P<day>\d{1,2})"
+                              placeholder="(?<day>\d{1,2})"
                               disabled={!formData.custom_regex_day_enabled}
                               className={cn("font-mono text-sm", !formData.custom_regex_day_enabled && "opacity-50")}
                             />
@@ -917,12 +928,12 @@ export function EventGroupForm() {
                           onChange={(e) =>
                             setFormData({ ...formData, custom_regex_time: e.target.value || null })
                           }
-                          placeholder="(?P<time>\d{1,2}:\d{2}\s*(?:AM|PM)?)"
+                          placeholder="(?<time>\d{1,2}:\d{2}\s*(?:AM|PM)?)"
                           disabled={!formData.custom_regex_time_enabled}
                           className={cn("font-mono text-sm", !formData.custom_regex_time_enabled && "opacity-50")}
                         />
                         <p className="text-xs text-muted-foreground">
-                          Use named group: (?P&lt;time&gt;...)
+                          Use named group: (?&lt;time&gt;...)
                         </p>
                       </div>
 
@@ -942,12 +953,12 @@ export function EventGroupForm() {
                           onChange={(e) =>
                             setFormData({ ...formData, custom_regex_league: e.target.value || null })
                           }
-                          placeholder="(?P<league>NHL|NBA|NFL|MLB)"
+                          placeholder="(?<league>NHL|NBA|NFL|MLB)"
                           disabled={!formData.custom_regex_league_enabled}
                           className={cn("font-mono text-sm", !formData.custom_regex_league_enabled && "opacity-50")}
                         />
                         <p className="text-xs text-muted-foreground">
-                          Use named group: (?P&lt;league&gt;...)
+                          Use named group: (?&lt;league&gt;...)
                         </p>
                       </div>
                     </div>
@@ -976,12 +987,12 @@ export function EventGroupForm() {
                           onChange={(e) =>
                             setFormData({ ...formData, custom_regex_fighters: e.target.value || null })
                           }
-                          placeholder="(?P<fighter1>\w+)\s+vs\.?\s+(?P<fighter2>\w+)"
+                          placeholder="(?<fighter1>\w+)\s+vs\.?\s+(?<fighter2>\w+)"
                           disabled={!formData.custom_regex_fighters_enabled}
                           className={cn("font-mono text-sm", !formData.custom_regex_fighters_enabled && "opacity-50")}
                         />
                         <p className="text-xs text-muted-foreground">
-                          Use named groups: (?P&lt;fighter1&gt;...) and (?P&lt;fighter2&gt;...)
+                          Use named groups: (?&lt;fighter1&gt;...) and (?&lt;fighter2&gt;...)
                         </p>
                       </div>
 
@@ -1001,12 +1012,12 @@ export function EventGroupForm() {
                           onChange={(e) =>
                             setFormData({ ...formData, custom_regex_event_name: e.target.value || null })
                           }
-                          placeholder="(?P<event_name>UFC\s*\d+|Bellator\s*\d+)"
+                          placeholder="(?<event_name>UFC\s*\d+|Bellator\s*\d+)"
                           disabled={!formData.custom_regex_event_name_enabled}
                           className={cn("font-mono text-sm", !formData.custom_regex_event_name_enabled && "opacity-50")}
                         />
                         <p className="text-xs text-muted-foreground">
-                          Use named group: (?P&lt;event_name&gt;...)
+                          Use named group: (?&lt;event_name&gt;...)
                         </p>
                       </div>
 
@@ -1026,12 +1037,12 @@ export function EventGroupForm() {
                           onChange={(e) =>
                             setFormData({ ...formData, custom_regex_date: e.target.value || null })
                           }
-                          placeholder="(?P<date>\d{1,2}/\d{1,2})"
+                          placeholder="(?<date>\d{1,2}/\d{1,2})"
                           disabled={!formData.custom_regex_date_enabled}
                           className={cn("font-mono text-sm", !formData.custom_regex_date_enabled && "opacity-50")}
                         />
                         <p className="text-xs text-muted-foreground">
-                          Use named group: (?P&lt;date&gt;...)
+                          Use named group: (?&lt;date&gt;...)
                         </p>
 
                         {/* Month/Day sub-options */}
@@ -1052,7 +1063,7 @@ export function EventGroupForm() {
                               onChange={(e) =>
                                 setFormData({ ...formData, custom_regex_month: e.target.value || null })
                               }
-                              placeholder="(?P<month>\w+)"
+                              placeholder="(?<month>\w+)"
                               disabled={!formData.custom_regex_month_enabled}
                               className={cn("font-mono text-sm", !formData.custom_regex_month_enabled && "opacity-50")}
                             />
@@ -1072,7 +1083,7 @@ export function EventGroupForm() {
                               onChange={(e) =>
                                 setFormData({ ...formData, custom_regex_day: e.target.value || null })
                               }
-                              placeholder="(?P<day>\d{1,2})"
+                              placeholder="(?<day>\d{1,2})"
                               disabled={!formData.custom_regex_day_enabled}
                               className={cn("font-mono text-sm", !formData.custom_regex_day_enabled && "opacity-50")}
                             />
@@ -1096,12 +1107,12 @@ export function EventGroupForm() {
                           onChange={(e) =>
                             setFormData({ ...formData, custom_regex_time: e.target.value || null })
                           }
-                          placeholder="(?P<time>\d{1,2}:\d{2}\s*(?:AM|PM)?)"
+                          placeholder="(?<time>\d{1,2}:\d{2}\s*(?:AM|PM)?)"
                           disabled={!formData.custom_regex_time_enabled}
                           className={cn("font-mono text-sm", !formData.custom_regex_time_enabled && "opacity-50")}
                         />
                         <p className="text-xs text-muted-foreground">
-                          Use named group: (?P&lt;time&gt;...)
+                          Use named group: (?&lt;time&gt;...)
                         </p>
                       </div>
                     </div>
