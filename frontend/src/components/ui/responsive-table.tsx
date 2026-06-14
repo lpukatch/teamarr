@@ -32,6 +32,8 @@ interface ResponsiveTableProps<T> {
   columns: ResponsiveColumn<T>[]
   keyExtractor: (row: T, index: number) => string | number
   onRowClick?: (row: T) => void
+  /** Extra classes per row/card (e.g. dim disabled rows). */
+  rowClassName?: (row: T) => string | undefined
   /** Escape hatch: fully custom mobile card for a row (overrides the default). */
   renderMobileCard?: (row: T) => ReactNode
   emptyMessage?: ReactNode
@@ -57,6 +59,7 @@ export function ResponsiveTable<T>({
   columns,
   keyExtractor,
   onRowClick,
+  rowClassName,
   renderMobileCard,
   emptyMessage,
   className,
@@ -87,7 +90,7 @@ export function ResponsiveTable<T>({
             {rows.map((row, i) => (
               <TableRow
                 key={keyExtractor(row, i)}
-                className={onRowClick ? "cursor-pointer" : undefined}
+                className={cn(onRowClick && "cursor-pointer", rowClassName?.(row))}
                 onClick={onRowClick ? () => onRowClick(row) : undefined}
               >
                 {columns.map((c) => (
@@ -113,6 +116,7 @@ export function ResponsiveTable<T>({
                 "rounded-lg border bg-card p-3 space-y-2",
                 onRowClick && "cursor-pointer",
                 cardClassName,
+                rowClassName?.(row),
               )}
               onClick={onRowClick ? () => onRowClick(row) : undefined}
             >

@@ -16,14 +16,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { Switch } from "@/components/ui/switch"
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table"
+import { ResponsiveTable, type ResponsiveColumn } from "@/components/ui/responsive-table"
 import {
   Dialog,
   DialogContent,
@@ -473,59 +466,64 @@ export function DetectionLibrary() {
       <p className="text-sm text-muted-foreground mb-2">
         Map alternate team names to their official names for better stream matching
       </p>
-      <div className="border border-border rounded-lg overflow-hidden">
-        {aliasesQuery.isLoading ? (
-          <div className="flex items-center justify-center py-8">
-            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-          </div>
-        ) : aliases.length === 0 ? (
-          <div className="text-center py-8 text-muted-foreground">
-            No team aliases configured. Add one to get started.
-          </div>
-        ) : (
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="w-[30%]">Alias</TableHead>
-                <TableHead className="w-[30%]">Maps To</TableHead>
-                <TableHead className="w-[20%]">League</TableHead>
-                <TableHead className="w-[80px] text-right">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {aliases.map((alias) => (
-                <TableRow key={alias.id}>
-                  <TableCell>
-                    <code className="text-sm font-mono bg-muted px-1 rounded">
-                      {alias.alias}
-                    </code>
-                  </TableCell>
-                  <TableCell>{alias.team_name}</TableCell>
-                  <TableCell>
-                    <Badge variant="secondary">{alias.league}</Badge>
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex items-center justify-end">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8"
-                        onClick={() => {
-                          setActiveTab("team_aliases")
-                          setDeleteAliasConfirm({ id: alias.id, alias: alias.alias })
-                        }}
-                        title="Delete"
-                      >
-                        <Trash2 className="h-4 w-4 text-destructive" />
-                      </Button>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        )}
-      </div>
+      {aliasesQuery.isLoading ? (
+        <div className="flex items-center justify-center rounded-lg border border-border py-8">
+          <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+        </div>
+      ) : (
+        <ResponsiveTable
+          className="rounded-lg border border-border overflow-hidden"
+          rows={aliases}
+          keyExtractor={(alias) => alias.id}
+          emptyMessage="No team aliases configured. Add one to get started."
+          columns={[
+            {
+              key: "alias",
+              header: "Alias",
+              headerClassName: "w-[30%]",
+              mobileTitle: true,
+              cell: (alias) => (
+                <code className="text-sm font-mono bg-muted px-1 rounded">{alias.alias}</code>
+              ),
+            },
+            {
+              key: "team_name",
+              header: "Maps To",
+              headerClassName: "w-[30%]",
+              cell: (alias) => alias.team_name,
+            },
+            {
+              key: "league",
+              header: "League",
+              headerClassName: "w-[20%]",
+              cell: (alias) => <Badge variant="secondary">{alias.league}</Badge>,
+            },
+            {
+              key: "actions",
+              header: "Actions",
+              align: "right",
+              headerClassName: "w-[80px]",
+              mobileLabel: "",
+              cell: (alias) => (
+                <div className="flex items-center justify-end">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8"
+                    onClick={() => {
+                      setActiveTab("team_aliases")
+                      setDeleteAliasConfirm({ id: alias.id, alias: alias.alias })
+                    }}
+                    title="Delete"
+                  >
+                    <Trash2 className="h-4 w-4 text-destructive" />
+                  </Button>
+                </div>
+              ),
+            },
+          ]}
+        />
+      )}
     </CollapsibleSection>
   )
 
@@ -548,122 +546,135 @@ export function DetectionLibrary() {
             )}
           </p>
         )}
-        <div className="border border-border rounded-lg overflow-hidden">
-          {query.isLoading ? (
-            <div className="flex items-center justify-center py-8">
-              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-            </div>
-          ) : sectionKeywords.length === 0 ? (
-            <div className="text-center py-8 text-muted-foreground">
-              No keywords in this category. Add one to get started.
-            </div>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="w-[40%]">Keyword/Pattern</TableHead>
-                  {info?.has_target && <TableHead className="w-[20%]">Target</TableHead>}
-                  <TableHead className="w-[80px]">Type</TableHead>
-                  <TableHead className="w-[80px]">Priority</TableHead>
-                  <TableHead className="w-[80px]">Status</TableHead>
-                  <TableHead className="w-[120px] text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {sectionKeywords.map((kw) => (
-                  <TableRow key={kw.id} className={!kw.enabled ? "opacity-50" : ""}>
-                    <TableCell>
-                      <div className="flex flex-col">
-                        <code className="text-sm font-mono bg-muted px-1 rounded">
-                          {kw.keyword}
-                        </code>
-                        {kw.description && (
-                          <span className="text-xs text-muted-foreground mt-0.5">
-                            {kw.description}
-                          </span>
-                        )}
-                      </div>
-                    </TableCell>
-                    {info?.has_target && (
-                      <TableCell>
-                        {kw.target_value ? (
-                          category === "sport_hints" && kw.target_value.startsWith("[") ? (
-                            <div className="flex gap-1 flex-wrap">
-                              {parseSportTarget(kw.target_value).map((s) => (
-                                <Badge key={s} variant="secondary" className="text-xs font-mono">{s}</Badge>
-                              ))}
-                            </div>
-                          ) : (
-                            <code className="text-sm font-mono">{kw.target_value}</code>
-                          )
-                        ) : (
-                          <span className="text-muted-foreground">—</span>
-                        )}
-                      </TableCell>
+        {query.isLoading ? (
+          <div className="flex items-center justify-center rounded-lg border border-border py-8">
+            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+          </div>
+        ) : (
+          <ResponsiveTable
+            className="rounded-lg border border-border overflow-hidden"
+            rows={sectionKeywords}
+            keyExtractor={(kw) => kw.id}
+            rowClassName={(kw) => (!kw.enabled ? "opacity-50" : undefined)}
+            emptyMessage="No keywords in this category. Add one to get started."
+            columns={[
+              {
+                key: "keyword",
+                header: "Keyword/Pattern",
+                headerClassName: "w-[40%]",
+                mobileTitle: true,
+                cell: (kw: DetectionKeyword) => (
+                  <div className="flex flex-col">
+                    <code className="text-sm font-mono bg-muted px-1 rounded">{kw.keyword}</code>
+                    {kw.description && (
+                      <span className="text-xs text-muted-foreground mt-0.5">{kw.description}</span>
                     )}
-                    <TableCell>
-                      <Badge variant={kw.is_regex ? "info" : "secondary"}>
-                        {kw.is_regex ? "regex" : "text"}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      <span className="text-sm">{kw.priority}</span>
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant={kw.enabled ? "success" : "secondary"}>
-                        {kw.enabled ? "On" : "Off"}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center justify-end gap-1">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8"
-                          onClick={() => {
-                            setActiveTab(category)
-                            handleToggleEnabled(kw)
-                          }}
-                          title={kw.enabled ? "Disable" : "Enable"}
-                        >
-                          {kw.enabled ? (
-                            <ToggleRight className="h-4 w-4 text-green-500" />
-                          ) : (
-                            <ToggleLeft className="h-4 w-4" />
-                          )}
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8"
-                          onClick={() => {
-                            setActiveTab(category)
-                            openEditDialog(kw, category)
-                          }}
-                          title="Edit"
-                        >
-                          <Pencil className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8"
-                          onClick={() => {
-                            setActiveTab(category)
-                            setDeleteConfirm(kw)
-                          }}
-                          title="Delete"
-                        >
-                          <Trash2 className="h-4 w-4 text-destructive" />
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          )}
-        </div>
+                  </div>
+                ),
+              },
+              info?.has_target
+                ? {
+                    key: "target",
+                    header: "Target",
+                    headerClassName: "w-[20%]",
+                    cell: (kw: DetectionKeyword) =>
+                      kw.target_value ? (
+                        category === "sport_hints" && kw.target_value.startsWith("[") ? (
+                          <div className="flex gap-1 flex-wrap">
+                            {parseSportTarget(kw.target_value).map((s) => (
+                              <Badge key={s} variant="secondary" className="text-xs font-mono">
+                                {s}
+                              </Badge>
+                            ))}
+                          </div>
+                        ) : (
+                          <code className="text-sm font-mono">{kw.target_value}</code>
+                        )
+                      ) : (
+                        <span className="text-muted-foreground">—</span>
+                      ),
+                  }
+                : null,
+              {
+                key: "type",
+                header: "Type",
+                headerClassName: "w-[80px]",
+                cell: (kw: DetectionKeyword) => (
+                  <Badge variant={kw.is_regex ? "info" : "secondary"}>
+                    {kw.is_regex ? "regex" : "text"}
+                  </Badge>
+                ),
+              },
+              {
+                key: "priority",
+                header: "Priority",
+                headerClassName: "w-[80px]",
+                cell: (kw: DetectionKeyword) => <span className="text-sm">{kw.priority}</span>,
+              },
+              {
+                key: "status",
+                header: "Status",
+                headerClassName: "w-[80px]",
+                cell: (kw: DetectionKeyword) => (
+                  <Badge variant={kw.enabled ? "success" : "secondary"}>
+                    {kw.enabled ? "On" : "Off"}
+                  </Badge>
+                ),
+              },
+              {
+                key: "actions",
+                header: "Actions",
+                align: "right",
+                headerClassName: "w-[120px]",
+                mobileLabel: "",
+                cell: (kw: DetectionKeyword) => (
+                  <div className="flex items-center justify-end gap-1">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8"
+                      onClick={() => {
+                        setActiveTab(category)
+                        handleToggleEnabled(kw)
+                      }}
+                      title={kw.enabled ? "Disable" : "Enable"}
+                    >
+                      {kw.enabled ? (
+                        <ToggleRight className="h-4 w-4 text-green-500" />
+                      ) : (
+                        <ToggleLeft className="h-4 w-4" />
+                      )}
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8"
+                      onClick={() => {
+                        setActiveTab(category)
+                        openEditDialog(kw, category)
+                      }}
+                      title="Edit"
+                    >
+                      <Pencil className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8"
+                      onClick={() => {
+                        setActiveTab(category)
+                        setDeleteConfirm(kw)
+                      }}
+                      title="Delete"
+                    >
+                      <Trash2 className="h-4 w-4 text-destructive" />
+                    </Button>
+                  </div>
+                ),
+              },
+            ].filter(Boolean) as ResponsiveColumn<(typeof sectionKeywords)[number]>[]}
+          />
+        )}
       </CollapsibleSection>
     )
   }
