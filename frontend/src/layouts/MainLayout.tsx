@@ -10,6 +10,8 @@ import {
   Tv,
   Settings,
   Play,
+  Menu,
+  X,
 } from "lucide-react"
 import type { LucideIcon } from "lucide-react"
 import { useCallback, useEffect, useState } from "react"
@@ -75,6 +77,7 @@ export function MainLayout() {
     const saved = localStorage.getItem("theme")
     return (saved as "dark" | "light") || "dark"
   })
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
 
   const healthQuery = useQuery({
     queryKey: ["health"],
@@ -121,9 +124,9 @@ export function MainLayout() {
   return (
     <div className="min-h-screen bg-background text-foreground">
       {/* Navbar */}
-      <nav className="border-b border-border bg-secondary/50 backdrop-blur-sm sticky top-0 z-50">
+      <nav className="border-b border-border bg-secondary/75 backdrop-blur-md lg:bg-secondary/50 lg:backdrop-blur-sm sticky top-0 z-50">
         <div className="max-w-[1440px] mx-auto px-4">
-          <div className="flex items-center justify-between h-12">
+          <div className="flex items-center justify-between h-14 lg:h-12">
             {/* Brand */}
             <Link to="/" className="flex items-center gap-2">
               <img
@@ -144,8 +147,8 @@ export function MainLayout() {
               </div>
             </Link>
 
-            {/* Nav Links — stepwise flow */}
-            <div className="flex items-center gap-1">
+            {/* Desktop Nav Links — stepwise flow */}
+            <div className="hidden lg:flex items-center gap-1">
               {NAV_ITEMS.map((item) => {
                 const Icon = item.icon
                 return (
@@ -184,10 +187,10 @@ export function MainLayout() {
               </button>
             </div>
 
-            {/* Right side */}
-            <div className="flex items-center gap-3">
-              {/* Settings = step 0 (Connect / Dispatcharr). Labeled + badged so
-                  it reads as the start of the flow, not just a gear. */}
+            {/* Desktop right side — Settings (step 0), version, theme.
+                Settings is labeled + badged so it reads as the start of the
+                flow, not just a gear. */}
+            <div className="hidden lg:flex items-center gap-3">
               <NavLink
                 to="/settings"
                 title="Settings — connect Dispatcharr (step 0)"
@@ -229,9 +232,128 @@ export function MainLayout() {
                 )}
               </button>
             </div>
+
+            {/* Mobile Controls */}
+            <div className="lg:hidden flex items-center gap-1">
+              <button
+                onClick={toggleTheme}
+                className="p-2 rounded-md hover:bg-accent transition-colors"
+                title="Toggle theme"
+              >
+                {theme === "dark" ? (
+                  <Moon className="h-4 w-4" />
+                ) : (
+                  <Sun className="h-4 w-4" />
+                )}
+              </button>
+              <button
+                onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+                className="p-2 rounded-md hover:bg-accent transition-colors"
+                aria-label={isMobileMenuOpen ? "Close menu" : "Open menu"}
+                aria-expanded={isMobileMenuOpen}
+                aria-controls="mobile-nav-menu"
+              >
+                {isMobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+              </button>
+            </div>
           </div>
+
+          {/* Mobile Menu */}
+          {isMobileMenuOpen && (
+            <div
+              id="mobile-nav-menu"
+              className="lg:hidden py-3 flex flex-col gap-2 animate-slide-down"
+            >
+              {NAV_ITEMS.map((item) => {
+                const Icon = item.icon
+                return (
+                  <NavLink
+                    key={item.to}
+                    to={item.to}
+                    end={item.to === "/"}
+                    onClick={() => setIsMobileMenuOpen(false)}
+                    className={({ isActive }) =>
+                      `flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                        isActive
+                          ? "bg-primary/10 text-primary"
+                          : "text-muted-foreground hover:text-foreground hover:bg-accent"
+                      }`
+                    }
+                  >
+                    <div className="flex items-center justify-center w-5">
+                      <Icon className="h-5 w-5" />
+                    </div>
+                    {item.label}
+                    {item.step != null && !visited.has(item.step) && (
+                      <span className="ml-auto flex h-5 w-5 items-center justify-center rounded-full bg-primary/20 text-primary text-[10px] font-semibold">
+                        {item.step}
+                      </span>
+                    )}
+                  </NavLink>
+                )
+              })}
+
+              <button
+                onClick={() => {
+                  startGeneration()
+                  setIsMobileMenuOpen(false)
+                }}
+                disabled={isGenerating}
+                className="flex items-center gap-3 px-3 py-2 mt-1 rounded-md bg-primary text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-60"
+              >
+                <div className="flex items-center justify-center w-5">
+                  <Play className="h-5 w-5" />
+                </div>
+                {isGenerating ? "Generating…" : "Generate EPG"}
+              </button>
+
+              <div className="h-px bg-border my-2" />
+
+              <NavLink
+                to="/settings"
+                onClick={() => setIsMobileMenuOpen(false)}
+                className={({ isActive }) =>
+                  `flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                    isActive ? "text-primary bg-primary/10" : "text-muted-foreground hover:text-foreground hover:bg-accent"
+                  }`
+                }
+              >
+                <div className="flex items-center justify-center w-5">
+                  <Settings className="h-5 w-5" />
+                </div>
+                Settings
+                {!visited.has(0) && (
+                  <span className="ml-auto flex h-5 w-5 items-center justify-center rounded-full bg-primary/20 text-primary text-[10px] font-semibold">
+                    0
+                  </span>
+                )}
+              </NavLink>
+
+              <Link
+                to="/settings?tab=advanced"
+                onClick={() => setIsMobileMenuOpen(false)}
+                className="flex items-center justify-between px-3 py-2 mt-1 rounded-md text-sm font-medium text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
+              >
+                <span>Version</span>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs bg-muted px-2 py-0.5 rounded">{version}</span>
+                  {updateAvailable && <span className="flex h-2 w-2 rounded-full bg-amber-500" />}
+                </div>
+              </Link>
+            </div>
+          )}
         </div>
       </nav>
+
+      {/* Mobile menu backdrop — tap outside the menu to dismiss */}
+      {isMobileMenuOpen && (
+        <button
+          aria-hidden="true"
+          tabIndex={-1}
+          onClick={() => setIsMobileMenuOpen(false)}
+          className="lg:hidden fixed inset-0 z-40 bg-black/20"
+        />
+      )}
 
       {/* Main Content */}
       <main className="max-w-[1440px] mx-auto px-4 py-4">
