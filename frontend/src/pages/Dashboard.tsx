@@ -7,7 +7,7 @@ import { EventMatcherModal, useEventMatcher } from "@/components/EventMatcherMod
 import { StatusStrip } from "@/components/StatusStrip"
 import { useRecentRuns, useStats } from "@/hooks/useEPG"
 
-const RUNS_PREVIEW = 4
+const RUNS_PREVIEW = 5
 
 function formatDuration(ms: number | null | undefined): string {
   if (!ms) return "0s"
@@ -68,12 +68,16 @@ export function Dashboard() {
         </div>
       )}
 
-      {/* Managed channels (output) — collapsible active + recently-deleted tables.
-          Placed right after history: this is important, frequently-checked output. */}
-      <ManagedChannelsTable />
+      {/* Collapsible output sections — separated from the history above so the
+          accordions read as a distinct group. */}
+      <div className="space-y-2 border-t pt-4 mt-4">
+        {/* Managed channels (output) — collapsible active + recently-deleted
+            tables. Frequently-checked output, so it leads the group. */}
+        <ManagedChannelsTable />
 
-      {/* EPG output diagnostics: URL, coverage analysis, XML preview (collapsed) */}
-      <EpgOutput />
+        {/* EPG output diagnostics: URL, coverage analysis, XML preview (collapsed) */}
+        <EpgOutput />
+      </div>
 
       {/* Getting Started slot — first-run experience handled by epic 297x */}
 

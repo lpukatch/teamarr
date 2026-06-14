@@ -52,7 +52,7 @@ export function CollapsibleSection({
         <button
           type="button"
           onClick={() => setCollapsed((c) => !c)}
-          className="flex min-w-0 items-center gap-2 text-left hover:opacity-80"
+          className="flex min-w-0 cursor-pointer items-center gap-2 text-left hover:opacity-80"
         >
           <Chevron className="h-4 w-4 shrink-0 text-muted-foreground" />
           {icon}

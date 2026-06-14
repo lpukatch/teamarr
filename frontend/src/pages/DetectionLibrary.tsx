@@ -118,7 +118,7 @@ function prepareKeyword(category: TabType, raw: string): string {
 export function DetectionLibrary() {
   const [activeView, setActiveView] = useState<
     "custom_rules" | "epg_matching" | "event_lookahead"
-  >("custom_rules")
+  >("epg_matching")
   const [activeTab, setActiveTab] = useState<TabType>("team_aliases")
   const [showAddDialog, setShowAddDialog] = useState(false)
   const [editingKeyword, setEditingKeyword] = useState<DetectionKeyword | null>(null)
@@ -707,9 +707,9 @@ export function DetectionLibrary() {
       {/* Page-level view nav */}
       <SubNav
         items={[
-          { key: "custom_rules", label: "Custom Rules" },
           { key: "epg_matching", label: "EPG Matching" },
           { key: "event_lookahead", label: "Event Lookahead" },
+          { key: "custom_rules", label: "Custom Rules" },
         ]}
         value={activeView}
         onChange={(k) =>

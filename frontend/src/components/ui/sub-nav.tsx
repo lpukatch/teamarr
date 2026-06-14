@@ -26,7 +26,7 @@ interface SubNavProps {
 }
 
 const TRACK = "inline-flex flex-wrap items-center gap-1 rounded-lg bg-muted p-1"
-const ITEM = "inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-colors"
+const ITEM = "inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-colors cursor-pointer"
 const ACTIVE = "bg-background text-foreground shadow-sm"
 const INACTIVE = "text-muted-foreground hover:text-foreground"
 const DISABLED = "opacity-50 cursor-not-allowed"
