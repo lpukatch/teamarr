@@ -390,20 +390,20 @@ function RuleRow({
   if (isCatchAll) {
     return (
       <div className="flex items-center gap-2 p-2 rounded-md border bg-muted/30">
-        <div className="flex-1 grid grid-cols-12 gap-2 items-center">
-          <div className="col-span-2">
+        <div className="flex-1 grid grid-cols-1 md:grid-cols-12 gap-2 md:items-center">
+          <div className="col-span-12 md:col-span-2">
             <span className="text-sm font-medium px-3">Everything Else</span>
           </div>
-          <div className="col-span-7">
+          <div className="col-span-12 md:col-span-7">
             <span className="text-sm text-muted-foreground italic px-1">All unmatched streams (Not captured by other rules on this page)</span>
           </div>
-          <div className="col-span-2">
+          <div className="col-span-10 md:col-span-2">
             <PriorityInput
               value={rule.priority}
               onCommit={(priority) => onUpdate(index, { ...rule, priority })}
             />
           </div>
-          <div className="col-span-1" />
+          <div className="col-span-2 md:col-span-1" />
         </div>
       </div>
     )
@@ -411,8 +411,8 @@ function RuleRow({
 
   return (
     <div className="flex items-center gap-2 p-2 rounded-md border bg-card">
-      <div className="flex-1 grid grid-cols-12 gap-2 items-center">
-        <div className="col-span-2">
+      <div className="flex-1 grid grid-cols-1 md:grid-cols-12 gap-2 md:items-center">
+        <div className="col-span-12 md:col-span-2">
           <Select
             value={
               TEAM_FEED_FAMILY.has(rule.type)
@@ -429,7 +429,7 @@ function RuleRow({
           </Select>
         </div>
 
-        <div className="col-span-7">
+        <div className="col-span-12 md:col-span-7">
           {rule.type === "m3u" ? (
             <Select
               value={rule.value}
@@ -537,14 +537,14 @@ function RuleRow({
           )}
         </div>
 
-        <div className="col-span-2">
+        <div className="col-span-10 md:col-span-2">
           <PriorityInput
             value={rule.priority}
             onCommit={(priority) => onUpdate(index, { ...rule, priority })}
           />
         </div>
 
-        <div className="col-span-1 flex justify-end">
+        <div className="col-span-2 md:col-span-1 flex justify-end">
           <Button
             variant="ghost"
             size="icon"
@@ -790,7 +790,7 @@ export function StreamOrderingManager() {
     <>
     <Card>
       <CardHeader>
-        <div className="flex items-start justify-between gap-4">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div className="space-y-1.5">
             <CardTitle>Stream Priority</CardTitle>
             <CardDescription>
@@ -798,7 +798,7 @@ export function StreamOrderingManager() {
               Lower priority numbers appear first. Streams not matching any rule are sorted to the end.
             </CardDescription>
           </div>
-          <div className="flex items-center gap-2 shrink-0">
+          <div className="flex flex-wrap items-center gap-2 shrink-0">
             <Button variant="outline" size="sm" onClick={handleExport} disabled={!settings?.rules?.length}>
               <Download className="h-4 w-4 mr-1" />
               Export
@@ -825,7 +825,7 @@ export function StreamOrderingManager() {
         {rules.length > 0 && (
           <div className="space-y-2">
             {/* Header row */}
-            <div className="grid grid-cols-12 gap-2 px-2 text-xs font-medium text-muted-foreground">
+            <div className="hidden md:grid grid-cols-12 gap-2 px-2 text-xs font-medium text-muted-foreground">
               <div className="col-span-2">Type</div>
               <div className="col-span-7">Value</div>
               <div className="col-span-2 text-center">Priority</div>

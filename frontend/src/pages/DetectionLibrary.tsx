@@ -699,10 +699,10 @@ export function DetectionLibrary() {
 
   return (
     <div className="space-y-2">
-      <div className="flex items-start justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <h1 className="text-xl font-bold shrink-0">Matching</h1>
         {/* Custom Regex signpost — compact one-liner beside the heading */}
-        <div className="whitespace-nowrap rounded-md border border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-950 px-3 py-1.5 text-xs text-blue-800 dark:text-blue-200">
+        <div className="rounded-md border border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-950 px-3 py-1.5 text-xs text-blue-800 dark:text-blue-200 sm:whitespace-nowrap">
           <span className="font-semibold text-blue-900 dark:text-blue-100">Tip:</span>{" "}
           per-source <strong>Custom Regex</strong> is your strongest matching lever — set it in Sources.
         </div>

@@ -207,7 +207,7 @@ export function TemplateAssignmentManager({
     <div className="space-y-4">
       {/* Section header + add action — mirrors the Templates page header (title
           left, standard add button right) */}
-      <div className="flex items-center justify-between gap-3">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
           <h2 className="text-lg font-semibold">Template Assignments</h2>
           <p className="text-sm text-muted-foreground">
