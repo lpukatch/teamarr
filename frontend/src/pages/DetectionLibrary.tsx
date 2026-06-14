@@ -462,6 +462,7 @@ export function DetectionLibrary() {
       title={TAB_NAMES.team_aliases}
       count={aliases.length}
       actions={<SectionActions category="team_aliases" />}
+      persistKey="detlib-team_aliases"
     >
       <p className="text-sm text-muted-foreground mb-2">
         Map alternate team names to their official names for better stream matching
@@ -537,6 +538,7 @@ export function DetectionLibrary() {
         title={TAB_NAMES[category]}
         count={sectionKeywords.length}
         actions={<SectionActions category={category} />}
+        persistKey={`detlib-${category}`}
       >
         {info && (
           <p className="text-sm text-muted-foreground mb-2">
