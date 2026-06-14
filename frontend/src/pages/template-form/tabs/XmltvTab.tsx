@@ -2,6 +2,7 @@ import { FolderOpen, Clapperboard, Tag, Tv } from "lucide-react"
 import { Alert } from "@/components/ui/alert"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Checkbox } from "@/components/ui/checkbox"
+import { Select } from "@/components/ui/select"
 import type { XmltvFlags } from "@/api/templates"
 import { CategoryEditor } from "../CategoryEditor"
 import type { TabProps } from "../types"
@@ -126,8 +127,8 @@ export function XmltvTab({ formData, setFormData }: TabProps) {
           {formData.xmltv_video?.enabled && (
             <div className="pt-2">
               <label className="text-xs font-medium">Quality</label>
-              <select
-                className="w-full mt-1 px-2 py-1.5 text-sm border rounded-md bg-background"
+              <Select
+                className="mt-1"
                 value={formData.xmltv_video?.quality || "HDTV"}
                 onChange={(e) => setFormData(prev => ({
                   ...prev,
@@ -137,7 +138,7 @@ export function XmltvTab({ formData, setFormData }: TabProps) {
                 <option value="SDTV">SDTV</option>
                 <option value="HDTV">HDTV</option>
                 <option value="UHD">UHD (4K)</option>
-              </select>
+              </Select>
             </div>
           )}
         </CardContent>
