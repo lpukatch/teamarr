@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react"
 import { toast } from "sonner"
-import { BookOpen, Download, Upload, Trash2, Loader2, ChevronRight } from "lucide-react"
+import { BookOpen, Download, Upload, Trash2, Loader2, ChevronRight, Target } from "lucide-react"
 import { useQuery } from "@tanstack/react-query"
 import { Button } from "@/components/ui/button"
 import { SaveButton } from "@/components/ui/save-button"
@@ -197,7 +197,7 @@ export function ConditionsTab({ formData, setFormData, resolveTemplate, isTeamTe
       <Card>
         <CardHeader>
           <div className="flex items-center justify-between">
-            <CardTitle className="text-base">🎯 Conditional Descriptions</CardTitle>
+            <CardTitle className="text-base flex items-center gap-2"><Target className="h-4 w-4" /> Conditional Descriptions</CardTitle>
             <Button onClick={addCondition} variant="outline" size="sm">
               + Add Condition
             </Button>

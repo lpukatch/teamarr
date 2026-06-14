@@ -1,12 +1,14 @@
+import type { LucideIcon } from "lucide-react"
+import { ClipboardList, Pencil, Target, Calendar, Settings } from "lucide-react"
 import type { TemplateCreate, FillerContent } from "@/api/templates"
 import type { Tab } from "./types"
 
-export const TABS: { id: Tab; label: string; icon: string }[] = [
-  { id: "basic", label: "Basic Info", icon: "📋" },
-  { id: "defaults", label: "Defaults", icon: "✏️" },
-  { id: "conditions", label: "Conditions", icon: "🎯" },
-  { id: "fillers", label: "Fillers", icon: "📅" },
-  { id: "xmltv", label: "Other EPG Options", icon: "⚙️" },
+export const TABS: { id: Tab; label: string; icon: LucideIcon }[] = [
+  { id: "basic", label: "Basics", icon: ClipboardList },
+  { id: "defaults", label: "Defaults", icon: Pencil },
+  { id: "conditions", label: "Conditions", icon: Target },
+  { id: "fillers", label: "Fillers", icon: Calendar },
+  { id: "xmltv", label: "EPG Options", icon: Settings },
 ]
 
 // Default filler content

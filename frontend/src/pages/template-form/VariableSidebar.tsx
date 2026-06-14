@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from "react"
-import { ChevronDown, Search, X } from "lucide-react"
+import { ChevronDown, Search, X, FileText, User, Tv, Clock } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Select } from "@/components/ui/select"
@@ -124,7 +124,7 @@ export function VariableSidebar({ categories, onInsert, lastFocusedField, isTeam
     <Card className="h-full overflow-y-auto">
       <CardHeader className="pb-2">
         <CardTitle className="text-sm flex items-center gap-2">
-          📝 Template Variables
+          <FileText className="h-4 w-4" /> Template Variables
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-3">
@@ -132,8 +132,9 @@ export function VariableSidebar({ categories, onInsert, lastFocusedField, isTeam
         <div className="space-y-2">
           <div className="flex items-center gap-2 px-2 py-1.5 bg-secondary/50 rounded text-xs">
             <span className="text-muted-foreground">Showing vars for:</span>
-            <span className="font-semibold text-primary">
-              {isTeamTemplate ? "👤 Team" : "📺 Event"}
+            <span className="inline-flex items-center gap-1 font-semibold text-primary">
+              {isTeamTemplate ? <User className="h-3 w-3" /> : <Tv className="h-3 w-3" />}
+              {isTeamTemplate ? "Team" : "Event"}
             </span>
           </div>
           <div className="flex items-center gap-2 px-2 py-1.5 bg-secondary/50 rounded text-xs">
@@ -204,7 +205,7 @@ export function VariableSidebar({ categories, onInsert, lastFocusedField, isTeam
           <details className="group" open>
             <summary className="cursor-pointer text-xs font-medium text-foreground hover:text-primary flex items-center gap-1">
               <ChevronDown className="h-3 w-3 transition-transform group-open:rotate-180" />
-              🕒 Recently Used
+              <Clock className="h-3 w-3" /> Recently Used
             </summary>
             <div className="flex flex-wrap gap-1 mt-2">
               {recentlyUsed.slice(0, 8).map((varName) => {

@@ -1,3 +1,4 @@
+import { FolderOpen, Clapperboard, Tag, Tv } from "lucide-react"
 import { Alert } from "@/components/ui/alert"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -28,7 +29,7 @@ export function XmltvTab({ formData, setFormData }: TabProps) {
       <div className="grid gap-4 md:grid-cols-2">
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">📂 Event Categories</CardTitle>
+            <CardTitle className="text-base flex items-center gap-2"><FolderOpen className="h-4 w-4" /> Event Categories</CardTitle>
             <p className="text-xs text-muted-foreground">
               Applied to live game programmes (events).
             </p>
@@ -46,7 +47,7 @@ export function XmltvTab({ formData, setFormData }: TabProps) {
 
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">🎬 Filler Categories</CardTitle>
+            <CardTitle className="text-base flex items-center gap-2"><Clapperboard className="h-4 w-4" /> Filler Categories</CardTitle>
             <p className="text-xs text-muted-foreground">
               Applied to filler programmes (pregame / postgame / idle). Independent from event
               categories — leave empty to omit <code>&lt;category&gt;</code> tags on filler.
@@ -67,7 +68,7 @@ export function XmltvTab({ formData, setFormData }: TabProps) {
       {/* Tags */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">🏷️ Tags</CardTitle>
+          <CardTitle className="text-base flex items-center gap-2"><Tag className="h-4 w-4" /> Tags</CardTitle>
           <p className="text-xs text-muted-foreground">
             Tags only apply to events, not to filler (pregame/postgame/idle).
           </p>
@@ -100,7 +101,7 @@ export function XmltvTab({ formData, setFormData }: TabProps) {
       {/* Video Quality */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">📺 Video Quality</CardTitle>
+          <CardTitle className="text-base flex items-center gap-2"><Tv className="h-4 w-4" /> Video Quality</CardTitle>
           <p className="text-xs text-muted-foreground">
             XMLTV video element for EPG clients that support quality metadata.
           </p>

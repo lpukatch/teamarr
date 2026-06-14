@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useMemo } from "react"
 import { useNavigate, useParams } from "react-router-dom"
 import { toast } from "sonner"
-import { ArrowLeft, Loader2 } from "lucide-react"
+import { ArrowLeft, Loader2, User, Tv } from "lucide-react"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { Button } from "@/components/ui/button"
 import { SaveButton } from "@/components/ui/save-button"
@@ -231,7 +231,7 @@ export function TemplateForm() {
             <ArrowLeft className="h-4 w-4 mr-1" />
             Back
           </Button>
-          <h1 className="text-2xl font-bold">Create New Template</h1>
+          <h1 className="text-xl font-bold">Create Template</h1>
         </div>
 
         <Card>
@@ -253,7 +253,7 @@ export function TemplateForm() {
                 }`}
               >
                 <div className="flex items-start gap-3">
-                  <span className="text-2xl">📺</span>
+                  <Tv className="h-6 w-6 shrink-0 text-muted-foreground" />
                   <div>
                     <strong className="block">Event Template</strong>
                     <span className="text-sm text-muted-foreground">
@@ -272,7 +272,7 @@ export function TemplateForm() {
                 }`}
               >
                 <div className="flex items-start gap-3">
-                  <span className="text-2xl">👤</span>
+                  <User className="h-6 w-6 shrink-0 text-muted-foreground" />
                   <div>
                     <strong className="block">Team Template</strong>
                     <span className="text-sm text-muted-foreground">
@@ -306,15 +306,16 @@ export function TemplateForm() {
           </Button>
           <div>
             <div className="flex items-center gap-2">
-              <h1 className="text-2xl font-bold">
+              <h1 className="text-xl font-bold">
                 {isEdit ? `Edit Template: ${template?.name}` : "Create Template"}
               </h1>
               <span
-                className={`px-2 py-0.5 rounded text-xs font-medium ${
+                className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium ${
                   isTeamTemplate ? "bg-secondary text-secondary-foreground" : "bg-blue-500/20 text-blue-400"
                 }`}
               >
-                {isTeamTemplate ? "👤 Team" : "📺 Event"}
+                {isTeamTemplate ? <User className="h-3 w-3" /> : <Tv className="h-3 w-3" />}
+                {isTeamTemplate ? "Team" : "Event"}
               </span>
             </div>
           </div>
@@ -329,7 +330,7 @@ export function TemplateForm() {
         <div className={`px-4 py-2 rounded-lg mb-4 flex items-center gap-3 ${
           isTeamTemplate ? "bg-secondary/50 border border-secondary" : "bg-blue-500/10 border border-blue-500/30"
         }`}>
-          <span className="text-lg">{isTeamTemplate ? "👤" : "📺"}</span>
+          {isTeamTemplate ? <User className="h-5 w-5 shrink-0" /> : <Tv className="h-5 w-5 shrink-0" />}
           <div>
             <span className="font-semibold">{isTeamTemplate ? "Team Template" : "Event Template"}</span>
             <span className="text-muted-foreground text-sm ml-2">
@@ -350,13 +351,13 @@ export function TemplateForm() {
           <button
             key={tab.id}
             onClick={() => setActiveTab(tab.id)}
-            className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+            className={`flex items-center gap-1.5 px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
               activeTab === tab.id
                 ? "border-primary text-primary"
                 : "border-transparent text-muted-foreground hover:text-foreground"
             }`}
           >
-            {tab.icon} {tab.label}
+            <tab.icon className="h-4 w-4" /> {tab.label}
           </button>
         ))}
       </div>

@@ -1,3 +1,4 @@
+import { Clock, Tv, Moon, Check, Hourglass } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Switch } from "@/components/ui/switch"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -62,7 +63,7 @@ export function FillersTab({ formData, setFormData, isTeamTemplate, fieldRefs, s
       {/* Pregame */}
       <Card>
         <CardHeader className="flex-row items-center justify-between space-y-0">
-          <CardTitle className="text-base">⏰ Pregame</CardTitle>
+          <CardTitle className="text-base flex items-center gap-2"><Clock className="h-4 w-4" /> Pregame</CardTitle>
           <Switch
             checked={formData.pregame_enabled ?? true}
             onCheckedChange={(checked) => setFormData((prev) => ({ ...prev, pregame_enabled: checked }))}
@@ -123,7 +124,7 @@ export function FillersTab({ formData, setFormData, isTeamTemplate, fieldRefs, s
       {/* Postgame */}
       <Card>
         <CardHeader className="flex-row items-center justify-between space-y-0">
-          <CardTitle className="text-base">📺 Postgame</CardTitle>
+          <CardTitle className="text-base flex items-center gap-2"><Tv className="h-4 w-4" /> Postgame</CardTitle>
           <Switch
             checked={formData.postgame_enabled ?? true}
             onCheckedChange={(checked) => setFormData((prev) => ({ ...prev, postgame_enabled: checked }))}
@@ -179,7 +180,7 @@ export function FillersTab({ formData, setFormData, isTeamTemplate, fieldRefs, s
                 <div className="space-y-4">
                   {/* Final game conditionals */}
                   <div className="space-y-2">
-                    <span className="text-sm font-medium text-muted-foreground">✓ If last game is final:</span>
+                    <span className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground"><Check className="h-3.5 w-3.5" /> If last game is final:</span>
                     <TemplateField
                       id="postgame_conditional.title_final"
                       label="Title"
@@ -213,7 +214,7 @@ export function FillersTab({ formData, setFormData, isTeamTemplate, fieldRefs, s
                   </div>
                   {/* Not final game conditionals */}
                   <div className="space-y-2">
-                    <span className="text-sm font-medium text-muted-foreground">⏳ If last game is NOT final:</span>
+                    <span className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground"><Hourglass className="h-3.5 w-3.5" /> If last game is NOT final:</span>
                     <TemplateField
                       id="postgame_conditional.title_not_final"
                       label="Title"
@@ -269,7 +270,7 @@ export function FillersTab({ formData, setFormData, isTeamTemplate, fieldRefs, s
       {isTeamTemplate && (
         <Card>
           <CardHeader className="flex-row items-center justify-between space-y-0">
-            <CardTitle className="text-base">💤 Idle Day</CardTitle>
+            <CardTitle className="text-base flex items-center gap-2"><Moon className="h-4 w-4" /> Idle Day</CardTitle>
             <Switch
               checked={formData.idle_enabled ?? true}
               onCheckedChange={(checked) => setFormData((prev) => ({ ...prev, idle_enabled: checked }))}
@@ -298,7 +299,7 @@ export function FillersTab({ formData, setFormData, isTeamTemplate, fieldRefs, s
                 {idleOffseason.title_enabled && (
                   <TemplateField
                     id="idle_offseason.title"
-                    label="📅 No upcoming games:"
+                    label="No upcoming games:"
                     value={idleOffseason.title || ""}
                     onChange={(v) => updateIdleOffseason("title", v || null)}
                     placeholder="Off-Season Programming"
@@ -331,7 +332,7 @@ export function FillersTab({ formData, setFormData, isTeamTemplate, fieldRefs, s
                 {idleOffseason.subtitle_enabled && (
                   <TemplateField
                     id="idle_offseason.subtitle"
-                    label="📅 No upcoming games:"
+                    label="No upcoming games:"
                     value={idleOffseason.subtitle || ""}
                     onChange={(v) => updateIdleOffseason("subtitle", v || null)}
                     placeholder="See you next season!"
@@ -363,7 +364,7 @@ export function FillersTab({ formData, setFormData, isTeamTemplate, fieldRefs, s
                 {idleOffseason.description_enabled && (
                   <TemplateField
                     id="idle_offseason.description"
-                    label="📅 No upcoming games:"
+                    label="No upcoming games:"
                     value={idleOffseason.description || ""}
                     onChange={(v) => updateIdleOffseason("description", v || null)}
                     placeholder="No upcoming {team_name} games scheduled."
@@ -387,7 +388,7 @@ export function FillersTab({ formData, setFormData, isTeamTemplate, fieldRefs, s
                   <div className="space-y-4">
                     {/* Final game conditionals */}
                     <div className="space-y-2">
-                      <span className="text-sm font-medium text-muted-foreground">✓ If last game is final:</span>
+                      <span className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground"><Check className="h-3.5 w-3.5" /> If last game is final:</span>
                       <TemplateField
                         id="idle_conditional.title_final"
                         label="Title"
@@ -421,7 +422,7 @@ export function FillersTab({ formData, setFormData, isTeamTemplate, fieldRefs, s
                     </div>
                     {/* Not final game conditionals */}
                     <div className="space-y-2">
-                      <span className="text-sm font-medium text-muted-foreground">⏳ If last game is NOT final:</span>
+                      <span className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground"><Hourglass className="h-3.5 w-3.5" /> If last game is NOT final:</span>
                       <TemplateField
                         id="idle_conditional.title_not_final"
                         label="Title"
