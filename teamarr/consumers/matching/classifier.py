@@ -64,6 +64,20 @@ class ClassifiedStream:
     feed_hint: str | None = None
 
 
+def _fix_regex_pattern(pattern: str | None) -> str | None:
+    """Convert JavaScript-style named groups and backreferences to Python style.
+    
+    Transforms `(?<name>...)` to `(?P<name>...)` and `\\k<name>` to `(?P=name)`.
+    """
+    if not pattern:
+        return pattern
+    # Replace (?<name> with (?P<name>
+    pattern = re.sub(r'\(\?<([a-zA-Z_]\w*)>', r'(?P<\1>', pattern)
+    # Replace \k<name> with (?P=name)
+    pattern = re.sub(r'\\k<([a-zA-Z_]\w*)>', r'(?P=\1)', pattern)
+    return pattern
+
+
 @dataclass
 class CustomRegexConfig:
     """Configuration for custom regex extraction patterns."""
@@ -105,7 +119,8 @@ class CustomRegexConfig:
 
         if self._compiled_teams is None:
             try:
-                self._compiled_teams = re.compile(self.teams_pattern, re.IGNORECASE)
+                fixed_pattern = _fix_regex_pattern(self.teams_pattern)
+                self._compiled_teams = re.compile(fixed_pattern, re.IGNORECASE)
             except re.error as e:
                 logger.warning("[CLASSIFY] Invalid custom teams regex pattern: %s", e)
                 return None
@@ -119,7 +134,8 @@ class CustomRegexConfig:
 
         if self._compiled_date is None:
             try:
-                self._compiled_date = re.compile(self.date_pattern, re.IGNORECASE)
+                fixed_pattern = _fix_regex_pattern(self.date_pattern)
+                self._compiled_date = re.compile(fixed_pattern, re.IGNORECASE)
             except re.error as e:
                 logger.warning("[CLASSIFY] Invalid custom date regex pattern: %s", e)
                 return None
@@ -133,7 +149,8 @@ class CustomRegexConfig:
 
         if self._compiled_month is None:
             try:
-                self._compiled_month = re.compile(self.month_pattern, re.IGNORECASE)
+                fixed_pattern = _fix_regex_pattern(self.month_pattern)
+                self._compiled_month = re.compile(fixed_pattern, re.IGNORECASE)
             except re.error as e:
                 logger.warning("[CLASSIFY] Invalid custom month regex pattern: %s", e)
                 return None
@@ -147,7 +164,8 @@ class CustomRegexConfig:
 
         if self._compiled_day is None:
             try:
-                self._compiled_day = re.compile(self.day_pattern, re.IGNORECASE)
+                fixed_pattern = _fix_regex_pattern(self.day_pattern)
+                self._compiled_day = re.compile(fixed_pattern, re.IGNORECASE)
             except re.error as e:
                 logger.warning("[CLASSIFY] Invalid custom day regex pattern: %s", e)
                 return None
@@ -161,7 +179,8 @@ class CustomRegexConfig:
 
         if self._compiled_time is None:
             try:
-                self._compiled_time = re.compile(self.time_pattern, re.IGNORECASE)
+                fixed_pattern = _fix_regex_pattern(self.time_pattern)
+                self._compiled_time = re.compile(fixed_pattern, re.IGNORECASE)
             except re.error as e:
                 logger.warning("[CLASSIFY] Invalid custom time regex pattern: %s", e)
                 return None
@@ -175,7 +194,8 @@ class CustomRegexConfig:
 
         if self._compiled_league is None:
             try:
-                self._compiled_league = re.compile(self.league_pattern, re.IGNORECASE)
+                fixed_pattern = _fix_regex_pattern(self.league_pattern)
+                self._compiled_league = re.compile(fixed_pattern, re.IGNORECASE)
             except re.error as e:
                 logger.warning("[CLASSIFY] Invalid custom league regex pattern: %s", e)
                 return None
@@ -189,7 +209,8 @@ class CustomRegexConfig:
 
         if self._compiled_fighters is None:
             try:
-                self._compiled_fighters = re.compile(self.fighters_pattern, re.IGNORECASE)
+                fixed_pattern = _fix_regex_pattern(self.fighters_pattern)
+                self._compiled_fighters = re.compile(fixed_pattern, re.IGNORECASE)
             except re.error as e:
                 logger.warning("[CLASSIFY] Invalid custom fighters regex pattern: %s", e)
                 return None
@@ -203,7 +224,8 @@ class CustomRegexConfig:
 
         if self._compiled_event_name is None:
             try:
-                self._compiled_event_name = re.compile(self.event_name_pattern, re.IGNORECASE)
+                fixed_pattern = _fix_regex_pattern(self.event_name_pattern)
+                self._compiled_event_name = re.compile(fixed_pattern, re.IGNORECASE)
             except re.error as e:
                 logger.warning("[CLASSIFY] Invalid custom event_name regex pattern: %s", e)
                 return None

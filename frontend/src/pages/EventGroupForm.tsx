@@ -11,6 +11,7 @@ import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
 import { Checkbox } from "@/components/ui/checkbox"
 import { cn } from "@/lib/utils"
+import { jsToPython } from "@/lib/regex-utils"
 import {
   useGroup,
   useCreateGroup,
@@ -230,6 +231,14 @@ export function EventGroupForm() {
     try {
       const submitData = {
         ...formData,
+        custom_regex_teams: formData.custom_regex_teams ? jsToPython(formData.custom_regex_teams) : null,
+        custom_regex_date: formData.custom_regex_date ? jsToPython(formData.custom_regex_date) : null,
+        custom_regex_month: formData.custom_regex_month ? jsToPython(formData.custom_regex_month) : null,
+        custom_regex_day: formData.custom_regex_day ? jsToPython(formData.custom_regex_day) : null,
+        custom_regex_time: formData.custom_regex_time ? jsToPython(formData.custom_regex_time) : null,
+        custom_regex_league: formData.custom_regex_league ? jsToPython(formData.custom_regex_league) : null,
+        custom_regex_fighters: formData.custom_regex_fighters ? jsToPython(formData.custom_regex_fighters) : null,
+        custom_regex_event_name: formData.custom_regex_event_name ? jsToPython(formData.custom_regex_event_name) : null,
         // Subscription override fields
         subscription_leagues: useGlobalSubscription
           ? null
