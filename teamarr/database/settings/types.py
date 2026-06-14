@@ -92,6 +92,9 @@ class EPGSettings:
     epg_channel_source_groups: list[int] = field(default_factory=list)
     epg_stream_pre_buffer_minutes: int = 60
     epg_stream_post_buffer_minutes: int = 60
+    # Game-thumbs base URL (epic z02s): optional prefix for relative art paths in
+    # templates. Empty = no prefixing. Absolute (http(s)://) art values bypass it.
+    art_base_url: str = ""
 
 
 @dataclass

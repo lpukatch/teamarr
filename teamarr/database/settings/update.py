@@ -230,6 +230,7 @@ def update_epg_settings(conn: Connection, **kwargs) -> bool:
         "epg_channel_source_groups": "epg_channel_source_groups",
         "epg_stream_pre_buffer_minutes": "epg_stream_pre_buffer_minutes",
         "epg_stream_post_buffer_minutes": "epg_stream_post_buffer_minutes",
+        "art_base_url": "art_base_url",
     }
 
     updates = []

@@ -33,6 +33,7 @@ def get_epg_settings():
         epg_channel_source_groups=settings.epg_channel_source_groups,
         epg_stream_pre_buffer_minutes=settings.epg_stream_pre_buffer_minutes,
         epg_stream_post_buffer_minutes=settings.epg_stream_post_buffer_minutes,
+        art_base_url=settings.art_base_url,
     )
 
 
@@ -70,6 +71,7 @@ def update_epg_settings(update: EPGSettingsModel):
             epg_channel_source_groups=update.epg_channel_source_groups,
             epg_stream_pre_buffer_minutes=update.epg_stream_pre_buffer_minutes,
             epg_stream_post_buffer_minutes=update.epg_stream_post_buffer_minutes,
+            art_base_url=update.art_base_url,
         )
 
     # Update cached timezone so new value is used immediately
@@ -99,4 +101,5 @@ def update_epg_settings(update: EPGSettingsModel):
         epg_channel_source_groups=settings.epg_channel_source_groups,
         epg_stream_pre_buffer_minutes=settings.epg_stream_pre_buffer_minutes,
         epg_stream_post_buffer_minutes=settings.epg_stream_post_buffer_minutes,
+        art_base_url=settings.art_base_url,
     )

@@ -212,6 +212,7 @@ class EPGSettingsModel(BaseModel):
     epg_channel_source_groups: list[int] = []
     epg_stream_pre_buffer_minutes: int = 60
     epg_stream_post_buffer_minutes: int = 60
+    art_base_url: str = ""
 
 
 # =============================================================================

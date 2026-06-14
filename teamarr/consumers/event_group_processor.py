@@ -2802,8 +2802,13 @@ class EventGroupProcessor:
                 )
 
         # Convert to XMLTV
+        from teamarr.database.settings import get_epg_settings
+
+        art_base_url = get_epg_settings(conn).art_base_url
         channel_dicts = [{"id": ch.channel_id, "name": ch.name, "icon": ch.icon} for ch in channels]
-        xmltv_content = programmes_to_xmltv(programmes, channel_dicts)
+        xmltv_content = programmes_to_xmltv(
+            programmes, channel_dicts, art_base_url=art_base_url
+        )
 
         filler_total = pregame_count + postgame_count
         logger.info(

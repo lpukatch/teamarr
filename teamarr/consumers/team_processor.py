@@ -427,7 +427,13 @@ class TeamProcessor:
                     "name": team.team_name,
                     "icon": team.channel_logo_url or team.team_logo_url,
                 }
-                xmltv_content = programmes_to_xmltv(programmes, [channel_dict])
+                from teamarr.database.settings import get_epg_settings
+
+                xmltv_content = programmes_to_xmltv(
+                    programmes,
+                    [channel_dict],
+                    art_base_url=get_epg_settings(conn).art_base_url,
+                )
                 self._store_team_xmltv(conn, team.id, xmltv_content)
 
             logger.debug(

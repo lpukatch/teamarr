@@ -167,6 +167,9 @@ def get_all_settings(conn: Connection) -> AllSettings:
                 if "epg_stream_post_buffer_minutes" in row.keys()
                 else 60
             ) or 60,
+            art_base_url=(
+                row["art_base_url"] if "art_base_url" in row.keys() else ""
+            ) or "",
         ),
         durations=DurationSettings(
             default=row["duration_default"] or 3.0,
@@ -375,7 +378,8 @@ def get_epg_settings(conn: Connection) -> EPGSettings:
                   epg_xtream_cache_hours,
                   epg_channel_source_enabled, epg_channel_source_groups,
                   epg_stream_pre_buffer_minutes,
-                  epg_stream_post_buffer_minutes
+                  epg_stream_post_buffer_minutes,
+                  art_base_url
            FROM settings WHERE id = 1"""
     )
     row = cursor.fetchone()
@@ -403,6 +407,7 @@ def get_epg_settings(conn: Connection) -> EPGSettings:
         epg_channel_source_groups=json.loads(row["epg_channel_source_groups"] or "[]"),
         epg_stream_pre_buffer_minutes=row["epg_stream_pre_buffer_minutes"] or 60,
         epg_stream_post_buffer_minutes=row["epg_stream_post_buffer_minutes"] or 60,
+        art_base_url=row["art_base_url"] or "",
     )
 
 

@@ -1,43 +1,77 @@
-import { useMemo, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { AlertTriangle, ImageOff, Loader2 } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { validateTemplate } from "@/utils/templateValidation"
+import { useEPGSettings } from "@/hooks/useSettings"
 import type { TemplateFieldProps } from "./types"
 
 // Default resolver that just returns the template unchanged
 const defaultResolver = (template: string) => template
 
+const ABSOLUTE_URL = /^[a-z][a-z0-9+.-]*:\/\//i
+
+/**
+ * Mirror of the backend apply_art_base_url (epic z02s): prefix a relative art
+ * path with the configured base URL so the live preview matches generated EPG.
+ * Absolute URLs and empty values pass through unchanged.
+ */
+function applyArtBase(value: string, base: string): string {
+  if (!value || !base || ABSOLUTE_URL.test(value)) return value
+  return `${base.replace(/\/+$/, "")}/${value.replace(/^\/+/, "")}`
+}
+
+// Debounce before the live image actually fetches — typing a URL would otherwise
+// fire a request per keystroke and hit the game-thumbs rate limit / Cloudflare.
+const IMAGE_PREVIEW_DEBOUNCE_MS = 700
+
+function useDebounced<T>(value: T, delayMs: number): T {
+  const [debounced, setDebounced] = useState(value)
+  useEffect(() => {
+    const t = setTimeout(() => setDebounced(value), delayMs)
+    return () => clearTimeout(t)
+  }, [value, delayMs])
+  return debounced
+}
+
+// Fixed-size preview box so the layout never shifts between states.
+const PREVIEW_BOX = "relative mt-1 flex h-28 w-44 items-center justify-center overflow-hidden rounded border border-border bg-muted/30"
+
 /**
  * Live preview of an art/gamethumb URL — actually fetches and renders the image
- * so the user can confirm the resolved link works, with explicit loading and
- * broken-link states (a 200-shaped string preview alone can't prove that).
- * Keyed by url at the call site so it remounts fresh whenever the URL changes.
+ * so the user can confirm the resolved link works, in a fixed-size box with
+ * explicit loading and broken-link states (a 200-shaped string preview alone
+ * can't prove that). The error state uses the universally-understood broken-image
+ * glyph. Keyed by url at the call site so it remounts fresh when the URL changes.
  */
 function ImagePreview({ url }: { url: string }) {
   const [status, setStatus] = useState<"loading" | "ok" | "error">("loading")
+
+  if (status === "error") {
+    return (
+      <div
+        className={`${PREVIEW_BOX} flex-col gap-1 border-destructive/40 text-destructive`}
+        title="Image failed to load — the URL doesn't resolve"
+      >
+        <ImageOff className="h-7 w-7" />
+        <span className="text-[10px] font-medium">Bad URL</span>
+      </div>
+    )
+  }
+
   return (
-    <div className="mt-1">
-      {status === "error" ? (
-        <div className="flex items-center gap-1.5 text-xs text-amber-500">
-          <ImageOff className="h-3.5 w-3.5" />
-          Image didn't load — check the URL resolves
-        </div>
-      ) : (
-        <div className="relative inline-block">
-          {status === "loading" && (
-            <Loader2 className="absolute left-2 top-2 h-3.5 w-3.5 animate-spin text-muted-foreground" />
-          )}
-          <img
-            src={url}
-            alt="Art preview"
-            onLoad={() => setStatus("ok")}
-            onError={() => setStatus("error")}
-            className="h-24 max-w-[12rem] rounded border border-border bg-muted/30 object-contain"
-          />
-        </div>
+    <div className={PREVIEW_BOX}>
+      {status === "loading" && (
+        <Loader2 className="absolute left-1/2 top-1/2 h-4 w-4 -translate-x-1/2 -translate-y-1/2 animate-spin text-muted-foreground" />
       )}
+      <img
+        src={url}
+        alt="Art preview"
+        onLoad={() => setStatus("ok")}
+        onError={() => setStatus("error")}
+        className="h-full w-full object-contain"
+      />
     </div>
   )
 }
@@ -58,9 +92,15 @@ export function TemplateField({
   isImageField = false,
 }: TemplateFieldProps) {
   const preview = resolveTemplate(value)
-  // Only render a live image when the resolved value is an absolute URL.
-  // (Relative paths become absolute once an art base URL is configured — z02s.)
-  const showImage = isImageField && /^https?:\/\//i.test(preview)
+  // Art fields: apply the game-thumbs base URL so the preview matches generated
+  // EPG (templates now store relative paths — z02s).
+  const { data: epgSettings } = useEPGSettings()
+  const artBaseUrl = epgSettings?.art_base_url ?? ""
+  const previewUrl = isImageField ? applyArtBase(preview, artBaseUrl) : preview
+  // Debounced URL drives the actual <img> fetch (rate-limit / Cloudflare safety).
+  const debouncedPreview = useDebounced(previewUrl, IMAGE_PREVIEW_DEBOUNCE_MS)
+  // Only render a live image when the (base-applied) value is an absolute URL.
+  const showImage = isImageField && /^https?:\/\//i.test(debouncedPreview)
 
   // Compute validation warnings
   const warnings = useMemo(() => {
@@ -121,10 +161,10 @@ export function TemplateField({
       {value && (
         <div className="mt-1 px-2 py-1 bg-secondary/50 border-l-2 border-primary rounded-sm">
           <span className="text-[10px] text-muted-foreground uppercase font-semibold mr-2">Preview:</span>
-          <span className="text-sm italic break-all">{preview || "(empty)"}</span>
+          <span className="text-sm italic break-all">{(isImageField ? previewUrl : preview) || "(empty)"}</span>
         </div>
       )}
-      {showImage && <ImagePreview key={preview} url={preview} />}
+      {showImage && <ImagePreview key={debouncedPreview} url={debouncedPreview} />}
       {helpText && <p className="text-xs text-muted-foreground">{helpText}</p>}
     </div>
   )

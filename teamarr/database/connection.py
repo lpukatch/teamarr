@@ -566,6 +566,20 @@ def _run_migrations(conn: sqlite3.Connection) -> None:
         )
         current_version = 74
 
+    if current_version < 75:
+        _apply_migration(
+            conn, 75, "extract common art base URL from templates (epic z02s)",
+            _migrate_v75_extract_art_base_url,
+        )
+        current_version = 75
+
+    if current_version < 76:
+        _apply_migration(
+            conn, 76, "normalize relative template art paths to leading slash (z02s)",
+            _migrate_v76_leading_slash_art_paths,
+        )
+        current_version = 76
+
 
 # =============================================================================
 # Migration helpers
@@ -1530,6 +1544,206 @@ def _migrate_v74_preserve_epg_match_offstate(conn: sqlite3.Connection) -> None:
             "[MIGRATE v74] Global EPG-match was off; cleared %d per-group "
             "epg_match_enabled flag(s) and channel-source to preserve off-state",
             cleared,
+        )
+
+
+def _migrate_v75_extract_art_base_url(conn: sqlite3.Connection) -> None:
+    """v75: adopt the game-thumbs base URL convention for existing templates (z02s).
+
+    Templates historically stored FULL art URLs (program_art_url,
+    event_channel_logo_url, and art_url inside the pregame/postgame/idle fallback
+    JSON). The new convention lets users set one base URL in settings and store
+    only relative paths. This migration makes existing installs follow it:
+
+    - Collect every absolute art URL across all templates and parse its origin
+      (scheme://host[:port]).
+    - If a SINGLE origin is shared by all of them, set settings.art_base_url to it
+      and strip that origin prefix from each field (leaving the relative path).
+    - If templates span MULTIPLE origins (ambiguous) or have none, do nothing —
+      absolute URLs keep working unchanged via the resolver's passthrough.
+
+    Idempotent: once base_url is set + URLs are relative, a re-run finds no
+    absolute URLs to migrate and no-ops.
+    """
+    from urllib.parse import urlsplit
+
+    if not _table_exists(conn, "templates"):
+        return
+
+    # Safety net for tests that call _run_migrations directly (production adds the
+    # column via reconciliation before migrations run).
+    _add_column_if_not_exists(conn, "settings", "art_base_url", "TEXT DEFAULT ''")
+
+    # Already configured — don't second-guess a user-set base.
+    existing = conn.execute("SELECT art_base_url FROM settings WHERE id = 1").fetchone()
+    if existing and (existing[0] or "").strip():
+        return
+
+    # Only operate on art columns the templates table actually has (tests may
+    # build a partial schema).
+    art_columns = [
+        c for c in ("program_art_url", "event_channel_logo_url")
+        if _column_exists(conn, "templates", c)
+    ]
+    json_columns = [
+        c for c in ("pregame_fallback", "postgame_fallback", "idle_content")
+        if _column_exists(conn, "templates", c)
+    ]
+    if not art_columns and not json_columns:
+        return
+
+    def origin_of(url: str) -> str | None:
+        if not url or not isinstance(url, str):
+            return None
+        parts = urlsplit(url)
+        if not parts.scheme or not parts.netloc:
+            return None  # relative or non-URL — nothing to strip
+        return f"{parts.scheme}://{parts.netloc}"
+
+    select_cols = ["id", *art_columns, *json_columns]
+    rows = conn.execute(
+        f"SELECT {', '.join(select_cols)} FROM templates"
+    ).fetchall()
+
+    # Pass 1: tally how often each origin appears across every art value.
+    from collections import Counter
+
+    origin_counts: Counter[str] = Counter()
+    for row in rows:
+        for col in art_columns:
+            o = origin_of(row[col])
+            if o:
+                origin_counts[o] += 1
+        for col in json_columns:
+            try:
+                blob = json.loads(row[col]) if row[col] else None
+            except (TypeError, ValueError):
+                blob = None
+            if isinstance(blob, dict):
+                o = origin_of(blob.get("art_url"))
+                if o:
+                    origin_counts[o] += 1
+
+    if not origin_counts:
+        return  # no absolute art URLs to migrate
+
+    # Pick the most frequent origin as the base. When origins diverge, the
+    # winner's URLs become relative; the rest stay absolute (resolver passes
+    # them through untouched). most_common ties break on first-seen insertion.
+    base, _ = origin_counts.most_common(1)[0]
+    if len(origin_counts) > 1:
+        logger.info(
+            "[MIGRATE] v75: templates span %d art origins %s — picking most "
+            "frequent %r as the base; others left absolute",
+            len(origin_counts),
+            dict(origin_counts),
+            base,
+        )
+    prefix = base + "/"
+
+    def strip(url):
+        # Drop the origin, keep a leading-slash-rooted path (e.g. "/{league}/cover.png").
+        if isinstance(url, str) and url.startswith(prefix):
+            return "/" + url[len(prefix):]
+        return url
+
+    # Pass 2: strip the origin from every matching field.
+    for row in rows:
+        updates: dict[str, str | None] = {}
+        for col in art_columns:
+            new = strip(row[col])
+            if new != row[col]:
+                updates[col] = new
+        for col in json_columns:
+            try:
+                blob = json.loads(row[col]) if row[col] else None
+            except (TypeError, ValueError):
+                blob = None
+            if isinstance(blob, dict) and isinstance(blob.get("art_url"), str):
+                new = strip(blob["art_url"])
+                if new != blob["art_url"]:
+                    blob["art_url"] = new
+                    updates[col] = json.dumps(blob)
+        if updates:
+            sets = ", ".join(f"{c} = ?" for c in updates)
+            conn.execute(
+                f"UPDATE templates SET {sets} WHERE id = ?",
+                (*updates.values(), row["id"]),
+            )
+
+    conn.execute("UPDATE settings SET art_base_url = ? WHERE id = 1", (base,))
+    logger.info(
+        "[MIGRATE] v75: set art base URL %r and converted template art to relative paths",
+        base,
+    )
+
+
+def _migrate_v76_leading_slash_art_paths(conn: sqlite3.Connection) -> None:
+    """v76: enforce the leading-slash convention on relative template art paths.
+
+    The v75 migration (and early dev DBs) could leave relative art as
+    "{league}/cover.png" without a leading slash. The convention is a leading
+    slash ("/{league}/cover.png") for consistency. This normalizes any relative
+    (non-absolute, non-empty) art value to start with "/" across the direct art
+    columns and the art_url nested in the filler-fallback JSON. Idempotent —
+    already-slashed and absolute values are untouched.
+    """
+    from urllib.parse import urlsplit
+
+    if not _table_exists(conn, "templates"):
+        return
+
+    art_columns = [
+        c for c in ("program_art_url", "event_channel_logo_url")
+        if _column_exists(conn, "templates", c)
+    ]
+    json_columns = [
+        c for c in ("pregame_fallback", "postgame_fallback", "idle_content")
+        if _column_exists(conn, "templates", c)
+    ]
+    if not art_columns and not json_columns:
+        return
+
+    def normalize(value):
+        # Leave empty, absolute (has scheme://), and already-rooted paths alone.
+        if not isinstance(value, str) or not value:
+            return value
+        if urlsplit(value).scheme:
+            return value
+        return value if value.startswith("/") else "/" + value
+
+    select_cols = ["id", *art_columns, *json_columns]
+    rows = conn.execute(f"SELECT {', '.join(select_cols)} FROM templates").fetchall()
+
+    changed = 0
+    for row in rows:
+        updates: dict[str, str] = {}
+        for col in art_columns:
+            new = normalize(row[col])
+            if new != row[col]:
+                updates[col] = new
+        for col in json_columns:
+            try:
+                blob = json.loads(row[col]) if row[col] else None
+            except (TypeError, ValueError):
+                blob = None
+            if isinstance(blob, dict) and isinstance(blob.get("art_url"), str):
+                new = normalize(blob["art_url"])
+                if new != blob["art_url"]:
+                    blob["art_url"] = new
+                    updates[col] = json.dumps(blob)
+        if updates:
+            sets = ", ".join(f"{c} = ?" for c in updates)
+            conn.execute(
+                f"UPDATE templates SET {sets} WHERE id = ?",
+                (*updates.values(), row["id"]),
+            )
+            changed += 1
+
+    if changed:
+        logger.info(
+            "[MIGRATE] v76: added leading slash to relative art paths in %d template(s)",
+            changed,
         )
 
 

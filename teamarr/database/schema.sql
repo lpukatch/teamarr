@@ -231,6 +231,11 @@ CREATE TABLE IF NOT EXISTS settings (
     xmltv_generator_name TEXT DEFAULT 'Teamarr',
     xmltv_generator_url TEXT DEFAULT 'https://github.com/Pharaoh-Labs/teamarr',
 
+    -- Art base URL: optional prefix for relative art/gamethumb paths in templates.
+    -- When set, template art values that are not already absolute (http(s)://)
+    -- are joined onto this base at render time. Empty = no prefixing (legacy).
+    art_base_url TEXT DEFAULT '',
+
     -- Display Preferences
     time_format TEXT DEFAULT '12h' CHECK(time_format IN ('12h', '24h')),
     show_timezone BOOLEAN DEFAULT 1,
@@ -416,7 +421,7 @@ CREATE TABLE IF NOT EXISTS settings (
     channelsdvr_lineup_id TEXT,
 
     -- Schema Version
-    schema_version INTEGER DEFAULT 74
+    schema_version INTEGER DEFAULT 76
 );
 
 -- Insert default settings

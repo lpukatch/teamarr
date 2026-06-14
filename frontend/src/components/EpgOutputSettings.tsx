@@ -23,6 +23,9 @@ import {
 } from "@/hooks/useSettings"
 import type { EPGSettings, DurationSettings } from "@/api/settings"
 
+// Game Thumbs (@sethwv) — optional external service for matchup artwork.
+const GAMETHUMBS_REPO_URL = "https://github.com/sethwv/game-thumbs"
+
 /**
  * EPG output settings — output path/window. Lifted out of Settings into the EPG
  * home (v2.7.0 IA). The cron generation scheduler stays in Settings (a system
@@ -50,49 +53,84 @@ export function EpgOutputSettings() {
   }
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Output Settings</CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <div className="space-y-2">
-            <Label htmlFor="epg-output-path">Output Path</Label>
-            <Input
-              id="epg-output-path"
-              value={epg?.epg_output_path ?? "./teamarr.xml"}
-              onChange={(e) => epg && setEPG({ ...epg, epg_output_path: e.target.value })}
-            />
+    <>
+      <Card>
+        <CardHeader>
+          <CardTitle>Output Settings</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="epg-output-path">Output Path</Label>
+              <Input
+                id="epg-output-path"
+                value={epg?.epg_output_path ?? "./teamarr.xml"}
+                onChange={(e) => epg && setEPG({ ...epg, epg_output_path: e.target.value })}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="epg-days-ahead">Output Days Ahead</Label>
+              <Input
+                id="epg-days-ahead"
+                type="number"
+                min={1}
+                value={epg?.epg_output_days_ahead ?? 14}
+                onChange={(e) =>
+                  epg && setEPG({ ...epg, epg_output_days_ahead: parseInt(e.target.value) || 14 })
+                }
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="epg-lookback">EPG Start (Hours Ago)</Label>
+              <Input
+                id="epg-lookback"
+                type="number"
+                min={0}
+                value={epg?.epg_lookback_hours ?? 6}
+                onChange={(e) =>
+                  epg && setEPG({ ...epg, epg_lookback_hours: parseInt(e.target.value) || 6 })
+                }
+              />
+            </div>
           </div>
-          <div className="space-y-2">
-            <Label htmlFor="epg-days-ahead">Output Days Ahead</Label>
-            <Input
-              id="epg-days-ahead"
-              type="number"
-              min={1}
-              value={epg?.epg_output_days_ahead ?? 14}
-              onChange={(e) =>
-                epg && setEPG({ ...epg, epg_output_days_ahead: parseInt(e.target.value) || 14 })
-              }
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="epg-lookback">EPG Start (Hours Ago)</Label>
-            <Input
-              id="epg-lookback"
-              type="number"
-              min={0}
-              value={epg?.epg_lookback_hours ?? 6}
-              onChange={(e) =>
-                epg && setEPG({ ...epg, epg_lookback_hours: parseInt(e.target.value) || 6 })
-              }
-            />
-          </div>
-        </div>
 
-        <SaveButton onClick={handleSaveOutput} pending={updateEPG.isPending} />
-      </CardContent>
-    </Card>
+          <SaveButton onClick={handleSaveOutput} pending={updateEPG.isPending} />
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Game Thumbs</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="art-base-url">Game-Thumbs Base URL</Label>
+            <Input
+              id="art-base-url"
+              placeholder="e.g., https://your-game-thumbs-host"
+              value={epg?.art_base_url ?? ""}
+              onChange={(e) => epg && setEPG({ ...epg, art_base_url: e.target.value })}
+            />
+            <p className="text-xs text-muted-foreground">
+              Optional. Prefixed onto relative art paths in templates (e.g. a template
+              value of <code>/{"{league}"}/{"{home_team}"}/cover.png</code> becomes the full
+              URL). Absolute URLs in templates are left unchanged. See the{" "}
+              <a
+                href={GAMETHUMBS_REPO_URL}
+                target="_blank"
+                rel="noreferrer"
+                className="text-primary hover:underline"
+              >
+                game-thumbs project
+              </a>{" "}
+              for setup.
+            </p>
+          </div>
+
+          <SaveButton onClick={handleSaveOutput} pending={updateEPG.isPending} />
+        </CardContent>
+      </Card>
+    </>
   )
 }
 

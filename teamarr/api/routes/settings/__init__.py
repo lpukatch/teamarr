@@ -127,6 +127,7 @@ def get_settings():
             epg_channel_source_groups=settings.epg.epg_channel_source_groups,
             epg_stream_pre_buffer_minutes=settings.epg.epg_stream_pre_buffer_minutes,
             epg_stream_post_buffer_minutes=settings.epg.epg_stream_post_buffer_minutes,
+            art_base_url=settings.epg.art_base_url,
         ),
         durations=asdict(settings.durations),
         display=DisplaySettingsModel(
