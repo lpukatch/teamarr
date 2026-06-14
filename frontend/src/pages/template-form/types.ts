@@ -43,4 +43,7 @@ export interface TemplateFieldProps {
   resolveTemplate?: (template: string) => string
   validationData?: { validNames: Set<string>; baseNames: Set<string> }
   isEventTemplate?: boolean
+  /** When true, render the resolved value as a live image so users can verify
+   *  the art/gamethumb URL actually loads (with a broken-image state). */
+  isImageField?: boolean
 }

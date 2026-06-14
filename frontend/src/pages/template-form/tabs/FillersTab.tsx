@@ -107,6 +107,7 @@ export function FillersTab({ formData, setFormData, isTeamTemplate, fieldRefs, s
             />
             <TemplateField
               id="pregame_fallback.art_url"
+              isImageField
               label="Program Art URL"
               value={pregame.art_url || ""}
               onChange={(v) => updatePregame("art_url", v || null)}
@@ -252,6 +253,7 @@ export function FillersTab({ formData, setFormData, isTeamTemplate, fieldRefs, s
 
             <TemplateField
               id="postgame_fallback.art_url"
+              isImageField
               label="Program Art URL"
               value={postgame.art_url || ""}
               onChange={(v) => updatePostgame("art_url", v || null)}
@@ -460,6 +462,7 @@ export function FillersTab({ formData, setFormData, isTeamTemplate, fieldRefs, s
 
               <TemplateField
                 id="idle_content.art_url"
+                isImageField
                 label="Program Art URL"
                 value={idle.art_url || ""}
                 onChange={(v) => updateIdle("art_url", v || null)}

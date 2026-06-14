@@ -136,6 +136,7 @@ export function DefaultsTab({ formData, setFormData, isTeamTemplate, fieldRefs, 
             />
             <TemplateField
               id="event_channel_logo_url"
+              isImageField
               label="Channel Logo URL Template"
               value={formData.event_channel_logo_url || ""}
               onChange={(v) => setFormData((prev) => ({ ...prev, event_channel_logo_url: v || null }))}
@@ -270,6 +271,7 @@ export function DefaultsTab({ formData, setFormData, isTeamTemplate, fieldRefs, 
         <CardContent>
           <TemplateField
             id="program_art_url"
+            isImageField
             label="Program Art URL Template"
             value={formData.program_art_url || ""}
             onChange={(v) => setFormData((prev) => ({ ...prev, program_art_url: v || null }))}
