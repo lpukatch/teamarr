@@ -1,4 +1,3 @@
-import { useState } from "react"
 import { Activity } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { RunHistoryTable } from "@/components/RunHistoryTable"
@@ -7,6 +6,7 @@ import { ManagedChannelsTable } from "@/components/ManagedChannelsTable"
 import { EventMatcherModal, useEventMatcher } from "@/components/EventMatcherModal"
 import { StatusStrip } from "@/components/StatusStrip"
 import { useRecentRuns, useStats } from "@/hooks/useEPG"
+import { usePersistentCollapse } from "@/hooks/usePersistentCollapse"
 
 const RUNS_PREVIEW = 5
 
@@ -41,7 +41,8 @@ export function Dashboard() {
   // Event matcher (manual stream correction, opened from the run history rows)
   const matcher = useEventMatcher()
 
-  const [showAllRuns, setShowAllRuns] = useState(false)
+  // Persist the show-more choice so the table stays expanded/collapsed across visits.
+  const [showAllRuns, setShowAllRuns] = usePersistentCollapse("dashboard.runs-expanded", false)
   const visibleRuns = showAllRuns ? runs : runs.slice(0, RUNS_PREVIEW)
 
   return (
