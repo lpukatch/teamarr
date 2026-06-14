@@ -72,7 +72,7 @@ export function MainLayout() {
   return (
     <div className="min-h-screen bg-background text-foreground">
       {/* Navbar */}
-      <nav className="border-b border-border bg-secondary/75 backdrop-blur-md sticky top-0 z-50">
+      <nav className="border-b border-border bg-secondary/75 backdrop-blur-md md:bg-secondary/50 md:backdrop-blur-sm sticky top-0 z-50">
         <div className="max-w-[1440px] mx-auto px-4">
           <div className="flex items-center justify-between h-14 md:h-12">
             {/* Brand */}
