@@ -6,6 +6,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { Button } from "@/components/ui/button"
 import { SaveButton } from "@/components/ui/save-button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { SubNav } from "@/components/ui/sub-nav"
 import {
   getTemplate,
   createTemplate,
@@ -344,23 +345,18 @@ export function TemplateForm() {
       )}
 
       {/* Tabs - outside grid so picker aligns with content */}
-      <div className="flex gap-2 border-b border-border mb-4 flex-wrap">
-        {TABS
+      <SubNav
+        className="mb-4"
+        value={activeTab}
+        onChange={(key) => setActiveTab(key as Tab)}
+        items={TABS
           .filter((tab) => tab.id !== "conditions" || isTeamTemplate) // Hide conditions tab for event templates
-          .map((tab) => (
-          <button
-            key={tab.id}
-            onClick={() => setActiveTab(tab.id)}
-            className={`flex items-center gap-1.5 px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
-              activeTab === tab.id
-                ? "border-primary text-primary"
-                : "border-transparent text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            <tab.icon className="h-4 w-4" /> {tab.label}
-          </button>
-        ))}
-      </div>
+          .map((tab) => ({
+            key: tab.id,
+            label: tab.label,
+            icon: <tab.icon className="h-4 w-4" />,
+          }))}
+      />
 
       {/* Main content with sidebar */}
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-3 items-start">
