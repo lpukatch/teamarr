@@ -68,6 +68,15 @@ class CacheRefresher:
                 }
         return None
 
+    def _premium_tsdb_leagues(self) -> set[str]:
+        """League codes that require a TSDB premium key (tsdb_tier='premium')."""
+        with self._db() as conn:
+            rows = conn.execute(
+                "SELECT league_code FROM leagues "
+                "WHERE provider = 'tsdb' AND tsdb_tier = 'premium'"
+            ).fetchall()
+        return {row["league_code"] for row in rows}
+
     def refresh(
         self,
         progress_callback: Callable[[str, int], None] | None = None,
@@ -396,6 +405,24 @@ class CacheRefresher:
 
         # Get leagues this provider supports
         supported_leagues = provider.get_supported_leagues()
+
+        # Premium-key gate: without a TSDB premium key, skip premium-only TSDB
+        # leagues entirely so prewarm doesn't waste free-tier calls on data it
+        # can't fully fetch. Re-included automatically once a key is configured
+        # (the provider then reports is_premium and this filter no-ops).
+        if provider_name == "tsdb" and not getattr(provider, "is_premium", False):
+            premium_leagues = self._premium_tsdb_leagues()
+            skipped = sorted(lg for lg in supported_leagues if lg in premium_leagues)
+            if skipped:
+                supported_leagues = [
+                    lg for lg in supported_leagues if lg not in premium_leagues
+                ]
+                logger.info(
+                    "[CACHE_REFRESH] Skipping %d premium-only TSDB league(s) — no TSDB "
+                    "premium key configured: %s",
+                    len(skipped),
+                    ", ".join(skipped),
+                )
 
         # For ESPN, also discover dynamic soccer leagues
         if provider_name == "espn":
