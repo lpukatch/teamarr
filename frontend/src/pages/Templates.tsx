@@ -1,7 +1,7 @@
 import { useState, useRef } from "react"
 import { useNavigate } from "react-router-dom"
 import { toast } from "sonner"
-import { Plus, Trash2, Pencil, Loader2, Copy, Download, Upload } from "lucide-react"
+import { Plus, Trash2, Pencil, Loader2, Copy, Download, Upload, Tv, User } from "lucide-react"
 import { Alert } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
@@ -194,7 +194,7 @@ export function Templates() {
   if (error) {
     return (
       <div className="space-y-4">
-        <h1 className="text-2xl font-bold">Templates</h1>
+        <h1 className="text-xl font-bold">Templates</h1>
         <Card className="border-destructive">
           <CardContent className="pt-6">
             <p className="text-destructive">Error loading templates: {error.message}</p>
@@ -261,7 +261,11 @@ export function Templates() {
                   <TableRow key={template.id}>
                     <TableCell className="font-medium">{template.name}</TableCell>
                     <TableCell>
-                      <Badge variant={template.template_type === "team" ? "secondary" : "info"}>
+                      <Badge
+                        variant={template.template_type === "team" ? "secondary" : "info"}
+                        className="inline-flex items-center gap-1 capitalize"
+                      >
+                        {template.template_type === "team" ? <User className="h-3 w-3" /> : <Tv className="h-3 w-3" />}
                         {template.template_type}
                       </Badge>
                     </TableCell>
