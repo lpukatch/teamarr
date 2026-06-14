@@ -142,11 +142,6 @@ export function EventGroupForm() {
     custom_regex_event_name_enabled: formData.custom_regex_event_name_enabled ?? false,
   }), [formData])
 
-  const handlePatternsApply = useCallback((patterns: PatternState) => {
-    setFormData((prev) => ({ ...prev, ...patterns }))
-    toast.success("Patterns applied to form")
-  }, [])
-
   // Populate form when editing
   useEffect(() => {
     if (group) {
@@ -222,25 +217,28 @@ export function EventGroupForm() {
     }
   }, [group, allLeagues])
 
-  const handleSubmit = async () => {
-    if (!formData.name.trim()) {
+  // `overrides` lets callers (e.g. Apply-to-Form) save with freshly-merged
+  // patterns without waiting for the async setFormData to flush.
+  const handleSubmit = async (overrides?: Partial<typeof formData>) => {
+    const data = overrides ? { ...formData, ...overrides } : formData
+    if (!data.name.trim()) {
       toast.error("Group name is required")
       return
     }
 
     try {
       const submitData = {
-        ...formData,
-        stream_include_regex: formData.stream_include_regex ? jsToPython(formData.stream_include_regex) : null,
-        stream_exclude_regex: formData.stream_exclude_regex ? jsToPython(formData.stream_exclude_regex) : null,
-        custom_regex_teams: formData.custom_regex_teams ? jsToPython(formData.custom_regex_teams) : null,
-        custom_regex_date: formData.custom_regex_date ? jsToPython(formData.custom_regex_date) : null,
-        custom_regex_month: formData.custom_regex_month ? jsToPython(formData.custom_regex_month) : null,
-        custom_regex_day: formData.custom_regex_day ? jsToPython(formData.custom_regex_day) : null,
-        custom_regex_time: formData.custom_regex_time ? jsToPython(formData.custom_regex_time) : null,
-        custom_regex_league: formData.custom_regex_league ? jsToPython(formData.custom_regex_league) : null,
-        custom_regex_fighters: formData.custom_regex_fighters ? jsToPython(formData.custom_regex_fighters) : null,
-        custom_regex_event_name: formData.custom_regex_event_name ? jsToPython(formData.custom_regex_event_name) : null,
+        ...data,
+        stream_include_regex: data.stream_include_regex ? jsToPython(data.stream_include_regex) : null,
+        stream_exclude_regex: data.stream_exclude_regex ? jsToPython(data.stream_exclude_regex) : null,
+        custom_regex_teams: data.custom_regex_teams ? jsToPython(data.custom_regex_teams) : null,
+        custom_regex_date: data.custom_regex_date ? jsToPython(data.custom_regex_date) : null,
+        custom_regex_month: data.custom_regex_month ? jsToPython(data.custom_regex_month) : null,
+        custom_regex_day: data.custom_regex_day ? jsToPython(data.custom_regex_day) : null,
+        custom_regex_time: data.custom_regex_time ? jsToPython(data.custom_regex_time) : null,
+        custom_regex_league: data.custom_regex_league ? jsToPython(data.custom_regex_league) : null,
+        custom_regex_fighters: data.custom_regex_fighters ? jsToPython(data.custom_regex_fighters) : null,
+        custom_regex_event_name: data.custom_regex_event_name ? jsToPython(data.custom_regex_event_name) : null,
         // Subscription override fields
         subscription_leagues: useGlobalSubscription
           ? null
@@ -260,10 +258,10 @@ export function EventGroupForm() {
           const shouldClear = (original: unknown, current: unknown) =>
             original != null && (current == null || current === undefined)
 
-          if (shouldClear(group.display_name, formData.display_name)) {
+          if (shouldClear(group.display_name, data.display_name)) {
             updateData.clear_display_name = true
           }
-          if (shouldClear(group.stream_timezone, formData.stream_timezone)) {
+          if (shouldClear(group.stream_timezone, data.stream_timezone)) {
             updateData.clear_stream_timezone = true
           }
           // Clear subscription override when switching back to global
@@ -275,15 +273,24 @@ export function EventGroupForm() {
         }
 
         await updateMutation.mutateAsync({ groupId: Number(groupId), data: updateData })
-        toast.success(`Updated group "${formData.name}"`)
+        toast.success(`Updated group "${data.name}"`)
       } else {
         await createMutation.mutateAsync(submitData)
-        toast.success(`Created group "${formData.name}"`)
+        toast.success(`Created group "${data.name}"`)
       }
       navigate("/sources")
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed to save group")
     }
+  }
+
+  // Apply-to-Form from the Pattern Tester writes the patterns into the form AND
+  // saves — a frequent ask, since people forgot the separate Save after applying.
+  // Pass the patterns to handleSubmit directly so the save uses them immediately
+  // (setFormData hasn't flushed yet).
+  const handlePatternsApply = (patterns: PatternState) => {
+    setFormData((prev) => ({ ...prev, ...patterns }))
+    void handleSubmit(patterns)
   }
 
   if (isEdit && isLoadingGroup) {
@@ -1137,7 +1144,7 @@ export function EventGroupForm() {
             <Button variant="outline" onClick={() => navigate("/sources")}>
               Cancel
             </Button>
-            <SaveButton onClick={handleSubmit} pending={isPending}>
+            <SaveButton onClick={() => handleSubmit()} pending={isPending}>
               {isEdit ? "Update Stream Source" : "Create Stream Source"}
             </SaveButton>
           </div>
