@@ -31,22 +31,29 @@ def _factory(conn: sqlite3.Connection):
     return factory
 
 
-def _add_group(conn, name, m3u_group_id, *, enabled=1, is_channel_source=0):
+def _add_group(conn, name, m3u_group_id, *, enabled=1, is_channel_source=0, m3u_group_name=None):
     conn.execute(
-        "INSERT INTO event_epg_groups (name, leagues, m3u_group_id, enabled, is_channel_source) "
-        "VALUES (?, '[]', ?, ?, ?)",
-        (name, m3u_group_id, enabled, is_channel_source),
+        "INSERT INTO event_epg_groups "
+        "(name, leagues, m3u_group_id, m3u_group_name, enabled, is_channel_source) "
+        "VALUES (?, '[]', ?, ?, ?, ?)",
+        (name, m3u_group_id, m3u_group_name, enabled, is_channel_source),
     )
     conn.commit()
 
 
-def _patch_dispatcharr(monkeypatch, group_ids):
-    """Fake get_dispatcharr_connection -> .m3u.list_groups() yields ids."""
+def _patch_dispatcharr(monkeypatch, groups):
+    """Fake get_dispatcharr_connection -> .m3u.list_groups().
+
+    `groups` items may be ints (auto-named) or (id, name) tuples.
+    """
     import teamarr.dispatcharr.factory as factory
 
-    fake = SimpleNamespace(
-        m3u=SimpleNamespace(list_groups=lambda: [SimpleNamespace(id=i) for i in group_ids])
-    )
+    def mk(item):
+        if isinstance(item, tuple):
+            return SimpleNamespace(id=item[0], name=item[1])
+        return SimpleNamespace(id=item, name=f"live-{item}")
+
+    fake = SimpleNamespace(m3u=SimpleNamespace(list_groups=lambda: [mk(i) for i in groups]))
     monkeypatch.setattr(factory, "get_dispatcharr_connection", lambda db_factory=None: fake)
 
 
@@ -110,6 +117,34 @@ def test_list_groups_error_flags_nothing(monkeypatch):
     monkeypatch.setattr(factory, "get_dispatcharr_connection", lambda db_factory=None: fake)
 
     assert detect_stale_groups(_factory(conn)) == []
+
+
+def test_recreated_under_new_id_is_not_stale_and_heals(monkeypatch):
+    """Source deleted + recreated (same name, new id) is NOT stale; id self-heals."""
+    conn = _db()
+    _add_group(conn, "Recreated", 99, m3u_group_name="USA | NCAA BASEBALL")
+    _patch_dispatcharr(monkeypatch, [(500, "USA | NCAA BASEBALL")])  # same name, new id
+
+    assert detect_stale_groups(_factory(conn)) == []
+    row = conn.execute(
+        "SELECT source_missing, m3u_group_id FROM event_epg_groups WHERE name='Recreated'"
+    ).fetchone()
+    assert row["source_missing"] == 0
+    assert row["m3u_group_id"] == 500  # healed to the live id
+
+
+def test_ambiguous_name_not_healed_but_not_stale(monkeypatch):
+    """Two live groups share the name: don't heal (ambiguous), but not stale either."""
+    conn = _db()
+    _add_group(conn, "Dup", 99, m3u_group_name="Dup Name")
+    _patch_dispatcharr(monkeypatch, [(500, "Dup Name"), (501, "Dup Name")])
+
+    assert detect_stale_groups(_factory(conn)) == []
+    row = conn.execute(
+        "SELECT source_missing, m3u_group_id FROM event_epg_groups WHERE name='Dup'"
+    ).fetchone()
+    assert row["source_missing"] == 0
+    assert row["m3u_group_id"] == 99  # left untouched (ambiguous)
 
 
 def test_recovery_clears_stale_flag(monkeypatch):

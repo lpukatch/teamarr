@@ -819,11 +819,17 @@ def detect_stale_groups(db_factory: Any) -> list[dict]:
         return []
 
     existing_ids = {g.id for g in live_groups}
+    # Map name -> live ids so a source recreated under a NEW id (same name) is
+    # recognised as still present, not stale. Dispatcharr group names (e.g.
+    # "USA | NCAA BASEBALL ⚾") are specific enough to identify the source.
+    ids_by_name: dict[str, list[int]] = {}
+    for g in live_groups:
+        ids_by_name.setdefault(g.name, []).append(g.id)
 
     with db_factory() as conn:
         rows = conn.execute(
             """
-            SELECT id, name, m3u_group_id
+            SELECT id, name, m3u_group_id, m3u_group_name
             FROM event_epg_groups
             WHERE enabled = 1
               AND m3u_group_id IS NOT NULL
@@ -832,6 +838,24 @@ def detect_stale_groups(db_factory: Any) -> list[dict]:
         ).fetchall()
         for row in rows:
             if row["m3u_group_id"] in existing_ids:
+                mark_group_source_seen(conn, row["id"])
+                continue
+            # Source id is gone, but a same-named group may exist under a new id
+            # (deleted + recreated) — that's not stale. Self-heal the stored id
+            # when the name maps to exactly one live group.
+            name_ids = ids_by_name.get(row["m3u_group_name"] or "")
+            if name_ids:
+                if len(name_ids) == 1:
+                    conn.execute(
+                        "UPDATE event_epg_groups SET m3u_group_id = ? WHERE id = ?",
+                        (name_ids[0], row["id"]),
+                    )
+                    logger.info(
+                        "[STALE_GROUPS] Healed '%s' source id %s -> %s (recreated under new id)",
+                        row["name"],
+                        row["m3u_group_id"],
+                        name_ids[0],
+                    )
                 mark_group_source_seen(conn, row["id"])
             else:
                 mark_group_source_missing(conn, row["id"])
