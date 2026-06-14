@@ -73,7 +73,9 @@ const DEFAULT_IDLE: FillerContent = {
 
 const DEFAULT_FORM: TemplateCreate = {
   name: "",
-  template_type: "team",
+  // Event templates are the primary focus, so new templates default to "event"
+  // (pre-selected in the create type chooser).
+  template_type: "event",
   title_format: "{league} {sport}",
   subtitle_template: "{away_team} at {home_team}",
   description_template: "{matchup} | {venue_full}",
@@ -329,25 +331,6 @@ export function TemplateForm() {
             <div className="grid grid-cols-2 gap-4 mb-6">
               <button
                 type="button"
-                onClick={() => setFormData((prev) => ({ ...prev, template_type: "team" }))}
-                className={`p-4 rounded-lg border-2 text-left transition-all ${
-                  formData.template_type === "team"
-                    ? "border-primary bg-primary/10"
-                    : "border-border hover:border-primary/50"
-                }`}
-              >
-                <div className="flex items-start gap-3">
-                  <span className="text-2xl">👤</span>
-                  <div>
-                    <strong className="block">Team Template</strong>
-                    <span className="text-sm text-muted-foreground">
-                      For individual teams - generates pregame, game, postgame, and idle programs based on team schedules
-                    </span>
-                  </div>
-                </div>
-              </button>
-              <button
-                type="button"
                 onClick={() => setFormData((prev) => ({ ...prev, template_type: "event" }))}
                 className={`p-4 rounded-lg border-2 text-left transition-all ${
                   formData.template_type === "event"
@@ -361,6 +344,25 @@ export function TemplateForm() {
                     <strong className="block">Event Template</strong>
                     <span className="text-sm text-muted-foreground">
                       For Dispatcharr M3U groups - matches streams like "Giants @ Cowboys" to ESPN events
+                    </span>
+                  </div>
+                </div>
+              </button>
+              <button
+                type="button"
+                onClick={() => setFormData((prev) => ({ ...prev, template_type: "team" }))}
+                className={`p-4 rounded-lg border-2 text-left transition-all ${
+                  formData.template_type === "team"
+                    ? "border-primary bg-primary/10"
+                    : "border-border hover:border-primary/50"
+                }`}
+              >
+                <div className="flex items-start gap-3">
+                  <span className="text-2xl">👤</span>
+                  <div>
+                    <strong className="block">Team Template</strong>
+                    <span className="text-sm text-muted-foreground">
+                      For individual teams - generates pregame, game, postgame, and idle programs based on team schedules
                     </span>
                   </div>
                 </div>

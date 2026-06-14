@@ -1,5 +1,4 @@
 import { useState } from "react"
-import { Lock } from "lucide-react"
 import { GlobalDefaults } from "@/components/GlobalDefaults"
 import { CustomLeaguesManager } from "@/pages/CustomLeagues"
 import { useCustomLeagueCapability } from "@/hooks/useCustomLeagues"
@@ -19,17 +18,13 @@ export function Subscriptions() {
   const capability = capabilityQuery.data
   const premiumEnabled = !!capability?.enabled
 
+  // Custom Leagues only appears once a TheSportsDB premium key is configured —
+  // a locked tile read as confusing, so it's hidden entirely until usable.
   const tiles: SubNavItem[] = [
     { key: "sportleague", label: "Sport/League" },
     { key: "soccer", label: "Soccer" },
     { key: "teams", label: "Teams" },
-    {
-      key: "custom",
-      label: "Custom Leagues",
-      disabled: !premiumEnabled,
-      icon: !premiumEnabled ? <Lock className="h-3.5 w-3.5" /> : undefined,
-      title: !premiumEnabled ? "Requires a TheSportsDB premium key (Settings)" : undefined,
-    },
+    ...(premiumEnabled ? [{ key: "custom", label: "Custom Leagues" } as SubNavItem] : []),
   ]
 
   return (

@@ -1,4 +1,4 @@
-import { Link, NavLink, Outlet } from "react-router-dom"
+import { Link, NavLink, Outlet, useLocation } from "react-router-dom"
 import {
   Moon,
   Sun,
@@ -12,7 +12,7 @@ import {
   Play,
 } from "lucide-react"
 import type { LucideIcon } from "lucide-react"
-import { useEffect, useState } from "react"
+import { useCallback, useEffect, useState } from "react"
 import { Toaster } from "sonner"
 import { useQuery } from "@tanstack/react-query"
 import { useUpdateCheckSettings, useCheckForUpdates } from "../hooks/useSettings"
@@ -35,6 +35,41 @@ async function fetchHealth(): Promise<{ status: string; version: string }> {
   return resp.json()
 }
 
+const VISITED_STEPS_KEY = "teamarr.visitedSteps"
+
+/**
+ * First-run guidance: the step numbers (0 Settings, 1–5) act as a "do this
+ * next" affordance and drop off once a step has been visited. Visited steps
+ * persist in localStorage, so after the first run through the flow the numbers
+ * are gone and the nav reads as a normal menu.
+ */
+function useVisitedSteps() {
+  const [visited, setVisited] = useState<Set<number>>(() => {
+    try {
+      const raw = localStorage.getItem(VISITED_STEPS_KEY)
+      return new Set<number>(raw ? JSON.parse(raw) : [])
+    } catch {
+      return new Set<number>()
+    }
+  })
+
+  const markVisited = useCallback((step: number) => {
+    setVisited((prev) => {
+      if (prev.has(step)) return prev
+      const next = new Set(prev)
+      next.add(step)
+      try {
+        localStorage.setItem(VISITED_STEPS_KEY, JSON.stringify([...next]))
+      } catch {
+        // ignore storage failures — numbers just won't persist
+      }
+      return next
+    })
+  }, [])
+
+  return { visited, markVisited }
+}
+
 export function MainLayout() {
   const [theme, setTheme] = useState<"dark" | "light">(() => {
     const saved = localStorage.getItem("theme")
@@ -50,6 +85,23 @@ export function MainLayout() {
   const version = healthQuery.data?.version || "v2.0.0"
 
   const { startGeneration, isGenerating } = useGenerationProgress()
+
+  // First-run step numbers: mark a step visited once its page is open.
+  const location = useLocation()
+  const { visited, markVisited } = useVisitedSteps()
+  useEffect(() => {
+    const path = location.pathname
+    if (path.startsWith("/settings")) {
+      markVisited(0)
+      return
+    }
+    for (const item of NAV_ITEMS) {
+      if (item.step != null && item.to !== "/" && path.startsWith(item.to)) {
+        markVisited(item.step)
+        break
+      }
+    }
+  }, [location.pathname, markVisited])
 
   // Update check
   const updateSettingsQuery = useUpdateCheckSettings()
@@ -109,8 +161,8 @@ export function MainLayout() {
                       }`
                     }
                   >
-                    {item.step != null && (
-                      <span className="flex h-4 w-4 items-center justify-center rounded-full bg-muted text-[10px] font-semibold">
+                    {item.step != null && !visited.has(item.step) && (
+                      <span className="flex h-4 w-4 items-center justify-center rounded-full bg-primary/20 text-primary text-[10px] font-semibold">
                         {item.step}
                       </span>
                     )}
@@ -134,16 +186,26 @@ export function MainLayout() {
 
             {/* Right side */}
             <div className="flex items-center gap-3">
+              {/* Settings = step 0 (Connect / Dispatcharr). Labeled + badged so
+                  it reads as the start of the flow, not just a gear. */}
               <NavLink
                 to="/settings"
-                title="Settings"
+                title="Settings — connect Dispatcharr (step 0)"
                 className={({ isActive }) =>
-                  `p-2 rounded-md transition-colors ${
-                    isActive ? "text-primary bg-primary/10" : "hover:bg-accent"
+                  `flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                    isActive
+                      ? "bg-primary/10 text-primary"
+                      : "text-muted-foreground hover:text-foreground hover:bg-accent"
                   }`
                 }
               >
+                {!visited.has(0) && (
+                  <span className="flex h-4 w-4 items-center justify-center rounded-full bg-primary/20 text-primary text-[10px] font-semibold">
+                    0
+                  </span>
+                )}
                 <Settings className="h-4 w-4" />
+                Settings
               </NavLink>
               <Link
                 to="/settings?tab=advanced"
