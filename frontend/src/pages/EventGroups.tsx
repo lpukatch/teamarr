@@ -80,6 +80,7 @@ export function EventGroups() {
   })
   const [showStaleDelete, setShowStaleDelete] = useState(false)
   const [deletingStale, setDeletingStale] = useState(false)
+  const staleIds = useMemo(() => new Set(staleGroups.map((g) => g.id)), [staleGroups])
   const toggleMutation = useToggleGroup()
   const bulkUpdateMutation = useBulkUpdateGroups()
   const previewMutation = usePreviewGroup()
@@ -505,12 +506,13 @@ export function EventGroups() {
         >
           <div className="space-y-2">
             <p className="text-sm">
-              Their M3U group was removed or renamed in Dispatcharr, so they can no longer pull
-              streams. Delete them, or restore the source in Dispatcharr.
+              {staleGroups.length === 1
+                ? "Its M3U group was removed or renamed in Dispatcharr, so it can no longer pull streams. Delete it, or restore the source in Dispatcharr."
+                : "Their M3U groups were removed or renamed in Dispatcharr, so they can no longer pull streams. Delete them, or restore the sources in Dispatcharr."}
             </p>
             <ul className="space-y-0.5 text-sm">
               {staleGroups.map((g) => (
-                <li key={g.id} className="flex flex-wrap items-baseline gap-x-2">
+                <li key={g.id} className="flex flex-wrap items-center gap-x-2">
                   <span className="font-medium">{g.display_name || g.name}</span>
                   {g.m3u_group_name && (
                     <span className="text-xs text-muted-foreground">was &ldquo;{g.m3u_group_name}&rdquo;</span>
@@ -520,6 +522,18 @@ export function EventGroups() {
                       · last seen {formatRelativeTime(g.source_last_seen)}
                     </span>
                   )}
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="ml-auto h-7 px-2"
+                    title="Delete this source"
+                    onClick={() => {
+                      const full = data?.groups.find((x) => x.id === g.id)
+                      if (full) setDeleteConfirm(full)
+                    }}
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </Button>
                 </li>
               ))}
             </ul>
@@ -736,6 +750,16 @@ export function EventGroups() {
                         <TableCell className="font-medium">
                           <div className="flex items-center gap-2 flex-wrap">
                             <span>{getDisplayName(group)}</span>
+                            {/* Stale-source badge (lylt) */}
+                            {staleIds.has(group.id) && (
+                              <Badge
+                                variant="destructive"
+                                className="text-xs"
+                                title="This source's M3U group no longer exists in Dispatcharr"
+                              >
+                                Source missing
+                              </Badge>
+                            )}
                             {/* Account name badge */}
                             {group.m3u_account_name && (
                               <Badge
