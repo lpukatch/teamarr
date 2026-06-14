@@ -281,7 +281,7 @@ function CustomLeagueDialog({
         </DialogHeader>
 
         <div className="space-y-3">
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div className="space-y-1">
               <Label>League Code</Label>
               <Input
@@ -304,7 +304,7 @@ function CustomLeagueDialog({
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div className="space-y-1">
               <Label>TSDB League ID</Label>
               <Input
@@ -323,7 +323,7 @@ function CustomLeagueDialog({
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div className="space-y-1">
               <Label>Sport</Label>
               <Select value={form.sport} onChange={(e) => set({ sport: e.target.value })}>

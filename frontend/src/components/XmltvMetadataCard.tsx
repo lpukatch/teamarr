@@ -40,7 +40,7 @@ export function XmltvMetadataCard() {
         <CardDescription>Generator name and URL written into the XMLTV output header</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div className="space-y-2">
             <Label htmlFor="xmltv-name">XMLTV Generator Name</Label>
             <Input

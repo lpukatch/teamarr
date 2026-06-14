@@ -90,7 +90,7 @@ export function EpgMatchingSettings() {
           <CardTitle className="text-base">Attach/Detach Timing</CardTitle>
         </CardHeader>
         <CardContent className="space-y-2">
-          <div className="grid grid-cols-2 gap-4 max-w-md">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-md">
             <div>
               <Label htmlFor="epg-pre-buffer">Attach before (minutes)</Label>
               <Input

@@ -328,7 +328,7 @@ export function TemplateForm() {
             </p>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-2 gap-4 mb-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
               <button
                 type="button"
                 onClick={() => setFormData((prev) => ({ ...prev, template_type: "event" }))}
@@ -1591,7 +1591,7 @@ function ConditionsTab({ formData, setFormData, resolveTemplate, isTeamTemplate 
                     {/* Expanded content */}
                     {isExpanded && (
                       <div className="p-3 pt-0 space-y-3 border-t">
-                        <div className="grid grid-cols-3 gap-3 pt-3">
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-3">
                           <div>
                             <Label className="text-xs">Condition</Label>
                             <Select

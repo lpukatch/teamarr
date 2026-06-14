@@ -333,7 +333,7 @@ function BackupRestoreCard() {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-1">
                 <Input
                   value={localSettings.cron}
@@ -1028,7 +1028,7 @@ export function Settings() {
           </Alert>
 
           {/* Subsection: Timezones (side by side) */}
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="ui-timezone" className="text-sm font-semibold">UI Display Timezone</Label>
               <Input
@@ -1058,7 +1058,7 @@ export function Settings() {
           {/* Subsection: Time Formatting (side by side) */}
           <div className="space-y-3">
             <Label className="text-sm font-semibold">Time Formatting</Label>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <div className="flex gap-2">
                   <Button
@@ -1128,7 +1128,7 @@ export function Settings() {
               </Badge>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="cron-expression">Cron Expression</Label>
                 <Input
@@ -1463,7 +1463,7 @@ export function Settings() {
           </div>
 
           {/* Credentials */}
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="dispatcharr-username">Username</Label>
               <Input
@@ -1633,7 +1633,7 @@ export function Settings() {
           </div>
 
           {/* Username/Password (fallback) */}
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="emby-username">Username</Label>
               <Input
@@ -1727,7 +1727,7 @@ export function Settings() {
           </div>
 
           {/* Username/Password (fallback) */}
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="jellyfin-username">Username</Label>
               <Input
@@ -1939,7 +1939,7 @@ export function Settings() {
             {/* Team & League Directory Section */}
             <div className="flex flex-col gap-4 lg:pr-6">
               <h4 className="text-sm font-medium text-center">Team & League Directory</h4>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="text-center">
                   <div className="text-2xl font-bold">{cacheStatus?.leagues_count ?? 0}</div>
                   <div className="text-xs text-muted-foreground">Leagues</div>
@@ -1982,7 +1982,7 @@ export function Settings() {
             {/* Game Data Cache Section */}
             <div className="flex flex-col gap-4 lg:pl-6">
               <h4 className="text-sm font-medium text-center">Game Data Cache</h4>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="text-center">
                   <div className="text-2xl font-bold">{gameDataCacheStats?.active_entries ?? 0}</div>
                   <div className="text-xs text-muted-foreground">Active Entries</div>

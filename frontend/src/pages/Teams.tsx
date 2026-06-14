@@ -106,7 +106,7 @@ function EditTeamDialog({ team, templates, open, onOpenChange, onSave, isSaving 
         </DialogHeader>
 
         <div className="space-y-4 py-4">
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="team_name">Team Name</Label>
               <Input
@@ -569,7 +569,7 @@ export function Teams() {
 
       {/* Stats Tiles - V1 Style: Grid with 4 equal columns filling width */}
       {teams && teams.length > 0 && (
-        <div className="grid grid-cols-4 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
           {/* Configured */}
           <div className="group relative">
             <div className="bg-secondary rounded px-3 py-2 cursor-help">
@@ -1155,7 +1155,7 @@ export function Teams() {
                   />
                   <div className="text-xs text-muted-foreground space-y-1">
                     <p className="font-medium">Available variables:</p>
-                    <div className="grid grid-cols-2 gap-1">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-1">
                       <span><code>{"{team_name_pascal}"}</code> - PascalCase</span>
                       <span><code>{"{team_abbrev}"}</code> - Abbreviation</span>
                       <span><code>{"{team_name}"}</code> - lowercase-dashes</span>

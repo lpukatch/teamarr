@@ -23,10 +23,11 @@ export interface RadioCardsProps<T extends string> {
   className?: string
 }
 
+// Stack to a single column on phones, fan out at sm+ so cards don't cram.
 const COLS: Record<number, string> = {
   1: "grid-cols-1",
-  2: "grid-cols-2",
-  3: "grid-cols-3",
+  2: "grid-cols-1 sm:grid-cols-2",
+  3: "grid-cols-1 sm:grid-cols-3",
 }
 
 export function RadioCards<T extends string>({
