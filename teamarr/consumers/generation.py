@@ -503,47 +503,73 @@ def run_full_generation(
             with db_factory() as conn:
                 channelsdvr_settings = get_channelsdvr_settings(conn)
 
-            if channelsdvr_settings.enabled and channelsdvr_settings.url and (
-                channelsdvr_settings.source_name
-                or channelsdvr_settings.lineup_id
-            ):
-                update_progress(
-                    "channelsdvr", 97, "Refreshing Channels DVR..."
-                )
+            if not (channelsdvr_settings.enabled and channelsdvr_settings.url):
+                pass  # integration off or unconfigured — nothing to do
+            else:
                 from teamarr.channelsdvr.client import ChannelsDVRClient
 
+                # The client derives lineup_id as "XMLTV-<source_name>" when no
+                # lineup is explicitly configured, so the guide refresh fires
+                # even if the user only set the M3U source.
                 client = ChannelsDVRClient(
                     base_url=channelsdvr_settings.url,
                     source_name=channelsdvr_settings.source_name or "",
                     lineup_id=channelsdvr_settings.lineup_id or "",
                 )
 
-                if channelsdvr_settings.source_name:
-                    m3u_result = client.trigger_m3u_refresh(timeout=60)
-                    result.channelsdvr_refresh = m3u_result
-                    if m3u_result.get("success"):
-                        logger.info(
-                            "[CHANNELSDVR] M3U refresh triggered in %.1fs",
-                            m3u_result.get("duration", 0),
-                        )
-                    else:
-                        logger.warning(
-                            "[CHANNELSDVR] M3U refresh failed: %s",
-                            m3u_result.get("message"),
-                        )
+                if not (client.source_name or client.lineup_id):
+                    logger.warning(
+                        "[CHANNELSDVR] Enabled but no source name or XMLTV lineup "
+                        "configured — nothing to refresh. Set a source name "
+                        "(and optionally a lineup) in Settings."
+                    )
+                else:
+                    update_progress(
+                        "channelsdvr", 97, "Refreshing Channels DVR..."
+                    )
 
-                if channelsdvr_settings.lineup_id:
-                    epg_result = client.trigger_epg_refresh(timeout=60)
-                    result.channelsdvr_epg_refresh = epg_result
-                    if epg_result.get("success"):
-                        logger.info(
-                            "[CHANNELSDVR] EPG refresh triggered in %.1fs",
-                            epg_result.get("duration", 0),
-                        )
+                    if client.source_name:
+                        m3u_result = client.trigger_m3u_refresh(timeout=60)
+                        result.channelsdvr_refresh = m3u_result
+                        if m3u_result.get("success"):
+                            logger.info(
+                                "[CHANNELSDVR] M3U refresh triggered in %.1fs",
+                                m3u_result.get("duration", 0),
+                            )
+                        else:
+                            logger.warning(
+                                "[CHANNELSDVR] M3U refresh failed: %s",
+                                m3u_result.get("message"),
+                            )
+
+                    if client.lineup_id:
+                        if client.lineup_derived:
+                            logger.info(
+                                "[CHANNELSDVR] No XMLTV lineup configured; "
+                                "derived '%s' from source '%s'",
+                                client.lineup_id,
+                                client.source_name,
+                            )
+                        epg_result = client.trigger_epg_refresh(timeout=60)
+                        result.channelsdvr_epg_refresh = epg_result
+                        if epg_result.get("success"):
+                            logger.info(
+                                "[CHANNELSDVR] EPG refresh triggered for "
+                                "lineup '%s' in %.1fs",
+                                client.lineup_id,
+                                epg_result.get("duration", 0),
+                            )
+                        else:
+                            logger.warning(
+                                "[CHANNELSDVR] EPG refresh failed: %s",
+                                epg_result.get("message"),
+                            )
                     else:
                         logger.warning(
-                            "[CHANNELSDVR] EPG refresh failed: %s",
-                            epg_result.get("message"),
+                            "[CHANNELSDVR] Skipping EPG/guide refresh: no XMLTV "
+                            "lineup configured and none could be derived (set a "
+                            "source name so the lineup can be inferred). The "
+                            "guide will stay stale until refreshed manually."
                         )
         except Exception as e:
             logger.warning(

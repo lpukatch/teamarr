@@ -44,7 +44,13 @@ class ChannelsDVRClient:
     ):
         self.base_url = base_url.rstrip("/")
         self.source_name = source_name
-        self.lineup_id = lineup_id
+        # CDVR names the XMLTV lineup of a custom M3U source "XMLTV-<source_name>"
+        # (e.g. source "dispatcharr" → lineup "XMLTV-dispatcharr"). When no lineup
+        # is explicitly configured, derive it from the source so the guide refresh
+        # still fires — otherwise the channels refresh but the EPG silently doesn't.
+        self.lineup_id = lineup_id or (f"XMLTV-{source_name}" if source_name else "")
+        # True when lineup_id was derived rather than explicitly configured.
+        self.lineup_derived = bool(not lineup_id and self.lineup_id)
         self.timeout = timeout
 
     def _source_path(self) -> str:

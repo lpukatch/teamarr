@@ -29,6 +29,44 @@ class TestUrlBuilding:
         assert client._source_path() == "/providers/m3u/sources/My%20Source%2FWith%20Slash"
 
 
+class TestLineupDerivation:
+    """lineup_id auto-derives from source_name (CDVR convention XMLTV-<name>)."""
+
+    def test_explicit_lineup_is_kept(self):
+        client = ChannelsDVRClient(
+            base_url="http://channels:8089", source_name="MyM3U", lineup_id="XMLTV-Custom"
+        )
+        assert client.lineup_id == "XMLTV-Custom"
+        assert client.lineup_derived is False
+
+    def test_lineup_derived_from_source_when_absent(self):
+        client = ChannelsDVRClient(base_url="http://channels:8089", source_name="dispatcharr")
+        assert client.lineup_id == "XMLTV-dispatcharr"
+        assert client.lineup_derived is True
+
+    def test_no_source_no_lineup_stays_empty(self):
+        client = ChannelsDVRClient(base_url="http://channels:8089")
+        assert client.lineup_id == ""
+        assert client.lineup_derived is False
+
+    def test_derived_lineup_drives_epg_refresh(self, monkeypatch):
+        captured: dict = {}
+
+        def fake_put(url, **kwargs):
+            captured["url"] = url
+            req = httpx.Request("PUT", url)
+            return httpx.Response(200, request=req)
+
+        monkeypatch.setattr(httpx, "put", fake_put)
+
+        # Source only, no explicit lineup — EPG refresh should still fire.
+        client = ChannelsDVRClient(base_url="http://channels:8089", source_name="dispatcharr")
+        result = client.trigger_epg_refresh()
+
+        assert result["success"] is True
+        assert captured["url"] == "http://channels:8089/dvr/lineups/XMLTV-dispatcharr"
+
+
 class TestTriggerRefreshGuards:
     def test_no_source_name_returns_failure(self):
         client = ChannelsDVRClient(base_url="http://channels:8089")
