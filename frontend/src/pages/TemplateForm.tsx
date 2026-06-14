@@ -1,11 +1,10 @@
 import { useState, useEffect, useRef, useMemo } from "react"
 import { useNavigate, useParams } from "react-router-dom"
 import { toast } from "sonner"
-import { ArrowLeft, Loader2, User, Tv } from "lucide-react"
+import { ArrowLeft, Loader2, User, Tv, ArrowRight } from "lucide-react"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { Button } from "@/components/ui/button"
 import { SaveButton } from "@/components/ui/save-button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { SubNav } from "@/components/ui/sub-nav"
 import {
   getTemplate,
@@ -41,7 +40,6 @@ export function TemplateForm() {
 
   const [activeTab, setActiveTab] = useState<Tab>("basic")
   const [formData, setFormData] = useState<TemplateCreate>(DEFAULT_FORM)
-  const [typeConfirmed, setTypeConfirmed] = useState(isEdit)
   const [lastFocusedField, setLastFocusedField] = useState<string | null>(null)
   const [previewSport, setPreviewSport] = useState("NBA")
 
@@ -128,7 +126,6 @@ export function TemplateForm() {
         event_channel_name: template.event_channel_name,
         event_channel_logo_url: template.event_channel_logo_url,
       })
-      setTypeConfirmed(true)
     }
   }, [template])
 
@@ -223,77 +220,6 @@ export function TemplateForm() {
     )
   }
 
-  // Type selection gate for new templates
-  if (!isEdit && !typeConfirmed) {
-    return (
-      <div className="space-y-4">
-        <div className="flex items-center gap-4">
-          <Button variant="ghost" size="sm" onClick={() => navigate("/epg/templates")}>
-            <ArrowLeft className="h-4 w-4 mr-1" />
-            Back
-          </Button>
-          <h1 className="text-xl font-bold">Create Template</h1>
-        </div>
-
-        <Card>
-          <CardHeader className="text-center">
-            <CardTitle>Step 1: Choose Template Type</CardTitle>
-            <p className="text-sm text-muted-foreground">
-              This determines what fields are available and cannot be changed later.
-            </p>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
-              <button
-                type="button"
-                onClick={() => setFormData((prev) => ({ ...prev, template_type: "event" }))}
-                className={`p-4 rounded-lg border-2 text-left transition-all ${
-                  formData.template_type === "event"
-                    ? "border-primary bg-primary/10"
-                    : "border-border hover:border-primary/50"
-                }`}
-              >
-                <div className="flex items-start gap-3">
-                  <Tv className="h-6 w-6 shrink-0 text-muted-foreground" />
-                  <div>
-                    <strong className="block">Event Template</strong>
-                    <span className="text-sm text-muted-foreground">
-                      For Dispatcharr M3U groups - matches streams like "Giants @ Cowboys" to ESPN events
-                    </span>
-                  </div>
-                </div>
-              </button>
-              <button
-                type="button"
-                onClick={() => setFormData((prev) => ({ ...prev, template_type: "team" }))}
-                className={`p-4 rounded-lg border-2 text-left transition-all ${
-                  formData.template_type === "team"
-                    ? "border-primary bg-primary/10"
-                    : "border-border hover:border-primary/50"
-                }`}
-              >
-                <div className="flex items-start gap-3">
-                  <User className="h-6 w-6 shrink-0 text-muted-foreground" />
-                  <div>
-                    <strong className="block">Team Template</strong>
-                    <span className="text-sm text-muted-foreground">
-                      For individual teams - generates pregame, game, postgame, and idle programs based on team schedules
-                    </span>
-                  </div>
-                </div>
-              </button>
-            </div>
-            <div className="text-center">
-              <Button onClick={() => setTypeConfirmed(true)} size="lg">
-                Continue →
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-    )
-  }
-
   const isTeamTemplate = formData.template_type === "team"
 
   return (
@@ -312,7 +238,7 @@ export function TemplateForm() {
               </h1>
               <span
                 className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium ${
-                  isTeamTemplate ? "bg-secondary text-secondary-foreground" : "bg-blue-500/20 text-blue-400"
+                  isTeamTemplate ? "bg-secondary text-secondary-foreground" : "bg-primary/15 text-primary"
                 }`}
               >
                 {isTeamTemplate ? <User className="h-3 w-3" /> : <Tv className="h-3 w-3" />}
@@ -328,19 +254,31 @@ export function TemplateForm() {
 
       {/* Template Type Banner (edit mode) */}
       {isEdit && (
-        <div className={`px-4 py-2 rounded-lg mb-4 flex items-center gap-3 ${
-          isTeamTemplate ? "bg-secondary/50 border border-secondary" : "bg-blue-500/10 border border-blue-500/30"
-        }`}>
+        <div className="px-4 py-2 rounded-lg mb-4 flex items-center gap-3 bg-secondary/50 border border-secondary">
           {isTeamTemplate ? <User className="h-5 w-5 shrink-0" /> : <Tv className="h-5 w-5 shrink-0" />}
-          <div>
-            <span className="font-semibold">{isTeamTemplate ? "Team Template" : "Event Template"}</span>
-            <span className="text-muted-foreground text-sm ml-2">
-              {isTeamTemplate
-                ? "One channel per team with team-specific variables"
-                : "Dynamic channels based on live events"}
-            </span>
-          </div>
+          <span className="font-semibold">{isTeamTemplate ? "Team Template" : "Event Template"}</span>
           <span className="ml-auto text-xs text-muted-foreground">Type cannot be changed after creation</span>
+        </div>
+      )}
+
+      {/* Type switch (create mode) — Event is the primary path; team is a secondary opt-in */}
+      {!isEdit && (
+        <div className="px-4 py-2 rounded-lg mb-4 flex items-center gap-3 bg-secondary/30 border border-border">
+          {isTeamTemplate ? <User className="h-5 w-5 shrink-0" /> : <Tv className="h-5 w-5 shrink-0" />}
+          <span className="font-semibold">{isTeamTemplate ? "Team Template" : "Event Template"}</span>
+          <button
+            type="button"
+            onClick={() => {
+              const nextIsTeam = !isTeamTemplate
+              setFormData((prev) => ({ ...prev, template_type: nextIsTeam ? "team" : "event" }))
+              // Conditions tab is team-only; avoid landing on a hidden tab.
+              if (!nextIsTeam && activeTab === "conditions") setActiveTab("basic")
+            }}
+            className="ml-auto inline-flex items-center gap-1 rounded-md border border-border px-2.5 py-1 text-sm font-medium text-primary transition-colors hover:bg-primary/10"
+          >
+            {isTeamTemplate ? "Switch to event template" : "Need a team template instead?"}
+            <ArrowRight className="h-3.5 w-3.5" />
+          </button>
         </div>
       )}
 
