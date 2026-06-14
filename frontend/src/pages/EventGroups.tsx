@@ -502,6 +502,7 @@ export function EventGroups() {
       {staleGroups.length > 0 && (
         <Alert
           variant="warning"
+          icon={<AlertCircle />}
           title={`${staleGroups.length} stream source${staleGroups.length === 1 ? "" : "s"} missing from Dispatcharr`}
         >
           <div className="space-y-2">
@@ -512,7 +513,7 @@ export function EventGroups() {
             </p>
             <ul className="space-y-0.5 text-sm">
               {staleGroups.map((g) => (
-                <li key={g.id} className="flex flex-wrap items-center gap-x-2">
+                <li key={g.id} className="flex flex-wrap items-baseline gap-x-2">
                   <span className="font-medium">{g.display_name || g.name}</span>
                   {g.m3u_group_name && (
                     <span className="text-xs text-muted-foreground">was &ldquo;{g.m3u_group_name}&rdquo;</span>
@@ -522,18 +523,6 @@ export function EventGroups() {
                       · last seen {formatRelativeTime(g.source_last_seen)}
                     </span>
                   )}
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="ml-auto h-7 px-2"
-                    title="Delete this source"
-                    onClick={() => {
-                      const full = data?.groups.find((x) => x.id === g.id)
-                      if (full) setDeleteConfirm(full)
-                    }}
-                  >
-                    <Trash2 className="h-3.5 w-3.5" />
-                  </Button>
                 </li>
               ))}
             </ul>
