@@ -772,3 +772,75 @@ def create_reconciler(
         channel_manager=channel_manager,
         settings=reconciliation_settings,
     )
+
+
+# =============================================================================
+# STALE GROUP DETECTION (lylt.1)
+# =============================================================================
+
+
+def detect_stale_groups(db_factory: Any) -> list[dict]:
+    """Detect managed event groups whose Dispatcharr M3U source group is gone.
+
+    A group is "stale" when it is enabled, has an ``m3u_group_id``, and that
+    channel group no longer exists in Dispatcharr — i.e. the source was
+    deleted/renamed. This is distinct from off-season (the group still exists
+    with zero current streams): Dispatcharr channel-groups are persistent, so an
+    off-season group is still returned by ``list_groups()`` and is NOT flagged.
+
+    Side effect: refreshes ``source_last_seen`` for present sources and sets
+    ``source_missing`` for missing ones. If Dispatcharr is unreachable or returns
+    no groups, nothing is flagged (avoids false mass-staleness on a blip).
+
+    Returns:
+        The current list of stale groups (``get_stale_groups``).
+    """
+    from teamarr.database.groups import (
+        get_stale_groups,
+        mark_group_source_missing,
+        mark_group_source_seen,
+    )
+    from teamarr.dispatcharr.factory import get_dispatcharr_connection
+
+    conn_dc = get_dispatcharr_connection(db_factory=db_factory)
+    if conn_dc is None:
+        logger.debug("[STALE_GROUPS] Dispatcharr not configured — skipping detection")
+        return []
+
+    try:
+        live_groups = conn_dc.m3u.list_groups()
+    except Exception as e:  # noqa: BLE001 — detection must never break generation
+        logger.warning("[STALE_GROUPS] Could not list Dispatcharr groups: %s", e)
+        return []
+
+    if not live_groups:
+        # Empty almost always means a connection/auth issue, not "all sources gone".
+        logger.debug("[STALE_GROUPS] Dispatcharr returned no groups — skipping detection")
+        return []
+
+    existing_ids = {g.id for g in live_groups}
+
+    with db_factory() as conn:
+        rows = conn.execute(
+            """
+            SELECT id, name, m3u_group_id
+            FROM event_epg_groups
+            WHERE enabled = 1
+              AND m3u_group_id IS NOT NULL
+              AND COALESCE(is_channel_source, 0) = 0
+            """
+        ).fetchall()
+        for row in rows:
+            if row["m3u_group_id"] in existing_ids:
+                mark_group_source_seen(conn, row["id"])
+            else:
+                mark_group_source_missing(conn, row["id"])
+        stale = get_stale_groups(conn)
+
+    if stale:
+        logger.info(
+            "[STALE_GROUPS] %d group(s) have a missing Dispatcharr source: %s",
+            len(stale),
+            ", ".join(g["name"] for g in stale),
+        )
+    return stale

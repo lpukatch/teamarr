@@ -122,6 +122,7 @@ def run_full_generation(
     from teamarr.consumers import (
         create_lifecycle_service,
         create_reconciler,
+        detect_stale_groups,
         process_all_event_groups,
         process_all_teams,
     )
@@ -609,6 +610,13 @@ def run_full_generation(
         except Exception as e:
             logger.warning("[RECONCILE] Failed: %s", e)
             result.reconciliation = {"error": str(e)}
+
+        # Step 7b: Stale source-group detection (lylt.1) — flag enabled groups
+        # whose Dispatcharr M3U source channel-group no longer exists.
+        try:
+            detect_stale_groups(db_factory)
+        except Exception as e:
+            logger.warning("[STALE_GROUPS] Detection failed: %s", e)
 
         # DIAG: Post-generation stream audit — compare DB vs Dispatcharr
         try:

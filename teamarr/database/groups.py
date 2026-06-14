@@ -989,6 +989,52 @@ def update_group_stats(
 
 
 # =============================================================================
+# STALE SOURCE TRACKING (lylt)
+# =============================================================================
+
+
+def mark_group_source_seen(conn: Connection, group_id: int) -> None:
+    """Mark a group's M3U source as present (found in Dispatcharr this run).
+
+    Refreshes source_last_seen and clears the stale flag.
+    """
+    conn.execute(
+        """
+        UPDATE event_epg_groups
+        SET source_last_seen = datetime('now'), source_missing = 0
+        WHERE id = ?
+        """,
+        (group_id,),
+    )
+
+
+def mark_group_source_missing(conn: Connection, group_id: int) -> None:
+    """Mark a group's M3U source as missing (no longer exists in Dispatcharr)."""
+    conn.execute(
+        "UPDATE event_epg_groups SET source_missing = 1 WHERE id = ?",
+        (group_id,),
+    )
+
+
+def get_stale_groups(conn: Connection) -> list[dict]:
+    """Return enabled groups whose M3U source channel-group is gone (stale).
+
+    See the stale-source detection note in schema.sql. Excludes the
+    system channel-source group.
+    """
+    rows = conn.execute(
+        """
+        SELECT id, name, display_name, m3u_group_id, m3u_group_name,
+               m3u_account_name, source_last_seen, total_stream_count
+        FROM event_epg_groups
+        WHERE enabled = 1 AND source_missing = 1 AND COALESCE(is_channel_source, 0) = 0
+        ORDER BY name
+        """
+    ).fetchall()
+    return [dict(row) for row in rows]
+
+
+# =============================================================================
 # DELETE OPERATIONS
 # =============================================================================
 

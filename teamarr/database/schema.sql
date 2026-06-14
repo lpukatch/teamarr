@@ -481,6 +481,14 @@ CREATE TABLE IF NOT EXISTS event_epg_groups (
     m3u_account_id INTEGER,                  -- Dispatcharr M3U account ID
     m3u_account_name TEXT,                   -- M3U account name for display
 
+    -- Stale-source detection (lylt): a group is "stale" when its M3U source
+    -- channel-group no longer exists in Dispatcharr (deleted/renamed). Distinct
+    -- from off-season (group exists, zero current streams). Updated during the
+    -- post-generation reconcile pass; source_last_seen powers the UI's "last
+    -- seen" hint, source_missing=1 marks it stale.
+    source_last_seen TIMESTAMP,              -- Last time the M3U source group was found in Dispatcharr
+    source_missing INTEGER DEFAULT 0,        -- 1 = source channel-group no longer exists (stale)
+
     -- Processing Stats (updated by EPG generation)
     last_refresh TIMESTAMP,                  -- Last successful EPG refresh
     stream_count INTEGER DEFAULT 0,          -- Streams after filtering
