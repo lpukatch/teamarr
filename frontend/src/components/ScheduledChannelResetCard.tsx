@@ -2,10 +2,9 @@ import { useState, useEffect } from "react"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { SaveButton } from "@/components/ui/save-button"
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
+import { ToggleCard } from "@/components/ui/toggle-card"
 import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
-import { Switch } from "@/components/ui/switch"
 import { CronPreview } from "@/components/CronPreview"
 import {
   useSchedulerSettings,
@@ -56,61 +55,49 @@ export function ScheduledChannelResetCard() {
   }
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Scheduled Channel Reset</CardTitle>
-        <CardDescription>
+    <ToggleCard
+      title="Scheduled Channel Reset"
+      description={
+        <>
           For users experiencing stale channel logos in their media server. Schedule a periodic
           purge of all Teamarr channels before your media server&apos;s guide refresh.
           Leave disabled if you&apos;re not having issues.
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <div className="flex items-center gap-2">
-          <Switch
-            checked={enabled}
-            onCheckedChange={setEnabled}
-          />
-          <Label>Enable Scheduled Channel Reset</Label>
-        </div>
+        </>
+      }
+      enabled={enabled}
+      onEnabledChange={setEnabled}
+      footer={<SaveButton onClick={handleSave} pending={updateScheduler.isPending} />}
+    >
+      <div className="space-y-2">
+        <Label htmlFor="reset-cron">Reset Schedule (Cron Expression)</Label>
+        <Input
+          id="reset-cron"
+          value={cron}
+          onChange={(e) => setCron(e.target.value)}
+          className="font-mono"
+          placeholder="30 3 * * *"
+        />
+        <CronPreview expression={cron} />
+      </div>
 
-        {enabled && (
-          <>
-            <div className="space-y-2">
-              <Label htmlFor="reset-cron">Reset Schedule (Cron Expression)</Label>
-              <Input
-                id="reset-cron"
-                value={cron}
-                onChange={(e) => setCron(e.target.value)}
-                className="font-mono"
-                placeholder="30 3 * * *"
-              />
-              <CronPreview expression={cron} />
-            </div>
+      <div className="flex flex-wrap gap-2">
+        {RESET_PRESETS.map((preset) => (
+          <Button
+            key={preset.cron}
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => setCron(preset.cron)}
+          >
+            {preset.label}
+          </Button>
+        ))}
+      </div>
 
-            <div className="flex flex-wrap gap-2">
-              {RESET_PRESETS.map((preset) => (
-                <Button
-                  key={preset.cron}
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setCron(preset.cron)}
-                >
-                  {preset.label}
-                </Button>
-              ))}
-            </div>
-
-            <p className="text-xs text-muted-foreground">
-              Set this to run shortly before your media server&apos;s scheduled guide refresh.
-              Channels will be recreated on the next EPG generation.
-            </p>
-          </>
-        )}
-
-        <SaveButton onClick={handleSave} pending={updateScheduler.isPending} />
-      </CardContent>
-    </Card>
+      <p className="text-xs text-muted-foreground">
+        Set this to run shortly before your media server&apos;s scheduled guide refresh.
+        Channels will be recreated on the next EPG generation.
+      </p>
+    </ToggleCard>
   )
 }

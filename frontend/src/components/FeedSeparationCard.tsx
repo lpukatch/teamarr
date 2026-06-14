@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react"
 import { toast } from "sonner"
 import { SaveButton } from "@/components/ui/save-button"
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
+import { ToggleCard } from "@/components/ui/toggle-card"
 import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
 import { Switch } from "@/components/ui/switch"
@@ -36,34 +36,25 @@ export function FeedSeparationCard() {
   }, [feedSeparationData])
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Feed Separation</CardTitle>
-        <CardDescription>
-          Detect HOME/AWAY or team name labels in stream names and create separate channels per broadcast feed
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        {/* Master toggle */}
-        <div className="flex items-center justify-between">
-          <div className="space-y-0.5">
-            <Label>Enable Feed Separation</Label>
-            <p className="text-xs text-muted-foreground">
-              When enabled, streams labeled HOME/AWAY or with team names are split into separate channels
-            </p>
-          </div>
-          <Switch
-            checked={feedSeparation.enabled}
-            onCheckedChange={(checked) =>
-              setFeedSeparation({ ...feedSeparation, enabled: checked })
-            }
-          />
-        </div>
-
-        {/* Nested options (only when enabled) */}
-        {feedSeparation.enabled && (
-          <div className="space-y-4 pl-2 border-l-2 border-muted ml-1">
-            {/* Home terms */}
+    <ToggleCard
+      title="Feed Separation"
+      description="Detect HOME/AWAY or team name labels in stream names and create separate channels per broadcast feed"
+      enabled={feedSeparation.enabled}
+      onEnabledChange={(checked) => setFeedSeparation({ ...feedSeparation, enabled: checked })}
+      footer={
+        <SaveButton
+          onClick={() =>
+            updateFeedSeparation.mutate(feedSeparation, {
+              onSuccess: () => toast.success("Feed separation settings saved"),
+              onError: () => toast.error("Failed to save feed separation settings"),
+            })
+          }
+          pending={updateFeedSeparation.isPending}
+        />
+      }
+    >
+      <div className="space-y-4 pl-2 border-l-2 border-muted ml-1">
+        {/* Home terms */}
             <div className="space-y-1.5">
               <Label htmlFor="feed-home-terms">Home Feed Terms</Label>
               <Input
@@ -139,19 +130,6 @@ export function FeedSeparationCard() {
               </p>
             </div>
           </div>
-        )}
-
-        {/* Save button */}
-        <SaveButton
-          onClick={() =>
-            updateFeedSeparation.mutate(feedSeparation, {
-              onSuccess: () => toast.success("Feed separation settings saved"),
-              onError: () => toast.error("Failed to save feed separation settings"),
-            })
-          }
-          pending={updateFeedSeparation.isPending}
-        />
-      </CardContent>
-    </Card>
+      </ToggleCard>
   )
 }

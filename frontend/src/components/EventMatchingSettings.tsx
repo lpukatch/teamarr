@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
 import { Select } from "@/components/ui/select"
-import { Switch } from "@/components/ui/switch"
+import { ToggleCard } from "@/components/ui/toggle-card"
 import { CheckboxListPicker } from "@/components/ui/checkbox-list-picker"
 import {
   useEPGSettings,
@@ -53,42 +53,36 @@ export function EpgMatchingSettings() {
       </p>
 
       {/* Tile 1: Provider EPG Backup */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <CardTitle className="text-base">Provider EPG Backup</CardTitle>
-            <Switch
-              checked={epg?.epg_xtream_fallback_enabled ?? false}
-              onCheckedChange={(checked) =>
-                epg && setEPG({ ...epg, epg_xtream_fallback_enabled: checked })
-              }
-            />
-          </div>
-        </CardHeader>
-        <CardContent className="space-y-3">
+      <ToggleCard
+        title="Provider EPG Backup"
+        enabled={epg?.epg_xtream_fallback_enabled ?? false}
+        onEnabledChange={(checked) =>
+          epg && setEPG({ ...epg, epg_xtream_fallback_enabled: checked })
+        }
+        contentClassName="space-y-3"
+        always={
           <p className="text-sm text-muted-foreground">
             As a backup, fetch the Xtream (XC) provider's own EPG and match against it —
             covers streams that don't already belong to a Dispatcharr channel.
           </p>
-          {epg?.epg_xtream_fallback_enabled && (
-            <div className="max-w-xs">
-              <Label htmlFor="epg-xtream-cache">Cache for (hours)</Label>
-              <Input
-                id="epg-xtream-cache"
-                type="number"
-                min={1}
-                value={epg?.epg_xtream_cache_hours ?? 24}
-                onChange={(e) =>
-                  epg && setEPG({ ...epg, epg_xtream_cache_hours: parseInt(e.target.value) || 1 })
-                }
-              />
-              <p className="text-xs text-muted-foreground pt-1">
-                Cached per XC account; re-fetched when older than this. 24h is a good default.
-              </p>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+        }
+      >
+        <div className="max-w-xs">
+          <Label htmlFor="epg-xtream-cache">Cache for (hours)</Label>
+          <Input
+            id="epg-xtream-cache"
+            type="number"
+            min={1}
+            value={epg?.epg_xtream_cache_hours ?? 24}
+            onChange={(e) =>
+              epg && setEPG({ ...epg, epg_xtream_cache_hours: parseInt(e.target.value) || 1 })
+            }
+          />
+          <p className="text-xs text-muted-foreground pt-1">
+            Cached per XC account; re-fetched when older than this. 24h is a good default.
+          </p>
+        </div>
+      </ToggleCard>
 
       {/* Tile 2: Attach/Detach Timing */}
       <Card>
@@ -130,46 +124,40 @@ export function EpgMatchingSettings() {
       </Card>
 
       {/* Tile 3: Dispatcharr as a Stream Source */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <CardTitle className="text-base">Dispatcharr as a Stream Source</CardTitle>
-            <Switch
-              checked={epg?.epg_channel_source_enabled ?? false}
-              onCheckedChange={(checked) =>
-                epg && setEPG({ ...epg, epg_channel_source_enabled: checked })
-              }
-            />
-          </div>
-        </CardHeader>
-        <CardContent className="space-y-3">
+      <ToggleCard
+        title="Dispatcharr as a Stream Source"
+        enabled={epg?.epg_channel_source_enabled ?? false}
+        onEnabledChange={(checked) =>
+          epg && setEPG({ ...epg, epg_channel_source_enabled: checked })
+        }
+        contentClassName="space-y-3"
+        always={
           <p className="text-sm text-muted-foreground">
             Pull candidate streams from the channels you've curated in Dispatcharr, using each
             channel's own EPG — so you match only your mapped channel versions, not every stream
             in a provider group. Teamarr's own channels are excluded.
           </p>
-          {epg?.epg_channel_source_enabled && (
-            <div className="max-w-md">
-              <CheckboxListPicker
-                label="Dispatcharr groups to include"
-                selected={(epg?.epg_channel_source_groups ?? []).map(String)}
-                onChange={(vals) =>
-                  epg && setEPG({ ...epg, epg_channel_source_groups: vals.map(Number) })
-                }
-                items={(channelGroupsQuery.data ?? []).map((g) => ({
-                  value: String(g.id),
-                  label: g.name,
-                }))}
-                searchPlaceholder="Search Dispatcharr groups..."
-              />
-              <p className="text-xs text-muted-foreground pt-1">
-                Only these groups are scanned — fewer = faster. Empty = all. They also become
-                sort options under Channels → Stream Priority.
-              </p>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+        }
+      >
+        <div className="max-w-md">
+          <CheckboxListPicker
+            label="Dispatcharr groups to include"
+            selected={(epg?.epg_channel_source_groups ?? []).map(String)}
+            onChange={(vals) =>
+              epg && setEPG({ ...epg, epg_channel_source_groups: vals.map(Number) })
+            }
+            items={(channelGroupsQuery.data ?? []).map((g) => ({
+              value: String(g.id),
+              label: g.name,
+            }))}
+            searchPlaceholder="Search Dispatcharr groups..."
+          />
+          <p className="text-xs text-muted-foreground pt-1">
+            Only these groups are scanned — fewer = faster. Empty = all. They also become
+            sort options under Channels → Stream Priority.
+          </p>
+        </div>
+      </ToggleCard>
 
       <SaveButton
         onClick={async () => {
