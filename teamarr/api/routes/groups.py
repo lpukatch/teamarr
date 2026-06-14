@@ -1030,6 +1030,19 @@ def get_match_cache_stats():
     return MatchCacheStatsResponse(total_entries=cache.get_size())
 
 
+@router.get("/stale")
+def list_stale_groups() -> list[dict]:
+    """List enabled groups whose Dispatcharr M3U source channel-group is gone (stale).
+
+    Populated by the post-generation stale-source detection (lylt.1). Delete a
+    stale group via the standard DELETE /groups/{id} endpoint.
+    """
+    from teamarr.database.groups import get_stale_groups
+
+    with get_db() as conn:
+        return get_stale_groups(conn)
+
+
 @router.get("/{group_id}", response_model=GroupResponse)
 def get_group_by_id(group_id: int):
     """Get a single event EPG group."""
