@@ -299,13 +299,14 @@ class EventCardMatcher:
                     )
 
         # Strategy 3: Fuzzy event name matching
-        # For named events without standard numbers (e.g., "UFC at the White House", "UFC Freedom 250")
+        # For named events without a standard number (e.g. "UFC at the White House").
         if not event_num:
             stream_norm = normalize_text(ctx.stream_name)
-            # Remove common generic/noise words to ensure the stream has a distinct name
+            # Strip generic/noise words to ensure the stream has a distinct name.
             stream_norm_clean = re.sub(
-                r'\b(ufc|mma|boxing|prelims|main card|early prelims|live|event|ppv|pm|am|et|pt|ct|mt)\b', 
-                '', 
+                r'\b(ufc|mma|boxing|prelims|main card|early prelims'
+                r'|live|event|ppv|pm|am|et|pt|ct|mt)\b',
+                '',
                 stream_norm
             ).strip()
 
@@ -315,9 +316,12 @@ class EventCardMatcher:
 
                 for event in events:
                     event_norm = normalize_text(event.name)
-                    # Use partial_token_set_ratio because the stream name might contain extra words (e.g. "live event 01")
-                    # and the API name might contain extra words (e.g. "UFC Freedom 250: Topuria vs Gaethje")
-                    score = fuzz.partial_token_set_ratio(stream_norm, event_norm)
+                    # Match on the DISTINCTIVE (noise-stripped) stream name with
+                    # token_set_ratio. Matching the raw stream with
+                    # partial_token_set_ratio scored 100 for any event sharing the
+                    # league token ("ufc") — so it picked an arbitrary event. Using
+                    # stream_norm_clean + token_set_ratio requires real name overlap.
+                    score = fuzz.token_set_ratio(stream_norm_clean, event_norm)
                     if score > best_score:
                         best_score = score
                         best_event = event
