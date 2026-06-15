@@ -1935,7 +1935,7 @@ export function Settings() {
           </div>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-6 lg:divide-x">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 lg:divide-x">
             {/* Team & League Directory Section */}
             <div className="flex flex-col gap-4 lg:pr-6">
               <h4 className="text-sm font-medium text-center">Team & League Directory</h4>

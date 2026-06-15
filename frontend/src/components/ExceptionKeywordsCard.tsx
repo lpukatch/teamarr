@@ -215,29 +215,29 @@ export function ExceptionKeywordsCard() {
           </Table>
         </div>
 
-        <div className="flex gap-2">
+        <div className="flex flex-col sm:flex-row gap-2">
           <Input
             placeholder="Label (e.g., Spanish)"
             value={newKeyword.label}
             onChange={(e) => setNewKeyword({ ...newKeyword, label: e.target.value })}
-            className="w-32"
+            className="w-full sm:w-32"
           />
           <Input
             placeholder="Match terms (e.g., Spanish, En Español, ESP)"
             value={newKeyword.match_terms}
             onChange={(e) => setNewKeyword({ ...newKeyword, match_terms: e.target.value })}
-            className="flex-1"
+            className="w-full sm:flex-1"
           />
           <Select
             value={newKeyword.behavior}
             onChange={(e) => setNewKeyword({ ...newKeyword, behavior: e.target.value })}
-            className="w-40"
+            className="w-full sm:w-40"
           >
             <option value="consolidate">Sub-Consolidate</option>
             <option value="separate">Separate</option>
             <option value="ignore">Ignore</option>
           </Select>
-          <Button onClick={handleAddKeyword} disabled={createKeyword.isPending}>
+          <Button onClick={handleAddKeyword} disabled={createKeyword.isPending} className="w-full sm:w-auto">
             {createKeyword.isPending ? (
               <Loader2 className="h-4 w-4 animate-spin" />
             ) : (
