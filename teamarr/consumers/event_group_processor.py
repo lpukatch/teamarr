@@ -346,8 +346,12 @@ class EventGroupProcessor:
         self._dispatcharr_client = dispatcharr_client
         self._service = service or create_default_service()
 
-        # EPG generator for XMLTV output
-        self._epg_generator = EventEPGGenerator(self._service)
+        # EPG generator for XMLTV output (art_base_url injected so the resolver
+        # reconstructs game-thumbs URLs — epic z02s).
+        from teamarr.utilities.art_url import read_art_base_url
+
+        self._art_base_url = read_art_base_url(db_factory)
+        self._epg_generator = EventEPGGenerator(self._service, art_base_url=self._art_base_url)
 
         # Shared events cache for cross-group reuse in a single generation run
         # Keys are "league:date" strings, values are (events, was_cache_only) tuples
@@ -2858,7 +2862,7 @@ class EventGroupProcessor:
         """
         from teamarr.config import get_user_timezone
 
-        filler_generator = EventFillerGenerator(self._service)
+        filler_generator = EventFillerGenerator(self._service, art_base_url=self._art_base_url)
         result = EventFillerResult()
 
         # Get configured timezone

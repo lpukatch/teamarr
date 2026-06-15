@@ -4,28 +4,14 @@ Converts Programme dataclasses to XMLTV format.
 All times are output in the user's configured timezone.
 """
 
-import re
 from xml.dom import minidom
 from xml.etree.ElementTree import Element, SubElement, tostring
 
 from teamarr.core import Programme
+from teamarr.utilities.art_url import apply_art_base_url
 from teamarr.utilities.tz import format_datetime_xmltv, to_user_tz
 
-_ABSOLUTE_URL = re.compile(r"^[a-z][a-z0-9+.-]*://", re.IGNORECASE)
-
-
-def apply_art_base_url(value: str | None, base_url: str) -> str | None:
-    """Prefix a relative art/icon path with the configured base URL (epic z02s).
-
-    Absolute URLs (anything with a ``scheme://``) and empty values pass through
-    unchanged, so templates may mix full URLs and relative paths freely. When a
-    base is set and the value is relative, they're joined with exactly one slash.
-    """
-    if not value or not base_url:
-        return value
-    if _ABSOLUTE_URL.match(value):
-        return value
-    return f"{base_url.rstrip('/')}/{value.lstrip('/')}"
+__all__ = ["apply_art_base_url", "programmes_to_xmltv"]
 
 
 def programmes_to_xmltv(

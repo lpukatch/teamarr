@@ -188,9 +188,12 @@ class ChannelLifecycleService:
         # Structure: {profile_id: {"add": set(channel_ids), "remove": set(channel_ids)}}
         self._pending_profile_changes: dict[int, dict[str, set[int]]] = {}
 
-        # Template engine
+        # Template engine — art_base_url injected so channel-logo reconstruction
+        # matches the EPG icon (epic z02s).
+        from teamarr.utilities.art_url import read_art_base_url
+
         self._context_builder = ContextBuilder(sports_service)
-        self._resolver = TemplateResolver()
+        self._resolver = TemplateResolver(read_art_base_url(db_factory))
 
         # External channel numbers from Dispatcharr (non-Teamarr channels)
         # Computed lazily via compute_external_occupied() and cached for the run
@@ -1534,11 +1537,18 @@ class ChannelLifecycleService:
                 extra_vars = {
                     "exception_keyword": exception_keyword if exception_keyword else "",
                 }
-                return self._resolve_template(
+                resolved = self._resolve_template(
                     logo_url, event, extra_vars, card_segment=segment,
                     feed_team=feed_team,
                 )
-            return logo_url
+            else:
+                resolved = logo_url
+            # Apply the game-thumbs base URL (epic z02s) so the Dispatcharr channel
+            # logo gets the SAME reconstructed URL as the EPG <icon>. Single base
+            # source = the resolver. Idempotent: absolute URLs pass through.
+            from teamarr.utilities.art_url import apply_art_base_url
+
+            return apply_art_base_url(resolved, self._resolver.art_base_url)
 
         return None
 

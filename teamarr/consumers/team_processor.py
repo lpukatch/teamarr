@@ -166,7 +166,11 @@ class TeamProcessor:
         """
         self._db_factory = db_factory
         self._service = service or create_default_service()
-        self._epg_generator = TeamEPGGenerator(self._service)
+        from teamarr.utilities.art_url import read_art_base_url
+
+        self._epg_generator = TeamEPGGenerator(
+            self._service, art_base_url=read_art_base_url(db_factory)
+        )
 
     def process_team(self, team_id: int) -> TeamProcessingResult:
         """Process a single team.

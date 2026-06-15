@@ -57,7 +57,10 @@ def test_single_origin_extracted_and_paths_relativized():
     assert row["event_channel_logo_url"] == "/logo.png"
     assert json.loads(row["pregame_fallback"])["art_url"] == "/pre.png"
     # base + stored path resolves back to the original absolute URL
-    assert apply_art_base_url(row["program_art_url"], base) == "http://localhost:3000/{league}/cover.png"
+    assert (
+        apply_art_base_url(row["program_art_url"], base)
+        == "http://localhost:3000/{league}/cover.png"
+    )
 
 
 def test_divergent_origins_pick_most_frequent_winner():
@@ -69,26 +72,42 @@ def test_divergent_origins_pick_most_frequent_winner():
 
     _migrate_v75_extract_art_base_url(conn)
 
-    assert conn.execute("SELECT art_base_url FROM settings WHERE id = 1").fetchone()[0] == "http://a.com"
+    assert (
+        conn.execute("SELECT art_base_url FROM settings WHERE id = 1").fetchone()[0]
+        == "http://a.com"
+    )
+
     # winner's URLs relativized (leading slash)
-    assert conn.execute("SELECT program_art_url FROM templates WHERE id = 1").fetchone()[0] == "/x.png"
-    assert conn.execute("SELECT program_art_url FROM templates WHERE id = 2").fetchone()[0] == "/y.png"
+    def art(i):
+        return conn.execute("SELECT program_art_url FROM templates WHERE id = ?", (i,)).fetchone()[
+            0
+        ]
+
+    assert art(1) == "/x.png"
+    assert art(2) == "/y.png"
     # loser's URL left absolute (resolver passes it through)
-    assert conn.execute("SELECT program_art_url FROM templates WHERE id = 3").fetchone()[0] == "http://b.com/z.png"
+    assert (
+        conn.execute("SELECT program_art_url FROM templates WHERE id = 3").fetchone()[0]
+        == "http://b.com/z.png"
+    )
 
 
 def test_noop_when_already_configured():
     conn = _make_db()
     conn.execute("UPDATE settings SET art_base_url = 'http://preset.com' WHERE id = 1")
-    conn.execute(
-        "INSERT INTO templates (id, program_art_url) VALUES (1, 'http://other.com/x.png')"
-    )
+    conn.execute("INSERT INTO templates (id, program_art_url) VALUES (1, 'http://other.com/x.png')")
 
     _migrate_v75_extract_art_base_url(conn)
 
     # User-set base preserved; URL untouched.
-    assert conn.execute("SELECT art_base_url FROM settings WHERE id = 1").fetchone()[0] == "http://preset.com"
-    assert conn.execute("SELECT program_art_url FROM templates WHERE id = 1").fetchone()[0] == "http://other.com/x.png"
+    assert (
+        conn.execute("SELECT art_base_url FROM settings WHERE id = 1").fetchone()[0]
+        == "http://preset.com"
+    )
+    assert (
+        conn.execute("SELECT program_art_url FROM templates WHERE id = 1").fetchone()[0]
+        == "http://other.com/x.png"
+    )
 
 
 def test_idempotent_second_run_noops():
@@ -148,10 +167,31 @@ def test_v76_idempotent_on_already_slashed():
     conn = _make_db()
     conn.execute("INSERT INTO templates (id, program_art_url) VALUES (1, '/already/ok.png')")
     _migrate_v76_leading_slash_art_paths(conn)
-    assert conn.execute("SELECT program_art_url FROM templates WHERE id = 1").fetchone()[0] == "/already/ok.png"
+    val = conn.execute("SELECT program_art_url FROM templates WHERE id = 1").fetchone()[0]
+    assert val == "/already/ok.png"
 
 
 # --- create/update normalization ------------------------------------------
+
+
+def test_resolve_art_applies_base_uniformly(monkeypatch):
+    """resolve_art (the single shared art entry point) prefixes the base for
+    relative values, passes absolute through, and no-ops with no base — so every
+    sink that uses it (EPG icon, Dispatcharr channel logo, fillers) reconstructs
+    identically."""
+    from teamarr.templates.resolver import TemplateResolver
+
+    r = TemplateResolver("http://host:4999")
+    # relative -> base prefixed
+    monkeypatch.setattr(r, "resolve", lambda t, c: "/nba/cover.png")
+    assert r.resolve_art("x", None) == "http://host:4999/nba/cover.png"
+    # absolute -> passthrough (idempotent; another sink can't double-apply)
+    monkeypatch.setattr(r, "resolve", lambda t, c: "http://other:9196/c.png")
+    assert r.resolve_art("x", None) == "http://other:9196/c.png"
+    # no base -> unchanged
+    r2 = TemplateResolver("")
+    monkeypatch.setattr(r2, "resolve", lambda t, c: "/nba/cover.png")
+    assert r2.resolve_art("x", None) == "/nba/cover.png"
 
 
 def test_create_update_normalize_art_paths():

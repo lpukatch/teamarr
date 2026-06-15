@@ -15,7 +15,8 @@ Teamarr templates can use Game Thumbs URLs in artwork fields to display matchup 
 
 Rather than repeating the full Game Thumbs host in every template, set it once in
 **EPG → Output → Game Thumbs → Game-Thumbs Base URL** (e.g. `https://game-thumbs.swvn.io`
-or a self-hosted `http://<host>:9196`). Templates then store only the **relative
+or a self-hosted `http://<host>:<port>`). The full base — host **and port** — comes
+entirely from this setting. Templates then store only the **relative
 path** (always starting with `/`):
 
 ```
