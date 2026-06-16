@@ -1466,7 +1466,7 @@ def clear_group_match_cache(group_id: int):
     Forces re-matching on next EPG generation run. Useful when matching
     algorithm changes or cached matches are incorrect.
     """
-    from teamarr.consumers.stream_match_cache import StreamMatchCache
+    from teamarr.consumers.stream_match_cache import clear_group_match_data
     from teamarr.database.groups import get_group
 
     with get_db() as conn:
@@ -1477,11 +1477,11 @@ def clear_group_match_cache(group_id: int):
                 detail=f"Group {group_id} not found",
             )
 
-    cache = StreamMatchCache(get_db)
-    entries_cleared = cache.clear_group(group_id)
+    entries_cleared, stats_cleared = clear_group_match_data(get_db, group_id)
 
     logger.info(
-        "[CACHE_CLEAR] group_id=%d name=%s entries=%d", group_id, group.name, entries_cleared
+        "[CACHE_CLEAR] group_id=%d name=%s entries=%d stats_cleared=%d",
+        group_id, group.name, entries_cleared, stats_cleared,
     )
 
     return ClearCacheResponse(
@@ -1498,24 +1498,28 @@ def clear_groups_match_cache(request: ClearCacheRequest):
 
     Forces re-matching on next EPG generation run for all specified groups.
     """
-    from teamarr.consumers.stream_match_cache import StreamMatchCache
+    from teamarr.consumers.stream_match_cache import clear_group_match_data
     from teamarr.database.groups import get_group
 
-    cache = StreamMatchCache(get_db)
     results: list[ClearCacheGroupResult] = []
     total_cleared = 0
+    total_stats_cleared = 0
 
     with get_db() as conn:
-        for group_id in request.group_ids:
-            group = get_group(conn, group_id)
-            if not group:
-                continue
+        valid_group_ids = [
+            group_id for group_id in request.group_ids if get_group(conn, group_id)
+        ]
 
-            cleared = cache.clear_group(group_id)
-            results.append(ClearCacheGroupResult(group_id=group_id, cleared=cleared))
-            total_cleared += cleared
+    for group_id in valid_group_ids:
+        cleared, stats_cleared = clear_group_match_data(get_db, group_id)
+        results.append(ClearCacheGroupResult(group_id=group_id, cleared=cleared))
+        total_cleared += cleared
+        total_stats_cleared += stats_cleared
 
-    logger.info("[CACHE_CLEAR_BULK] groups=%d total_cleared=%d", len(results), total_cleared)
+    logger.info(
+        "[CACHE_CLEAR_BULK] groups=%d total_cleared=%d total_stats_cleared=%d",
+        len(results), total_cleared, total_stats_cleared,
+    )
 
     return ClearCacheResponse(
         success=True,
@@ -1530,12 +1534,11 @@ def clear_all_match_cache():
 
     Forces re-matching on next EPG generation run for every group.
     """
-    from teamarr.consumers.stream_match_cache import StreamMatchCache
+    from teamarr.consumers.stream_match_cache import clear_all_match_data
 
-    cache = StreamMatchCache(get_db)
-    cleared = cache.clear_all()
+    cleared, stats_cleared = clear_all_match_data(get_db)
 
-    logger.info("[CACHE_CLEAR_ALL] Cleared %d entries", cleared)
+    logger.info("[CACHE_CLEAR_ALL] Cleared %d entries stats_cleared=%d", cleared, stats_cleared)
 
     return ClearCacheResponse(
         success=True,
