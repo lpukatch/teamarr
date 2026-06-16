@@ -20,7 +20,6 @@ logger = logging.getLogger(__name__)
 # stays responsive without hammering providers on every keystroke.
 _LIVE_CACHE: dict[str, tuple[float, dict[str, str]]] = {}
 _LIVE_CACHE_TTL = 300  # seconds
-_LIVE_LOOKAHEAD_DAYS = 21
 
 
 def _lookup_league_fields(league_code: str) -> tuple[str | None, str | None]:
@@ -50,8 +49,6 @@ def _fetch_live_samples(league: str) -> dict[str, str] | None:
         return cached[1]
 
     try:
-        from datetime import date, timedelta
-
         from teamarr.services.sports_data import create_default_service
         from teamarr.templates.context_builder import (
             ContextBuilder,
@@ -62,27 +59,11 @@ def _fetch_live_samples(league: str) -> dict[str, str] | None:
 
         service = create_default_service()
 
-        # TSDB's free tier is rate-limited, and this loop probes up to ~42 days.
-        # Mirror the generation path (event_group_processor): for TSDB, read only
-        # the prewarmed cache (no live API calls) so the preview can't hammer the
-        # free tier. Empty cache → no live event → falls back to static samples.
-        cache_only = service.get_provider_name(league) == "tsdb"
-
-        # Find the nearest event with two identifiable teams.
-        event = None
-        today = date.today()
-        for offset in range(_LIVE_LOOKAHEAD_DAYS):
-            for day in {today + timedelta(days=offset), today - timedelta(days=offset)}:
-                events = service.get_events(league, day, cache_only=cache_only)
-                for candidate in events:
-                    if candidate.home_team and candidate.away_team:
-                        event = candidate
-                        break
-                if event:
-                    break
-            if event:
-                break
-
+        # Pick the best real event for the sample — prefers a just-completed game
+        # so postgame vars (recap/scores/outcome) populate. Provider-aware fetch
+        # keeps this to a couple of calls (TSDB uses a 2-call bulk path), so the
+        # preview can't hammer rate-limited providers. None → static fallback.
+        event = service.get_sample_event(league)
         if not event:
             return None
 

@@ -13,7 +13,7 @@ Uses PersistentTTLCache for all caching:
 import logging
 import threading
 from dataclasses import replace
-from datetime import date
+from datetime import UTC, date, datetime, timedelta
 
 from teamarr.core import Event, SportsProvider, Team, TeamStats
 from teamarr.database.provider_cache import (
@@ -237,6 +237,56 @@ class SportsDataService:
                 self._cache.set(cache_key, [event_to_dict(e) for e in events], ttl)
                 return [_enrich_event_teams(e) for e in events]
         return []
+
+    def get_sample_event(self, league: str) -> Event | None:
+        """Pick the single best real event for a template sample preview.
+
+        Selection rule (applies to ALL providers): prefer the most-recent
+        FINAL game with two identifiable teams, so postgame variables (recap,
+        scores, outcome, margin) populate — a just-completed game is the richest
+        sample. Falls back to the nearest upcoming/in-progress game when nothing
+        recent has finished.
+
+        Candidate gathering is provider-aware only for *efficiency*: TSDB exposes
+        a 2-call recent+upcoming bulk fetch (``get_sample_candidates``) so the
+        preview can't hammer its rate-limited free tier; every other provider
+        uses a small bounded scan of recent + near-future days (which captures
+        their finals just the same).
+        """
+        candidates: list[Event] = []
+        today = date.today()
+        for provider in self._providers:
+            if not provider.supports_league(league):
+                continue
+            bulk = getattr(provider, "get_sample_candidates", None)
+            if callable(bulk):
+                candidates = bulk(league)
+            else:
+                # Recent days first (their finals), then a couple upcoming.
+                for d in (
+                    today,
+                    today - timedelta(days=1),
+                    today - timedelta(days=2),
+                    today + timedelta(days=1),
+                    today + timedelta(days=7),
+                ):
+                    candidates.extend(self.get_events(league, d))
+            break
+
+        candidates = [e for e in candidates if e.home_team and e.away_team]
+        if not candidates:
+            return None
+
+        finals = [e for e in candidates if is_event_final(e)]
+        if finals:
+            # Most-recently-completed game is the richest sample.
+            return _enrich_event_teams(max(finals, key=lambda e: e.start_time))
+
+        # Nothing final → nearest game to now (in-progress or soonest upcoming).
+        now = datetime.now(UTC)
+        return _enrich_event_teams(
+            min(candidates, key=lambda e: abs((e.start_time - now).total_seconds()))
+        )
 
     def get_team_schedule(
         self,

@@ -482,6 +482,28 @@ class TSDBClient:
             self._cache.set(cache_key, result, TSDB_CACHE_TTL_NEXT_EVENTS)
         return result
 
+    def get_league_past_events(self, league: str) -> dict | None:
+        """Fetch the most recent (finished) events for a league.
+
+        The complement of :meth:`get_league_next_events` — one call returns the
+        last ~15 finished events, used to find a just-completed game for sample
+        previews (recap/score/outcome vars need a final event). Cached 1 hour.
+        """
+        cache_key = make_cache_key("tsdb", "pastleague", league)
+        cached = self._cache.get(cache_key)
+        if cached is not None:
+            logger.debug("[TSDB] Cache hit: %s", cache_key)
+            return cached
+
+        league_id = self.get_league_id(league)
+        if not league_id:
+            return None
+
+        result = self._request("eventspastleague.php", {"id": league_id})
+        if result:
+            self._cache.set(cache_key, result, TSDB_CACHE_TTL_NEXT_EVENTS)
+        return result
+
     # ------------------------------------------------------------------
     # Raw lookups (no DB mapping) — used by custom-league validation (eqz.3),
     # where the league is not yet a saved row so there is no canonical code to
