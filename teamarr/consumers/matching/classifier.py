@@ -1453,7 +1453,17 @@ def classify_stream(
                 sep_team1, sep_team2 = extract_teams_from_separator(text, sep, sep_position)
                 has_team_pattern = bool(sep_team1 or sep_team2)
 
-            if not has_team_pattern:
+            # Guard against hijacking a team-sport stream that leaked into a
+            # racing-dominant group. A bare team name ("Maple Leafs") has no
+            # separator, so the has_team_pattern check alone wouldn't catch it;
+            # but if it carries a positive NON-racing sport hint (e.g. "NHL |
+            # Maple Leafs" → "hockey"), that's strong evidence it isn't a race —
+            # let it fall through to team matching. Racing has no reliable text
+            # keyword, so we can't require positive racing evidence; we only veto
+            # on a hint that actively disagrees (None never vetoes).
+            hint_disagrees = sport_hint is not None and str(sport_hint).lower() != "racing"
+
+            if not has_team_pattern and not hint_disagrees:
                 result = ClassifiedStream(
                     category=StreamCategory.RACING_EVENT,
                     normalized=normalized,
