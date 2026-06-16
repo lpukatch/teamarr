@@ -8,14 +8,14 @@ docs_version: "2.3.1"
 
 # Template Engine
 
-The template engine resolves `{variable}` placeholders in EPG titles, descriptions, and filler content. It supports 207 variables across 17 categories, 20 condition evaluators, suffix rules for multi-game context, and template-type scoping for the variable picker.
+The template engine resolves `{variable}` placeholders in EPG titles, descriptions, and filler content. It supports 217 variables across 18 categories, 23 condition evaluators, suffix rules for multi-game context, and template-type scoping for the variable picker.
 
 ## Architecture
 
 ```
 TemplateResolver
-  ├── VariableRegistry (207 variables, 17 categories)
-  ├── ConditionEvaluator (20 evaluators)
+  ├── VariableRegistry (217 variables, 18 categories)
+  ├── ConditionEvaluator (23 evaluators)
   └── ContextBuilder (Event + Team → TemplateContext)
 ```
 
@@ -94,7 +94,7 @@ Variables are registered via decorator in `teamarr/templates/variables/` (one fi
 
 ## Condition Evaluators
 
-20 evaluators for conditional descriptions. Lower priority number = evaluated first. Priority 100 is the default (always matches).
+23 evaluators for conditional descriptions. Lower priority number = evaluated first. Priority 100 is the default (always matches).
 
 | Condition | Description | Value Param |
 |-----------|-------------|-------------|
@@ -191,10 +191,10 @@ and relativizes them; v76 normalizes relative paths to a leading slash;
 | File | Purpose |
 |------|---------|
 | `templates/resolver.py` | Variable resolution pipeline |
-| `templates/conditions.py` | 20 condition evaluators |
+| `templates/conditions.py` | 23 condition evaluators |
 | `templates/context.py` | Context dataclasses (Odds, GameContext, TemplateContext) |
 | `templates/context_builder.py` | Build TemplateContext from Event + Team |
-| `templates/variables/` | 17 category modules with 207 variable definitions |
+| `templates/variables/` | 18 category modules with 217 variable definitions |
 | `templates/variables/registry.py` | VariableRegistry singleton |
 | `templates/sample_data.py` | Test fixtures for UI preview |
 | `utilities/art_url.py` | Game-thumbs base URL join helper + reader (`apply_art_base_url`, `read_art_base_url`) |

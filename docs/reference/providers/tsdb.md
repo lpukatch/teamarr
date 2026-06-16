@@ -34,7 +34,6 @@ TheSportsDB (TSDB) is a community-driven sports data API. Teamarr uses it as a f
 These leagues have low enough event volume to work within free tier limits:
 
 - CFL, Unrivaled, Norwegian Hockey, Boxing
-- IMSA (one event per round, well under the 15-event/season cap)
 
 ### Premium Tier Leagues
 
@@ -43,7 +42,7 @@ These leagues have high event volume or unreliable free-tier data and require a 
 - AFL (Australian football)
 - IPL, BBL, SA20 (cricket)
 - Svenska Cupen and other regional soccer leagues (Canadian Premier League, Swedish Superettan / Division 1, Icelandic, Venezuelan, Gambian, Aruban, Northern Irish)
-- WEC (62 events/season across 8 rounds + Prologue — free tier's 15-event/season cap on `eventsseason.php` only returns the first 2-3 rounds)
+- IMSA and WEC (motor racing). WEC's 62 events/season exceeds the free `eventsseason.php` 15-event cap; IMSA fits it but is gated premium too, so all TSDB racing is premium (no silent truncation if a schedule grows).
 
 The `tsdb_tier` column in `schema.sql` classifies each league as `free` or `premium`.
 
@@ -76,7 +75,7 @@ Get a key at [thesportsdb.com/pricing](https://www.thesportsdb.com/pricing).
 | Gambia GFA League | `gam.1` | 5238 | Soccer | Premium |
 | Aruban Division di Honor | `arb.1` | 5230 | Soccer | Premium |
 | Northern Irish Premiership | `nifl.1` | 4659 | Soccer | Premium |
-| IMSA SportsCar Championship | `imsa` | 4488 | Motor Racing | Free |
+| IMSA SportsCar Championship | `imsa` | 4488 | Motor Racing | Premium |
 | FIA World Endurance Championship | `wec` | 4413 | Motor Racing | Premium |
 
 ## Event Resolution
@@ -101,10 +100,12 @@ circuit_name=...)` shape the racing pipeline expects from ESPN/static
 providers — one EPG program block per session (Practice, Qualifying,
 Hyperpole, Race).
 
-Because `eventsseason.php` is capped at 15 events/season on the free tier,
-WEC (62 events/season) only returns its first 2-3 rounds without a premium
-key. IMSA (12 events/season, one per round) fits comfortably under the cap
-and works fully on free tier.
+`eventsseason.php` is capped at 15 events/season on the free tier, so WEC
+(62 events/season) only returns its first 2-3 rounds without a premium key.
+IMSA (12 events/season) would technically fit under that cap, but **both
+racing leagues are gated premium** — Teamarr treats all TSDB-backed leagues as
+premium so a schedule that grows past the free cap can't silently truncate the
+guide.
 
 ## Rate Limiting
 
