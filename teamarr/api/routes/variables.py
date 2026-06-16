@@ -62,12 +62,18 @@ def _fetch_live_samples(league: str) -> dict[str, str] | None:
 
         service = create_default_service()
 
+        # TSDB's free tier is rate-limited, and this loop probes up to ~42 days.
+        # Mirror the generation path (event_group_processor): for TSDB, read only
+        # the prewarmed cache (no live API calls) so the preview can't hammer the
+        # free tier. Empty cache → no live event → falls back to static samples.
+        cache_only = service.get_provider_name(league) == "tsdb"
+
         # Find the nearest event with two identifiable teams.
         event = None
         today = date.today()
         for offset in range(_LIVE_LOOKAHEAD_DAYS):
             for day in {today + timedelta(days=offset), today - timedelta(days=offset)}:
-                events = service.get_events(league, day)
+                events = service.get_events(league, day, cache_only=cache_only)
                 for candidate in events:
                     if candidate.home_team and candidate.away_team:
                         event = candidate

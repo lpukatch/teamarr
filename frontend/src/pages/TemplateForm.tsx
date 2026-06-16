@@ -42,7 +42,10 @@ export function TemplateForm() {
   const [formData, setFormData] = useState<TemplateCreate>(DEFAULT_FORM)
   const [lastFocusedField, setLastFocusedField] = useState<string | null>(null)
   const [previewLeague, setPreviewLeague] = useState("nba")
-  const [liveRequested, setLiveRequested] = useState(false)
+  // Default to live: preview real event data when available (green "Live"
+  // indicator), falling back to static samples when there's no event. TSDB
+  // leagues read cache-only so this can't hammer the free tier.
+  const [liveRequested, setLiveRequested] = useState(true)
 
   // Refs for template fields
   const fieldRefs = useRef<Record<string, HTMLInputElement | HTMLTextAreaElement | null>>({})
