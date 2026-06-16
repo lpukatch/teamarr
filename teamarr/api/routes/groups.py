@@ -472,6 +472,11 @@ VALID_CHANNEL_SORT_ORDER = {"time", "sport_time", "league_time"}
 VALID_OVERLAP_HANDLING = {"add_stream", "add_only", "create_all", "skip"}
 
 
+def _effective_flag(patch: bool | None, current: bool) -> bool:
+    """Resolve a partial-update boolean: the patch value if given, else current."""
+    return current if patch is None else patch
+
+
 def require_matching_type(name: bool, team: bool, epg: bool) -> None:
     """Reject a source with no matching type enabled (epic ahow).
 
@@ -955,13 +960,10 @@ def update_groups_bulk(request: BulkGroupUpdateRequest):
                     continue
 
                 # Reject (per-group) if the update would leave no matching type.
-                def _eff(patch: bool | None, current: bool) -> bool:
-                    return current if patch is None else patch
-
                 if not (
-                    _eff(request.name_match_enabled, group.name_match_enabled)
-                    or _eff(request.team_streams_enabled, group.team_streams_enabled)
-                    or _eff(request.epg_match_enabled, group.epg_match_enabled)
+                    _effective_flag(request.name_match_enabled, group.name_match_enabled)
+                    or _effective_flag(request.team_streams_enabled, group.team_streams_enabled)
+                    or _effective_flag(request.epg_match_enabled, group.epg_match_enabled)
                 ):
                     results.append(
                         BulkGroupUpdateResult(
@@ -1234,13 +1236,10 @@ def update_group_by_id(group_id: int, request: GroupUpdate):
             )
 
         # Validate the post-update matching types (patch overrides current value).
-        def _eff(patch: bool | None, current: bool) -> bool:
-            return current if patch is None else patch
-
         require_matching_type(
-            _eff(request.name_match_enabled, group.name_match_enabled),
-            _eff(request.team_streams_enabled, group.team_streams_enabled),
-            _eff(request.epg_match_enabled, group.epg_match_enabled),
+            _effective_flag(request.name_match_enabled, group.name_match_enabled),
+            _effective_flag(request.team_streams_enabled, group.team_streams_enabled),
+            _effective_flag(request.epg_match_enabled, group.epg_match_enabled),
         )
 
         # Check for duplicate name if changing (within same M3U account)
