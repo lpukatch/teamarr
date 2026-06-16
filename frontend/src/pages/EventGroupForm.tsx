@@ -403,7 +403,7 @@ export function EventGroupForm() {
                   <div>
                     <Label className="font-normal">EPG matching</Label>
                     <p className="text-xs text-muted-foreground">
-                      Match static linear channels (e.g. "ESPN", "NBA1") to events via Dispatcharr's program guide, time-sharing one stream across them. Needs a Dispatcharr build with program search.
+                      Match static linear channels (e.g. "ESPN", "NBA1") to events via Dispatcharr's program guide. Needs Dispatcharr program search.
                     </p>
                   </div>
                 </div>
@@ -491,7 +491,7 @@ export function EventGroupForm() {
                 <div>
                   <Label className="font-normal">EPG matching</Label>
                   <p className="text-xs text-muted-foreground">
-                    Match static linear channels (e.g. "ESPN", "NBA1") to events via Dispatcharr's program guide, time-sharing one stream across them. Needs a Dispatcharr build with program search.
+                    Match static linear channels (e.g. "ESPN", "NBA1") to events via Dispatcharr's program guide. Needs Dispatcharr program search.
                   </p>
                 </div>
               </div>
