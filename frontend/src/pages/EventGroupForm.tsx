@@ -179,6 +179,7 @@ export function EventGroupForm() {
         custom_regex_event_name: group.custom_regex_event_name ? pythonToJs(group.custom_regex_event_name) : null,
         custom_regex_event_name_enabled: group.custom_regex_event_name_enabled,
         skip_builtin_filter: group.skip_builtin_filter,
+        name_match_enabled: group.name_match_enabled,
         team_streams_enabled: group.team_streams_enabled,
         epg_match_enabled: group.epg_match_enabled,
         // Team filtering
@@ -223,6 +224,16 @@ export function EventGroupForm() {
     const data = overrides ? { ...formData, ...overrides } : formData
     if (!data.name.trim()) {
       toast.error("Group name is required")
+      return
+    }
+
+    // At least one matching type must be enabled (name defaults ON when undefined)
+    if (
+      (data.name_match_enabled ?? true) === false &&
+      !data.team_streams_enabled &&
+      !data.epg_match_enabled
+    ) {
+      toast.error("Enable at least one matching type")
       return
     }
 
@@ -360,6 +371,19 @@ export function EventGroupForm() {
 
                 <div className="flex items-center gap-2">
                   <Switch
+                    checked={formData.name_match_enabled ?? true}
+                    onCheckedChange={(checked) => setFormData({ ...formData, name_match_enabled: checked })}
+                  />
+                  <div>
+                    <Label className="font-normal">Stream name matching</Label>
+                    <p className="text-xs text-muted-foreground">
+                      Match streams whose name identifies a specific event (e.g. "Bills vs Dolphins").
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <Switch
                     checked={formData.team_streams_enabled || false}
                     onCheckedChange={(checked) => setFormData({ ...formData, team_streams_enabled: checked })}
                   />
@@ -431,6 +455,19 @@ export function EventGroupForm() {
                   onCheckedChange={(checked) => setFormData({ ...formData, enabled: checked })}
                 />
                 <Label className="font-normal">Enabled</Label>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <Switch
+                  checked={formData.name_match_enabled ?? true}
+                  onCheckedChange={(checked) => setFormData({ ...formData, name_match_enabled: checked })}
+                />
+                <div>
+                  <Label className="font-normal">Stream name matching</Label>
+                  <p className="text-xs text-muted-foreground">
+                    Match streams whose name identifies a specific event (e.g. "Bills vs Dolphins").
+                  </p>
+                </div>
               </div>
 
               <div className="flex items-center gap-2">

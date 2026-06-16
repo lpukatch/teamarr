@@ -120,6 +120,8 @@ export function EventGroups() {
   const [bulkEditTeamFilterMode, setBulkEditTeamFilterMode] = useState<"include" | "exclude">("include")
   const [bulkEditTeamFilterTeams, setBulkEditTeamFilterTeams] = useState<TeamFilterEntry[]>([])
   const [bulkEditBypassPlayoffs, setBulkEditBypassPlayoffs] = useState(false)
+  const [bulkEditNameMatchEnabled, setBulkEditNameMatchEnabled] = useState(false)
+  const [bulkEditNameMatch, setBulkEditNameMatch] = useState(true)
   const [bulkEditTeamStreamsEnabled, setBulkEditTeamStreamsEnabled] = useState(false)
   const [bulkEditTeamStreams, setBulkEditTeamStreams] = useState(false)
   const [bulkEditEPGMatchEnabled, setBulkEditEPGMatchEnabled] = useState(false)
@@ -393,6 +395,8 @@ export function EventGroups() {
     setBulkEditTeamFilterMode("include")
     setBulkEditTeamFilterTeams([])
     setBulkEditBypassPlayoffs(false)
+    setBulkEditNameMatchEnabled(false)
+    setBulkEditNameMatch(true)
     setBulkEditTeamStreamsEnabled(false)
     setBulkEditTeamStreams(false)
   }
@@ -409,6 +413,10 @@ export function EventGroups() {
       } else if (bulkEditStreamTimezone) {
         request.stream_timezone = bulkEditStreamTimezone
       }
+    }
+
+    if (bulkEditNameMatchEnabled) {
+      request.name_match_enabled = bulkEditNameMatch
     }
 
     if (bulkEditTeamStreamsEnabled) {
@@ -783,6 +791,16 @@ export function EventGroups() {
                                 Regex
                               </Badge>
                             )}
+                            {/* Stream Name Matching badge */}
+                            {group.name_match_enabled && (
+                              <Badge
+                                variant="secondary"
+                                className="bg-sky-500/15 text-sky-400 border-sky-500/30 text-xs"
+                                title="Stream name matching: streams whose name identifies a specific event (e.g. &quot;Bills vs Dolphins&quot;)"
+                              >
+                                Name
+                              </Badge>
+                            )}
                             {/* Team Streams badge */}
                             {group.team_streams_enabled && (
                               <Badge
@@ -1141,6 +1159,28 @@ export function EventGroups() {
               )}
             </div>
 
+            {/* Stream Name Matching */}
+            <div className="space-y-2">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <Checkbox
+                  checked={bulkEditNameMatchEnabled}
+                  onCheckedChange={(checked) => setBulkEditNameMatchEnabled(!!checked)}
+                />
+                <span className="text-sm font-medium">Stream name matching</span>
+              </label>
+              {bulkEditNameMatchEnabled && (
+                <div className="flex items-center gap-3 pl-6">
+                  <Switch
+                    checked={bulkEditNameMatch}
+                    onCheckedChange={setBulkEditNameMatch}
+                  />
+                  <span className="text-sm text-muted-foreground">
+                    {bulkEditNameMatch ? "Enabled — match streams whose name identifies a specific event (e.g. \"Bills vs Dolphins\")" : "Disabled"}
+                  </span>
+                </div>
+              )}
+            </div>
+
             {/* Team Stream Source */}
             <div className="space-y-2">
               <label className="flex items-center gap-2 cursor-pointer">
@@ -1192,7 +1232,7 @@ export function EventGroups() {
             </Button>
             <Button
               onClick={handleBulkEdit}
-              disabled={bulkUpdateMutation.isPending || !(bulkEditStreamTimezoneEnabled || bulkEditTeamFilterEnabled || bulkEditTeamStreamsEnabled || bulkEditEPGMatchEnabled)}
+              disabled={bulkUpdateMutation.isPending || !(bulkEditStreamTimezoneEnabled || bulkEditTeamFilterEnabled || bulkEditNameMatchEnabled || bulkEditTeamStreamsEnabled || bulkEditEPGMatchEnabled)}
             >
               {bulkUpdateMutation.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
               Apply to {selectedIds.size} groups
