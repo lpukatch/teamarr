@@ -798,7 +798,7 @@ export function EventGroups() {
                                 className="bg-sky-500/15 text-sky-400 border-sky-500/30 text-xs"
                                 title="Stream name matching: streams whose name identifies a specific event (e.g. &quot;Bills vs Dolphins&quot;)"
                               >
-                                Name
+                                Stream Name
                               </Badge>
                             )}
                             {/* Team Streams badge */}
@@ -808,7 +808,7 @@ export function EventGroups() {
                                 className="bg-emerald-500/15 text-emerald-400 border-emerald-500/30 text-xs"
                                 title="Team stream source: team-branded streams match events where that team plays"
                               >
-                                Team Streams
+                                Team
                               </Badge>
                             )}
                             {/* EPG Program Matching badge */}
@@ -818,7 +818,7 @@ export function EventGroups() {
                                 className="bg-violet-500/15 text-violet-400 border-violet-500/30 text-xs"
                                 title="EPG program matching: static-named linear channels matched to events via Dispatcharr's program guide"
                               >
-                                EPG Matched
+                                EPG
                               </Badge>
                             )}
                           </div>
