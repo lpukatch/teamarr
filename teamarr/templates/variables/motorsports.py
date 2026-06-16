@@ -32,6 +32,7 @@ from teamarr.templates.context import GameContext, TemplateContext
 from teamarr.templates.variables.registry import (
     Category,
     SuffixRules,
+    TemplateScope,
     register_variable,
 )
 
@@ -75,6 +76,7 @@ def _format_result_line(result) -> str:
 @register_variable(
     name="race_name",
     category=Category.MOTORSPORTS,
+    scope=TemplateScope.EVENT_ONLY,
     suffix_rules=SuffixRules.BASE_ONLY,
     description="Race weekend / Grand Prix name (e.g., 'Monaco Grand Prix')",
 )
@@ -93,6 +95,7 @@ def extract_race_name(ctx: TemplateContext, game_ctx: GameContext | None) -> str
 @register_variable(
     name="circuit_name",
     category=Category.MOTORSPORTS,
+    scope=TemplateScope.EVENT_ONLY,
     suffix_rules=SuffixRules.BASE_ONLY,
     description="Circuit/track name (e.g., 'Circuit de Monaco')",
 )
@@ -111,6 +114,7 @@ def extract_circuit_name(ctx: TemplateContext, game_ctx: GameContext | None) -> 
 @register_variable(
     name="session_name",
     category=Category.MOTORSPORTS,
+    scope=TemplateScope.EVENT_ONLY,
     suffix_rules=SuffixRules.BASE_ONLY,  # Session is specific to current channel
     description="This channel's session display name (e.g., 'Practice 1', 'Race')",
 )
@@ -129,6 +133,7 @@ def extract_session_name(ctx: TemplateContext, game_ctx: GameContext | None) -> 
 @register_variable(
     name="session_type",
     category=Category.MOTORSPORTS,
+    scope=TemplateScope.EVENT_ONLY,
     suffix_rules=SuffixRules.BASE_ONLY,  # Session is specific to current channel
     description="This channel's session code (e.g., 'fp1', 'qualifying', 'race')",
 )
@@ -147,6 +152,7 @@ def extract_session_type(ctx: TemplateContext, game_ctx: GameContext | None) -> 
 @register_variable(
     name="next_session_name",
     category=Category.MOTORSPORTS,
+    scope=TemplateScope.EVENT_ONLY,
     suffix_rules=SuffixRules.BASE_ONLY,  # Session is specific to current channel
     description="Display name of the next session after this one",
 )
@@ -170,6 +176,7 @@ def extract_next_session_name(ctx: TemplateContext, game_ctx: GameContext | None
 @register_variable(
     name="next_session_time",
     category=Category.MOTORSPORTS,
+    scope=TemplateScope.EVENT_ONLY,
     suffix_rules=SuffixRules.BASE_ONLY,  # Session is specific to current channel
     description="Start time of the next session after this one",
 )
@@ -193,6 +200,7 @@ def extract_next_session_time(ctx: TemplateContext, game_ctx: GameContext | None
 @register_variable(
     name="pole_position",
     category=Category.MOTORSPORTS,
+    scope=TemplateScope.EVENT_ONLY,
     suffix_rules=SuffixRules.BASE_ONLY,
     description="Driver who took pole position (P1 in qualifying)",
 )
@@ -219,6 +227,7 @@ def extract_pole_position(ctx: TemplateContext, game_ctx: GameContext | None) ->
 @register_variable(
     name="pole_team",
     category=Category.MOTORSPORTS,
+    scope=TemplateScope.EVENT_ONLY,
     suffix_rules=SuffixRules.BASE_ONLY,
     description="Team/constructor of the pole position driver",
 )
@@ -245,6 +254,7 @@ def extract_pole_team(ctx: TemplateContext, game_ctx: GameContext | None) -> str
 @register_variable(
     name="grid",
     category=Category.MOTORSPORTS,
+    scope=TemplateScope.EVENT_ONLY,
     suffix_rules=SuffixRules.BASE_ONLY,
     description="Full starting grid order (newline-separated 'N. Driver (Team)')",
 )
@@ -271,6 +281,7 @@ def extract_grid(ctx: TemplateContext, game_ctx: GameContext | None) -> str:
 @register_variable(
     name="race_winner",
     category=Category.MOTORSPORTS,
+    scope=TemplateScope.EVENT_ONLY,
     suffix_rules=SuffixRules.BASE_ONLY,
     description="Race winner's name (once the race has finished)",
 )
@@ -297,6 +308,7 @@ def extract_race_winner(ctx: TemplateContext, game_ctx: GameContext | None) -> s
 @register_variable(
     name="podium_2",
     category=Category.MOTORSPORTS,
+    scope=TemplateScope.EVENT_ONLY,
     suffix_rules=SuffixRules.BASE_ONLY,
     description="2nd place finisher's name (once the race has finished)",
 )
@@ -323,6 +335,7 @@ def extract_podium_2(ctx: TemplateContext, game_ctx: GameContext | None) -> str:
 @register_variable(
     name="podium_3",
     category=Category.MOTORSPORTS,
+    scope=TemplateScope.EVENT_ONLY,
     suffix_rules=SuffixRules.BASE_ONLY,
     description="3rd place finisher's name (once the race has finished)",
 )
@@ -349,6 +362,7 @@ def extract_podium_3(ctx: TemplateContext, game_ctx: GameContext | None) -> str:
 @register_variable(
     name="podium",
     category=Category.MOTORSPORTS,
+    scope=TemplateScope.EVENT_ONLY,
     suffix_rules=SuffixRules.BASE_ONLY,
     description="Top 3 finishers, combined (e.g., '1. X, 2. Y, 3. Z')",
 )
@@ -375,6 +389,7 @@ def extract_podium(ctx: TemplateContext, game_ctx: GameContext | None) -> str:
 @register_variable(
     name="results",
     category=Category.MOTORSPORTS,
+    scope=TemplateScope.EVENT_ONLY,
     suffix_rules=SuffixRules.BASE_ONLY,
     description="Full race finishing order (newline-separated 'N. Driver (Team)')",
 )
@@ -401,6 +416,7 @@ def extract_results(ctx: TemplateContext, game_ctx: GameContext | None) -> str:
 @register_variable(
     name="fastest_lap_driver",
     category=Category.MOTORSPORTS,
+    scope=TemplateScope.EVENT_ONLY,
     suffix_rules=SuffixRules.BASE_ONLY,
     description="Driver awarded fastest lap (once the race has finished)",
 )

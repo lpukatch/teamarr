@@ -276,19 +276,19 @@ def get_conditions(template_type: str = "team"):
             "name": "is_race_session",
             "description": "This channel's session is the race itself",
             "requires_value": False,
-            "providers": "espn",
+            "providers": "all",
         },
         {
             "name": "is_qualifying_session",
             "description": "This channel's session is qualifying or sprint qualifying",
             "requires_value": False,
-            "providers": "espn",
+            "providers": "all",
         },
         {
             "name": "has_results",
             "description": "This channel's session has finished with results",
             "requires_value": False,
-            "providers": "espn",
+            "providers": "all",
         },
     ]
 
