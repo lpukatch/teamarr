@@ -68,3 +68,27 @@ def test_name_on_default_does_not_gate_name():
     # Default (name on): a vs-named stream is NOT excluded by the name gate.
     m = _matcher(name_match_enabled=True)
     assert _reason(m, "Bills vs Dolphins") != "name_match_disabled"
+
+
+# ---------------------------------------------------------------------------
+# >=1 matching type required (ahow.3)
+# ---------------------------------------------------------------------------
+
+
+def test_require_matching_type_rejects_all_off():
+    import pytest
+    from fastapi import HTTPException
+
+    from teamarr.api.routes.groups import require_matching_type
+
+    with pytest.raises(HTTPException) as exc:
+        require_matching_type(False, False, False)
+    assert exc.value.status_code == 400
+
+
+def test_require_matching_type_accepts_any_single():
+    from teamarr.api.routes.groups import require_matching_type
+
+    require_matching_type(True, False, False)  # name only
+    require_matching_type(False, True, False)  # team only
+    require_matching_type(False, False, True)  # epg only

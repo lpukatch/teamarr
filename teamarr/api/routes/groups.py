@@ -90,6 +90,7 @@ class GroupCreate(BaseModel):
     custom_regex_event_name: str | None = None
     custom_regex_event_name_enabled: bool = False
     skip_builtin_filter: bool = False
+    name_match_enabled: bool = True
     team_streams_enabled: bool = False
     epg_match_enabled: bool = False
     # Team filtering (canonical team selection)
@@ -146,6 +147,7 @@ class GroupUpdate(BaseModel):
     custom_regex_event_name: str | None = None
     custom_regex_event_name_enabled: bool | None = None
     skip_builtin_filter: bool | None = None
+    name_match_enabled: bool | None = None
     team_streams_enabled: bool | None = None
     epg_match_enabled: bool | None = None
     # Team filtering (canonical team selection)
@@ -230,6 +232,7 @@ class GroupResponse(BaseModel):
     custom_regex_event_name: str | None = None
     custom_regex_event_name_enabled: bool = False
     skip_builtin_filter: bool = False
+    name_match_enabled: bool = True
     team_streams_enabled: bool = False
     epg_match_enabled: bool = False
     # Team filtering (canonical team selection, inherited by children)
@@ -320,6 +323,7 @@ class BulkGroupSettings(BaseModel):
     channel_sort_order: str = "time"
     overlap_handling: str = "add_stream"
     enabled: bool = True
+    name_match_enabled: bool = True
     team_streams_enabled: bool = False
     epg_match_enabled: bool = False
 
@@ -369,6 +373,7 @@ class BulkGroupUpdateRequest(BaseModel):
     channel_sort_order: str | None = None
     overlap_handling: str | None = None
     enabled: bool | None = None
+    name_match_enabled: bool | None = None
     team_streams_enabled: bool | None = None
     epg_match_enabled: bool | None = None
 
@@ -465,6 +470,22 @@ VALID_DUPLICATE_HANDLING = {"consolidate", "separate", "ignore"}
 VALID_ASSIGNMENT_MODE = {"auto", "manual"}
 VALID_CHANNEL_SORT_ORDER = {"time", "sport_time", "league_time"}
 VALID_OVERLAP_HANDLING = {"add_stream", "add_only", "create_all", "skip"}
+
+
+def require_matching_type(name: bool, team: bool, epg: bool) -> None:
+    """Reject a source with no matching type enabled (epic ahow).
+
+    Every source must run at least one of Stream Name / Team / EPG matching,
+    otherwise it would process streams and match nothing.
+    """
+    if not (name or team or epg):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=(
+                "At least one matching type must be enabled "
+                "(Stream Name, Team, or EPG)."
+            ),
+        )
 
 
 def validate_group_fields(
@@ -580,6 +601,7 @@ def list_groups(
                 custom_regex_event_name=g.custom_regex_event_name,
                 custom_regex_event_name_enabled=g.custom_regex_event_name_enabled,
                 skip_builtin_filter=g.skip_builtin_filter,
+                name_match_enabled=g.name_match_enabled,
                 team_streams_enabled=g.team_streams_enabled,
                 epg_match_enabled=g.epg_match_enabled,
                 include_teams=[TeamFilterEntry(**t) for t in g.include_teams]
@@ -631,6 +653,12 @@ def create_group(request: GroupCreate):
         create_group,
         get_group,
         get_group_by_name,
+    )
+
+    require_matching_type(
+        request.name_match_enabled,
+        request.team_streams_enabled,
+        request.epg_match_enabled,
     )
 
     # Deprecated per-group channel fields accepted but ignored (v59)
@@ -685,6 +713,7 @@ def create_group(request: GroupCreate):
             custom_regex_event_name=request.custom_regex_event_name,
             custom_regex_event_name_enabled=request.custom_regex_event_name_enabled,
             skip_builtin_filter=request.skip_builtin_filter,
+            name_match_enabled=request.name_match_enabled,
             team_streams_enabled=request.team_streams_enabled,
             epg_match_enabled=request.epg_match_enabled,
             include_teams=[t.model_dump() for t in request.include_teams]
@@ -750,6 +779,7 @@ def create_group(request: GroupCreate):
         custom_regex_event_name=group.custom_regex_event_name,
         custom_regex_event_name_enabled=group.custom_regex_event_name_enabled,
         skip_builtin_filter=group.skip_builtin_filter,
+        name_match_enabled=group.name_match_enabled,
         team_streams_enabled=group.team_streams_enabled,
         epg_match_enabled=group.epg_match_enabled,
         include_teams=[TeamFilterEntry(**t) for t in group.include_teams]
@@ -803,6 +833,11 @@ def create_groups_bulk(request: BulkGroupCreateRequest):
         channel_sort_order=request.settings.channel_sort_order,
         overlap_handling=request.settings.overlap_handling,
     )
+    require_matching_type(
+        request.settings.name_match_enabled,
+        request.settings.team_streams_enabled,
+        request.settings.epg_match_enabled,
+    )
 
     results: list[BulkGroupCreateResult] = []
     total_created = 0
@@ -845,6 +880,7 @@ def create_groups_bulk(request: BulkGroupCreateRequest):
                     m3u_account_id=item.m3u_account_id,
                     m3u_account_name=item.m3u_account_name,
                     enabled=request.settings.enabled,
+                    name_match_enabled=request.settings.name_match_enabled,
                     team_streams_enabled=request.settings.team_streams_enabled,
                     epg_match_enabled=request.settings.epg_match_enabled,
                 )
@@ -918,6 +954,29 @@ def update_groups_bulk(request: BulkGroupUpdateRequest):
                     total_failed += 1
                     continue
 
+                # Reject (per-group) if the update would leave no matching type.
+                def _eff(patch: bool | None, current: bool) -> bool:
+                    return current if patch is None else patch
+
+                if not (
+                    _eff(request.name_match_enabled, group.name_match_enabled)
+                    or _eff(request.team_streams_enabled, group.team_streams_enabled)
+                    or _eff(request.epg_match_enabled, group.epg_match_enabled)
+                ):
+                    results.append(
+                        BulkGroupUpdateResult(
+                            group_id=group_id,
+                            name=group.name,
+                            success=False,
+                            error=(
+                                "At least one matching type must be enabled "
+                                "(Stream Name, Team, or EPG)."
+                            ),
+                        )
+                    )
+                    total_failed += 1
+                    continue
+
                 # Update the group with provided fields
                 update_group(
                     conn,
@@ -932,6 +991,7 @@ def update_groups_bulk(request: BulkGroupUpdateRequest):
                     channel_sort_order=request.channel_sort_order,
                     overlap_handling=request.overlap_handling,
                     enabled=request.enabled,
+                    name_match_enabled=request.name_match_enabled,
                     team_streams_enabled=request.team_streams_enabled,
                     epg_match_enabled=request.epg_match_enabled,
                     clear_stream_timezone=request.clear_stream_timezone,
@@ -1113,6 +1173,7 @@ def get_group_by_id(group_id: int):
         custom_regex_event_name=group.custom_regex_event_name,
         custom_regex_event_name_enabled=group.custom_regex_event_name_enabled,
         skip_builtin_filter=group.skip_builtin_filter,
+        name_match_enabled=group.name_match_enabled,
         team_streams_enabled=group.team_streams_enabled,
         epg_match_enabled=group.epg_match_enabled,
         include_teams=[TeamFilterEntry(**t) for t in group.include_teams]
@@ -1171,6 +1232,16 @@ def update_group_by_id(group_id: int, request: GroupUpdate):
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"Group {group_id} not found",
             )
+
+        # Validate the post-update matching types (patch overrides current value).
+        def _eff(patch: bool | None, current: bool) -> bool:
+            return current if patch is None else patch
+
+        require_matching_type(
+            _eff(request.name_match_enabled, group.name_match_enabled),
+            _eff(request.team_streams_enabled, group.team_streams_enabled),
+            _eff(request.epg_match_enabled, group.epg_match_enabled),
+        )
 
         # Check for duplicate name if changing (within same M3U account)
         # Determine the target account_id (could be changing)
@@ -1232,6 +1303,7 @@ def update_group_by_id(group_id: int, request: GroupUpdate):
                 custom_regex_event_name=request.custom_regex_event_name,
                 custom_regex_event_name_enabled=request.custom_regex_event_name_enabled,
                 skip_builtin_filter=request.skip_builtin_filter,
+                name_match_enabled=request.name_match_enabled,
                 team_streams_enabled=request.team_streams_enabled,
                 epg_match_enabled=request.epg_match_enabled,
                 include_teams=[t.model_dump() for t in request.include_teams]
@@ -1333,6 +1405,7 @@ def update_group_by_id(group_id: int, request: GroupUpdate):
         custom_regex_event_name=group.custom_regex_event_name,
         custom_regex_event_name_enabled=group.custom_regex_event_name_enabled,
         skip_builtin_filter=group.skip_builtin_filter,
+        name_match_enabled=group.name_match_enabled,
         team_streams_enabled=group.team_streams_enabled,
         epg_match_enabled=group.epg_match_enabled,
         include_teams=[TeamFilterEntry(**t) for t in group.include_teams]
