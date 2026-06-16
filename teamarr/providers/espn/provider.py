@@ -186,6 +186,38 @@ class ESPNProvider(UFCParserMixin, TournamentParserMixin, SportsProvider):
 
         return events
 
+    def get_sample_candidates(self, league: str) -> list[Event]:
+        """Recent + upcoming events for a sample preview, in ≤2 calls.
+
+        Uses ESPN's **default scoreboard** (no date) — which returns the
+        most-recent-relevant slate, i.e. the last completed game even deep in the
+        offseason — plus **yesterday's** scoreboard to surface recent finals
+        during the season. The caller prefers a final game so postgame vars
+        populate. Avoids the sparse fixed-date scan that misses spaced-out
+        schedules (NBA Finals, weekly NFL).
+        """
+        sport = self._get_sport(league)
+        if league == "ufc" or sport in TOURNAMENT_SPORTS:
+            # Special endpoints — reuse the per-date path over a few days.
+            out: list[Event] = []
+            for d in (date.today(), date.today() - timedelta(days=1)):
+                out.extend(self.get_events(league, d))
+            return out
+
+        sport_league = self._get_sport_league_from_db(league)
+        yesterday = (date.today() - timedelta(days=1)).strftime("%Y%m%d")
+        by_id: dict[str, Event] = {}
+        for date_str in (None, yesterday):  # None = ESPN default (most recent) slate
+            data = self._client.get_scoreboard(league, date_str, sport_league)
+            if not data:
+                continue
+            self._capture_league_name(data, league)
+            for event_data in data.get("events", []):
+                event = self._parse_event(event_data, league)
+                if event:
+                    by_id[event.id] = event
+        return list(by_id.values())
+
     def get_team_schedule(
         self,
         team_id: str,

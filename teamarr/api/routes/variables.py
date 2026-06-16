@@ -53,7 +53,6 @@ def _fetch_live_samples(league: str) -> dict[str, str] | None:
         from teamarr.templates.context_builder import (
             ContextBuilder,
             find_adjacent_games,
-            find_next_and_last_from_schedule,
         )
         from teamarr.templates.resolver import TemplateResolver
 
@@ -69,16 +68,14 @@ def _fetch_live_samples(league: str) -> dict[str, str] | None:
 
         team_id = event.home_team.id
 
-        # Pull the team's schedule so .next/.last reflect real adjacent games
-        # (important for team templates). Falls back to the single event if the
-        # provider has no team schedule.
+        # Keep the chosen event (the best sample — ideally a just-completed game)
+        # as the base; use the team's schedule only to fill .next/.last with real
+        # adjacent games. (Previously this overwrote the base with the next
+        # scheduled game, blanking postgame vars like recap/score/winner.)
         next_event = last_event = None
         schedule = service.get_team_schedule(team_id, league)
         if schedule:
-            base_next, base_last = find_next_and_last_from_schedule(schedule)
-            base = base_next or base_last or event
-            event = base
-            next_event, last_event = find_adjacent_games(schedule, base)
+            next_event, last_event = find_adjacent_games(schedule, event)
 
         ctx = ContextBuilder(service).build_for_event(
             event=event,
