@@ -305,6 +305,7 @@ def get_managed_channel_streams(channel_id: int):
         get_stream_match_details,
         refresh_stream_stats,
     )
+    from teamarr.database.groups import get_group_names_by_ids
     from teamarr.services.stream_ordering import get_stream_ordering_service
 
     with get_db() as conn:
@@ -318,15 +319,8 @@ def get_managed_channel_streams(channel_id: int):
         streams = get_channel_streams(conn, channel_id)
 
         # Resolve source group names in one query
-        group_ids = {s.source_group_id for s in streams if s.source_group_id is not None}
-        group_names: dict[int, str] = {}
-        if group_ids:
-            placeholders = ",".join("?" * len(group_ids))
-            rows = conn.execute(
-                f"SELECT id, name FROM event_epg_groups WHERE id IN ({placeholders})",
-                list(group_ids),
-            ).fetchall()
-            group_names = {row[0]: row[1] for row in rows}
+        group_ids = [s.source_group_id for s in streams if s.source_group_id is not None]
+        group_names = get_group_names_by_ids(conn, group_ids)
 
         # Refresh stats when any stream has null stats or stats older than 1 hour
         needs_refresh = any(

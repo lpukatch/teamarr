@@ -1104,6 +1104,22 @@ def get_existing_group_ids(conn: Connection, group_ids: list[int]) -> set[int]:
     return {row["id"] for row in rows}
 
 
+def get_group_names_by_ids(conn: Connection, group_ids: list[int]) -> dict[int, str]:
+    """Resolve a batch of group IDs to their names in one query.
+
+    Returns:
+        ``{group_id: name}`` for the IDs that exist (missing IDs are omitted).
+    """
+    if not group_ids:
+        return {}
+    placeholders = ",".join("?" * len(group_ids))
+    rows = conn.execute(
+        f"SELECT id, name FROM event_epg_groups WHERE id IN ({placeholders})",
+        list(group_ids),
+    ).fetchall()
+    return {row["id"]: row["name"] for row in rows}
+
+
 def get_group_channel_count(conn: Connection, group_id: int) -> int:
     """Get count of managed channels for a group.
 
