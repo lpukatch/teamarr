@@ -1399,6 +1399,10 @@ class EventGroupProcessor:
                 group.skip_builtin_filter
                 or group.team_streams_enabled
                 or group.epg_match_enabled
+                # When Stream Name matching is off, the built-in "must contain
+                # vs/@/at" pre-filter would wrongly drop the team/linear streams
+                # the active types (Team/EPG) rely on — bypass it.
+                or not group.name_match_enabled
             ),
             team_streams_enabled=group.team_streams_enabled,
         )
@@ -1604,6 +1608,7 @@ class EventGroupProcessor:
             stream_timezone=group.stream_timezone,  # TZ for interpreting stream dates
             feed_home_terms=feed_home_terms,
             feed_away_terms=feed_away_terms,
+            name_match_enabled=group.name_match_enabled,
             team_streams_enabled=group.team_streams_enabled,
             epg_index=epg_index,
         )

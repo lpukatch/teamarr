@@ -223,6 +223,7 @@ class StreamMatcher:
         stream_timezone: str | None = None,
         feed_home_terms: list[str] | None = None,
         feed_away_terms: list[str] | None = None,
+        name_match_enabled: bool = True,
         team_streams_enabled: bool = False,
         epg_index: "EPGProgramIndex | None" = None,
     ):
@@ -314,6 +315,7 @@ class StreamMatcher:
         # Feed separation terms
         self._feed_home_terms = feed_home_terms
         self._feed_away_terms = feed_away_terms
+        self._name_match_enabled = name_match_enabled
         self._team_streams_enabled = team_streams_enabled
 
         # Initialize cache
@@ -587,6 +589,24 @@ class StreamMatcher:
                 included=False,
                 category=StreamCategory.PLACEHOLDER,
                 exclusion_reason="team_streams_disabled",
+            )]
+
+        # Gate the name-identifies-event categories when Stream Name matching is
+        # disabled for this source. TEAM_ONLY is gated above by Team matching; the
+        # EPG path (program titles) is gated separately by epg_match_enabled.
+        # Classification still runs so the other declared types can use it.
+        if not self._name_match_enabled and classified.category in (
+            StreamCategory.TEAM_VS_TEAM,
+            StreamCategory.EVENT_CARD,
+            StreamCategory.RACING_EVENT,
+        ):
+            return [MatchedStreamResult(
+                stream_name=stream_name,
+                stream_id=stream_id,
+                matched=False,
+                included=False,
+                category=StreamCategory.PLACEHOLDER,
+                exclusion_reason="name_match_disabled",
             )]
 
         outcomes = self._route_to_outcomes(classified, stream_id, target_date)
