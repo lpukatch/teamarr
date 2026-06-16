@@ -117,6 +117,7 @@ class EventEPGGroup:
     exclude_teams: list[dict] | None = None
     team_filter_mode: str = "include"
     bypass_filter_for_playoffs: bool | None = None  # NULL=use default, True/False=override
+    name_match_enabled: bool = True  # (ahow) match streams that name a specific event
     team_streams_enabled: bool = False
     epg_match_enabled: bool = False  # (183.6) opt this group into EPG program-data matching
     # (183.9) system group sourcing candidates from curated Dispatcharr channels
@@ -251,6 +252,9 @@ def _row_to_group(row) -> EventEPGGroup:
             if "bypass_filter_for_playoffs" in row.keys()
             and row["bypass_filter_for_playoffs"] is not None
             else None
+        ),
+        name_match_enabled=(
+            bool(row["name_match_enabled"]) if "name_match_enabled" in row.keys() else True
         ),
         team_streams_enabled=(
             bool(row["team_streams_enabled"]) if "team_streams_enabled" in row.keys() else False
@@ -515,6 +519,7 @@ def create_group(
     custom_regex_event_name: str | None = None,
     custom_regex_event_name_enabled: bool = False,
     skip_builtin_filter: bool = False,
+    name_match_enabled: bool = True,
     team_streams_enabled: bool = False,
     epg_match_enabled: bool = False,
     is_channel_source: bool = False,
@@ -577,11 +582,12 @@ def create_group(
             custom_regex_league, custom_regex_league_enabled,
             custom_regex_fighters, custom_regex_fighters_enabled,
             custom_regex_event_name, custom_regex_event_name_enabled,
-            skip_builtin_filter, team_streams_enabled, epg_match_enabled, is_channel_source,
+            skip_builtin_filter, name_match_enabled, team_streams_enabled, epg_match_enabled,
+            is_channel_source,
             include_teams, exclude_teams, team_filter_mode,
             channel_sort_order, overlap_handling, enabled,
             subscription_leagues, subscription_soccer_mode, subscription_soccer_followed_teams
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",  # noqa: E501
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",  # noqa: E501
         (
             name,
             display_name,
@@ -620,6 +626,7 @@ def create_group(
             custom_regex_event_name,
             int(custom_regex_event_name_enabled),
             int(skip_builtin_filter),
+            int(name_match_enabled),
             int(team_streams_enabled),
             int(epg_match_enabled),
             int(is_channel_source),
@@ -686,6 +693,7 @@ def update_group(
     custom_regex_event_name: str | None = None,
     custom_regex_event_name_enabled: bool | None = None,
     skip_builtin_filter: bool | None = None,
+    name_match_enabled: bool | None = None,
     team_streams_enabled: bool | None = None,
     epg_match_enabled: bool | None = None,
     # Team filtering
@@ -792,6 +800,7 @@ def update_group(
     )
     builder.set_("custom_regex_event_name_enabled", custom_regex_event_name_enabled, encoder=int)
     builder.set_("skip_builtin_filter", skip_builtin_filter, encoder=int)
+    builder.set_("name_match_enabled", name_match_enabled, encoder=int)
     builder.set_("team_streams_enabled", team_streams_enabled, encoder=int)
     builder.set_("epg_match_enabled", epg_match_enabled, encoder=int)
 
