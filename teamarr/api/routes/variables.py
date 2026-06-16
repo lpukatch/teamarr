@@ -1,11 +1,113 @@
 """Variables API endpoint for template variable picker."""
 
+import logging
+import time
+
 from fastapi import APIRouter
 
-from teamarr.templates.sample_data import AVAILABLE_SPORTS, get_all_sample_data
+from teamarr.templates.sample_data import (
+    AVAILABLE_SPORTS,
+    get_all_sample_data,
+    get_all_sample_data_for_league,
+    resolve_profile_for_league,
+)
 from teamarr.templates.variables import Category, SuffixRules, get_registry
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
+
+# Cache of live sample maps keyed by league, with a short TTL so the preview
+# stays responsive without hammering providers on every keystroke.
+_LIVE_CACHE: dict[str, tuple[float, dict[str, str]]] = {}
+_LIVE_CACHE_TTL = 300  # seconds
+_LIVE_LOOKAHEAD_DAYS = 21
+
+
+def _lookup_league_fields(league_code: str) -> tuple[str | None, str | None]:
+    """Get (sport, provider) for a league from its record, or (None, None)."""
+    try:
+        from teamarr.database import get_db
+        from teamarr.database.leagues import get_league
+
+        with get_db() as conn:
+            rec = get_league(conn, league_code)
+        if rec:
+            return rec.get("sport"), rec.get("provider")
+    except Exception as e:
+        logger.debug("[SAMPLES] League lookup failed for %s: %s", league_code, e)
+    return None, None
+
+
+def _fetch_live_samples(league: str) -> dict[str, str] | None:
+    """Resolve every variable against a real upcoming/recent event for a league.
+
+    Returns a name -> value map for non-empty live values, or None if no usable
+    event could be found or the provider failed. Cached per league.
+    """
+    now = time.time()
+    cached = _LIVE_CACHE.get(league)
+    if cached and now - cached[0] < _LIVE_CACHE_TTL:
+        return cached[1]
+
+    try:
+        from datetime import date, timedelta
+
+        from teamarr.services.sports_data import create_default_service
+        from teamarr.templates.context_builder import (
+            ContextBuilder,
+            find_adjacent_games,
+            find_next_and_last_from_schedule,
+        )
+        from teamarr.templates.resolver import TemplateResolver
+
+        service = create_default_service()
+
+        # Find the nearest event with two identifiable teams.
+        event = None
+        today = date.today()
+        for offset in range(_LIVE_LOOKAHEAD_DAYS):
+            for day in {today + timedelta(days=offset), today - timedelta(days=offset)}:
+                events = service.get_events(league, day)
+                for candidate in events:
+                    if candidate.home_team and candidate.away_team:
+                        event = candidate
+                        break
+                if event:
+                    break
+            if event:
+                break
+
+        if not event:
+            return None
+
+        team_id = event.home_team.id
+
+        # Pull the team's schedule so .next/.last reflect real adjacent games
+        # (important for team templates). Falls back to the single event if the
+        # provider has no team schedule.
+        next_event = last_event = None
+        schedule = service.get_team_schedule(team_id, league)
+        if schedule:
+            base_next, base_last = find_next_and_last_from_schedule(schedule)
+            base = base_next or base_last or event
+            event = base
+            next_event, last_event = find_adjacent_games(schedule, base)
+
+        ctx = ContextBuilder(service).build_for_event(
+            event=event,
+            team_id=team_id,
+            league=league,
+            next_event=next_event,
+            last_event=last_event,
+        )
+        variables = TemplateResolver().build_variable_map(ctx)
+        # Keep only non-empty live values; static samples fill the rest.
+        live = {k: v for k, v in variables.items() if v}
+        _LIVE_CACHE[league] = (now, live)
+        return live
+    except Exception as e:  # provider down, unsupported league, etc.
+        logger.info("[SAMPLES] Live sample fetch failed for %s: %s", league, e)
+        return None
 
 
 def _category_display_name(category: Category) -> str:
@@ -98,20 +200,90 @@ def get_variables(template_type: str | None = None):
     }
 
 
-@router.get("/variables/samples")
-def get_sample_data(sport: str = "NBA"):
-    """Get sample data for template variable preview.
+def _league_info_dict(lg) -> dict:
+    """Serialize a LeagueInfo for the sample-league picker (CachedLeague shape)."""
+    return {
+        "slug": lg.slug,
+        "provider": lg.provider,
+        "name": lg.name,
+        "sport": lg.sport,
+        "team_count": lg.team_count,
+        "logo_url": lg.logo_url,
+        "logo_url_dark": lg.logo_url_dark,
+        "import_enabled": lg.import_enabled,
+        "league_alias": lg.league_alias,
+        "tsdb_tier": lg.tsdb_tier,
+    }
 
-    Returns sample values for all variables for a given sport.
-    Used for live preview in the template form.
+
+@router.get("/variables/sample-leagues")
+def get_sample_leagues():
+    """Leagues to offer in the template preview selector.
+
+    Returns all enabled configured leagues plus the subset the user has
+    subscribed to (event-based sports subscription + the leagues of followed
+    teams). The picker shows the subscribed subset by default but can search the
+    full list.
     """
-    if sport not in AVAILABLE_SPORTS:
-        sport = "NBA"  # Default fallback
+    from teamarr.database import get_db
+    from teamarr.database.subscription import get_subscribed_league_codes
+    from teamarr.services.cache_service import create_cache_service
+
+    with get_db() as conn:
+        codes = get_subscribed_league_codes(conn)
+
+    service = create_cache_service(get_db)
+    enabled = service.get_leagues(configured_only=True)
+    subscribed_slugs = [lg.slug for lg in enabled if lg.slug.lower() in codes]
 
     return {
-        "sport": sport,
+        "count": len(enabled),
+        "leagues": [_league_info_dict(lg) for lg in enabled],
+        "subscribed_slugs": subscribed_slugs,
+    }
+
+
+@router.get("/variables/samples")
+def get_sample_data(
+    sport: str = "NBA", league: str | None = None, live: bool = False
+):
+    """Get sample data for template variable preview.
+
+    Returns sample values for all variables, used for the live preview in the
+    template form. Prefer ``league`` (any supported league code) for
+    league-accurate placeholders; ``sport`` is kept for back-compat and selects
+    a profile directly.
+
+    When ``live`` is set, real provider data for an upcoming/recent event in the
+    league is layered over the static samples. Any variable the live event can't
+    fill keeps its static placeholder, and any failure falls back silently to
+    static samples.
+    """
+    if league:
+        # Resolve the profile from the league's own record (sport + provider)
+        # so the mapping is data-driven and custom leagues work too.
+        league_sport, league_provider = _lookup_league_fields(league)
+        samples = get_all_sample_data_for_league(league, league_sport, league_provider)
+        profile = resolve_profile_for_league(league, league_sport, league_provider)
+    else:
+        if sport not in AVAILABLE_SPORTS:
+            sport = "NBA"  # Default fallback
+        samples = get_all_sample_data(sport)
+        profile = sport
+
+    is_live = False
+    if live and league:
+        live_samples = _fetch_live_samples(league)
+        if live_samples:
+            samples = {**samples, **live_samples}
+            is_live = True
+
+    return {
+        "sport": profile,
+        "league": league,
+        "live": is_live,
         "available_sports": AVAILABLE_SPORTS,
-        "samples": get_all_sample_data(sport),
+        "samples": samples,
     }
 
 

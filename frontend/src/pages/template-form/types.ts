@@ -1,5 +1,6 @@
 import type { TemplateCreate } from "@/api/templates"
 import type { VariableCategory } from "@/api/variables"
+import type { CachedLeague } from "@/api/teams"
 
 export type Tab = "basic" | "defaults" | "conditions" | "fillers" | "xmltv"
 
@@ -8,9 +9,13 @@ export interface VariableSidebarProps {
   onInsert: (varName: string) => void
   lastFocusedField: string | null
   isTeamTemplate: boolean
-  availableSports: string[]
-  previewSport: string
-  onSportChange: (sport: string) => void
+  leagues: CachedLeague[]
+  subscribedSlugs: string[]
+  previewLeague: string
+  onLeagueChange: (league: string) => void
+  liveRequested: boolean
+  isLive: boolean
+  onToggleLive: () => void
 }
 
 export interface Variable {
