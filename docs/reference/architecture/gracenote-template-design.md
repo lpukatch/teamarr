@@ -50,16 +50,26 @@ The structured **subtitle** ("Group C: Scotland vs. Morocco") *is* present days 
 |------|--------|------|--------------------|----------|
 | **Recap copy** | ESPN scoreboard `headlines[0].description` | **free** (bulk) | ✅ fills after final, on regen | all ESPN sports |
 | **Round/group** | ESPN scoreboard `competitions[0].altGameNote` | **free** (bulk) | ✅ all states | tournaments/playoffs |
-| **Preview prose** | ESPN summary `article` (type Preview) | per-event call | ❌ **same-day only** | US-pro only (MLB/NHL); soccer **none** |
-| **Structured preview** | ESPN summary (odds/H2H/lastFiveGames/standings/probables) | per-event call | ✅ | ESPN sports |
+| **Preview prose** | ESPN summary `article` (type Preview) | per-event call | ⚠️ **~T-0 to T-1 only** | broad — MLB/WNBA **and soccer** (incl. World Cup) |
+| **Structured preview** | ESPN summary (odds/H2H/lastFiveGames/leaders/standings/seasonseries/predictor) | per-event call | ✅ **available days ahead** | broad — incl. soccer |
 | **Event description** | TSDB `strDescriptionEN` | per-call | ⚠️ | marquee events only — **empty for the niche leagues TSDB serves** |
 | **Event thumb/video** | TSDB `strThumb`/`strVideo` | per-call | ⚠️ sparse | sparse |
 
+> **Validated live against the ESPN API on 2026-06-16** (multi-league probe). Corrections to the prior draft:
+> - **Preview prose is NOT "US-pro only / soccer none."** Same-day scheduled games carry a full `article` (type Preview) for MLB, WNBA **and soccer** — the 2026 World Cup game *Senegal at France* had complete preview prose. It only populates ~T-0 to T-1, so it's blank for events several days out.
+> - **Structured preview data IS available days ahead** (verified at T+4/T+5 for both MLB and the World Cup): `lastFiveGames`, `leaders`, `standings`, `seasonseries`, `headToHeadGames`, `predictor`, `injuries`, `againstTheSpread` (odds/pickcenter fill closer to game). So **templated previews are viable across the whole window**, across leagues including soccer.
+> - **Recap is free/bulk, confirmed:** all 10 of the prior day's MLB finals carried recap headlines *inside the scoreboard* (no per-event call).
+
 **Takeaways:**
 - `{game_recap}` + `{game_note}`/`{round}` are **free** from the scoreboard Teamarr
-  already fetches — high value, no extra calls.
-- ESPN **preview prose is not viable** (same-day + US-pro only → blank across the
-  14-day EPG window). Pregame previews must be **templated from structured data**.
+  already fetches — high value, no extra calls (Tier 1).
+- **Preview prose is viable for the common case** (most users generate same-day, and
+  it populates ~T-0/T-1 across MLB/WNBA/soccer). It just can't fill the *far* end of a
+  14-day window — which a **fallback chain** handles: recap (postgame) → preview prose
+  (same-day) → templated structured preview (days ahead) → generic templated copy.
+- **Structured preview is the across-window source** and the richest lever, but it costs
+  **one per-event summary call** — so it needs a fetch budget (cache, and/or gate to
+  within N days / followed teams / priority leagues). This is Tier 2.
 - TSDB does **not** provide reliable copy for its own coverage area.
 
 ---
