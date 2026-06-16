@@ -825,7 +825,10 @@ export function EventGroups() {
                         </TableCell>
                     {/* Matched Column with Progress Bar */}
                     <TableCell className="text-center">
-                      {group.team_streams_enabled ? (
+                      {/* Coverage % is only meaningful when Stream Name matching is on
+                          (~1 stream → 1 event). A pure Team/EPG source fans one stream
+                          out to many events, so show raw stream volume instead. */}
+                      {!group.name_match_enabled ? (
                         <span className="text-[0.65rem] text-muted-foreground" title={`Last: ${group.last_refresh ? new Date(group.last_refresh).toLocaleString() : 'Never'}`}>
                           {group.stream_count ?? 0} streams
                         </span>
