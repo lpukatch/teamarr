@@ -239,9 +239,11 @@ def get_sample_data(
     a profile directly.
 
     When ``live`` is set, real provider data for an upcoming/recent event in the
-    league is layered over the static samples. Any variable the live event can't
-    fill keeps its static placeholder, and any failure falls back silently to
-    static samples.
+    league replaces the static samples. Variables the real event can't fill are
+    surfaced as gaps (empty value, and listed in ``gaps``) rather than masked
+    with the fictitious sample — so the preview honestly reflects what live data
+    actually provides. Any failure (no event found, provider down) falls back
+    silently to the static sample.
     """
     if league:
         # Resolve the profile from the league's own record (sport + provider)
@@ -256,11 +258,16 @@ def get_sample_data(
         profile = sport
 
     is_live = False
+    gaps: list[str] = []
     if live and league:
         live_samples = _fetch_live_samples(league)
         if live_samples:
-            samples = {**samples, **live_samples}
             is_live = True
+            # Honest live preview: take the live value where the event provides
+            # one, otherwise surface the gap (empty) instead of the fictitious
+            # sample, so users don't get a false sense of availability.
+            samples = {k: live_samples.get(k, "") for k in samples}
+            gaps = sorted(k for k, v in samples.items() if not v)
 
     return {
         "sport": profile,
@@ -268,6 +275,9 @@ def get_sample_data(
         "live": is_live,
         "available_sports": AVAILABLE_SPORTS,
         "samples": samples,
+        "gaps": gaps,
+        "live_populated": (len(samples) - len(gaps)) if is_live else None,
+        "live_total": len(samples) if is_live else None,
     }
 
 

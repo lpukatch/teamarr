@@ -85,3 +85,38 @@ def test_team_shape_has_no_real_team_leak():
     for token in ("Pistons", "Bucks", "Cavaliers", "Lakers", "Bulls",
                   "Detroit", "Milwaukee", "Cleveland", "Bally Sports"):
         assert token not in blob, f"real-team leak in team sample: {token!r}"
+
+
+def test_live_preview_surfaces_gaps(monkeypatch):
+    """In live mode a variable the real event can't fill is surfaced as a gap
+    (empty + listed in `gaps`), NOT masked with the fictitious sample, so the
+    preview doesn't imply a variable populates when it won't."""
+    from teamarr.api.routes import variables as v
+
+    monkeypatch.setattr(v, "_lookup_league_fields", lambda league: ("basketball", "espn"))
+    monkeypatch.setattr(
+        v, "_fetch_live_samples",
+        lambda league: {"home_team": "Real Live Team", "score": "10-7"},
+    )
+    resp = v.get_sample_data(league="nba", live=True)
+
+    assert resp["live"] is True
+    s = resp["samples"]
+    assert s["home_team"] == "Real Live Team"  # live value wins
+    assert s["score"] == "10-7"
+    # cross-context var the live event didn't provide → surfaced gap, not sample
+    assert s["fighter1"] == ""
+    assert "fighter1" in resp["gaps"]
+    assert "home_team" not in resp["gaps"]
+    assert resp["live_populated"] == 2
+    assert resp["live_total"] == len(s)
+
+
+def test_static_preview_has_no_gaps():
+    """Without live, every variable is filled by the shape sample (no gaps)."""
+    from teamarr.api.routes import variables as v
+
+    resp = v.get_sample_data(sport="NBA", live=False)
+    assert resp["live"] is False
+    assert resp["gaps"] == []
+    assert resp["live_populated"] is None
