@@ -10,11 +10,42 @@ from teamarr.templates.sample_data import (
     get_all_sample_data,
     get_all_sample_data_for_league,
     resolve_profile_for_league,
+    resolve_shape,
 )
 from teamarr.templates.variables import Category, SuffixRules, get_registry
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
+
+# Variable categories that are cross-sport noise for a given sample shape, so a
+# basketball preview doesn't flag empty combat/racing variables as live "gaps"
+# (option B — gaps surface only within categories relevant to the event).
+_SHAPE_IRRELEVANT_CATEGORIES: dict[str, frozenset[str]] = {
+    "team": frozenset({"COMBAT", "MOTORSPORTS"}),
+    "combat": frozenset({"MOTORSPORTS", "SOCCER", "RANKINGS", "RECORDS",
+                         "CONFERENCE", "STANDINGS", "STREAKS", "STATISTICS",
+                         "SCORES", "HOME_AWAY"}),
+    "racing": frozenset({"COMBAT", "SOCCER", "RANKINGS", "RECORDS",
+                         "CONFERENCE", "STANDINGS", "STREAKS", "STATISTICS",
+                         "SCORES", "HOME_AWAY"}),
+}
+
+
+def _relevant_keys(keys, shape: str) -> list[str]:
+    """Sample keys whose variable category applies to the event's shape.
+
+    Combat/racing variables aren't gaps on a team game (they're N/A), so they're
+    excluded from the live gap list and the coverage count.
+    """
+    registry = get_registry()
+    irrelevant = _SHAPE_IRRELEVANT_CATEGORIES.get(shape, frozenset())
+    out = []
+    for k in keys:
+        base = k.replace(".next", "").replace(".last", "")
+        var_def = registry.get(base)
+        if var_def is not None and var_def.category.name not in irrelevant:
+            out.append(k)
+    return out
 
 # Cache of live sample maps keyed by league, with a short TTL so the preview
 # stays responsive without hammering providers on every keystroke.
@@ -259,15 +290,20 @@ def get_sample_data(
 
     is_live = False
     gaps: list[str] = []
+    live_populated = live_total = None
     if live and league:
         live_samples = _fetch_live_samples(league)
         if live_samples:
             is_live = True
-            # Honest live preview: take the live value where the event provides
-            # one, otherwise surface the gap (empty) instead of the fictitious
-            # sample, so users don't get a false sense of availability.
+            # Gaps surface only within categories relevant to this event's shape
+            # (option B): combat/racing variables are N/A on a team game, not
+            # gaps. A gap is a *relevant* variable the live event didn't fill.
+            shape = resolve_shape(league_sport)
+            relevant = _relevant_keys(samples.keys(), shape)
             samples = {k: live_samples.get(k, "") for k in samples}
-            gaps = sorted(k for k, v in samples.items() if not v)
+            gaps = sorted(k for k in relevant if not samples[k])
+            live_total = len(relevant)
+            live_populated = live_total - len(gaps)
 
     return {
         "sport": profile,
@@ -276,8 +312,8 @@ def get_sample_data(
         "available_sports": AVAILABLE_SPORTS,
         "samples": samples,
         "gaps": gaps,
-        "live_populated": (len(samples) - len(gaps)) if is_live else None,
-        "live_total": len(samples) if is_live else None,
+        "live_populated": live_populated,
+        "live_total": live_total,
     }
 
 

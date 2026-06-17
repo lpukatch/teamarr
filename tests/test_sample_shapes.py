@@ -104,12 +104,16 @@ def test_live_preview_surfaces_gaps(monkeypatch):
     s = resp["samples"]
     assert s["home_team"] == "Real Live Team"  # live value wins
     assert s["score"] == "10-7"
-    # cross-context var the live event didn't provide → surfaced gap, not sample
-    assert s["fighter1"] == ""
-    assert "fighter1" in resp["gaps"]
+    # A RELEVANT team var the live event didn't provide → surfaced gap (not sample)
+    assert s["venue"] == ""
+    assert "venue" in resp["gaps"]
     assert "home_team" not in resp["gaps"]
+    # A cross-sport var (combat) is N/A for basketball — empty, but NOT a gap and
+    # NOT counted toward coverage (option B: only relevant gaps surface).
+    assert s["fighter1"] == ""
+    assert "fighter1" not in resp["gaps"]
     assert resp["live_populated"] == 2
-    assert resp["live_total"] == len(s)
+    assert resp["live_total"] < len(s)  # only relevant vars counted, not all 470
 
 
 def test_static_preview_has_no_gaps():
