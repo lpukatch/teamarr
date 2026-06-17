@@ -24,13 +24,18 @@ _calls: Counter[str] = Counter()
 def _endpoint_label(value: str) -> str:
     """Reduce a URL or path to a low-cardinality endpoint label.
 
-    Strips any query string and returns the last path segment, e.g.
-    ``.../basketball/nba/summary?event=1`` -> ``summary``. Falls back to the
-    whole (trimmed) value when there is no path separator.
+    Strips any query string and returns the last *non-numeric* path segment, so
+    ``.../basketball/nba/summary?event=1`` -> ``summary`` and a resource URL like
+    ``.../teams/8`` -> ``teams`` instead of exploding into one label per id.
+    Falls back to the whole (trimmed) value when there is no path separator.
     """
     path = value.split("?", 1)[0].rstrip("/")
-    segment = path.rsplit("/", 1)[-1] if "/" in path else path
-    return segment or "request"
+    if "/" not in path:
+        return path or "request"
+    for segment in reversed(path.split("/")):
+        if segment and not segment.isdigit():
+            return segment
+    return "request"
 
 
 def record_call(provider: str, endpoint: str) -> None:

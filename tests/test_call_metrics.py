@@ -34,6 +34,18 @@ def test_endpoint_label_reduces_url_to_last_segment():
     assert "mlbstats:schedule" in snap
 
 
+def test_trailing_numeric_id_collapses_to_resource():
+    # Resource URLs ending in an id must NOT explode into one label per id —
+    # they collapse to the resource type so cardinality stays bounded.
+    call_metrics.record_call("espn", "https://x/sports/basketball/nba/teams/8")
+    call_metrics.record_call("espn", "https://x/sports/basketball/nba/teams/130")
+    call_metrics.record_call("espn", "https://x/core/event/401/competitions/12")
+    snap = call_metrics.snapshot()
+    assert snap["espn:teams"] == 2
+    assert snap["espn:competitions"] == 1
+    assert not any(k.split(":")[1].isdigit() for k in snap)
+
+
 def test_snapshot_is_ordered_high_to_low():
     for _ in range(5):
         call_metrics.record_call("espn", "summary")

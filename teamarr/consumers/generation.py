@@ -1165,6 +1165,15 @@ def _finalize_stats_run(
     stats_run.extra_metrics["groups_processed"] = result.groups_processed
     stats_run.extra_metrics["file_written"] = result.file_written
 
+    # Provider HTTP call volume for this run (kbbk). The per-endpoint breakdown
+    # and total let the run summary surface calls-per-channel, making a
+    # call-volume regression (the #254 refetch bug class) visible. Snapshot the
+    # run-scoped counter that was reset at run start.
+    from teamarr.utilities import call_metrics
+
+    stats_run.extra_metrics["provider_calls"] = call_metrics.snapshot()
+    stats_run.extra_metrics["provider_calls_total"] = call_metrics.total()
+
     with db_factory() as conn:
         active_channels = get_all_managed_channels(conn, include_deleted=False)
         stats_run.channels_active = len(active_channels)
