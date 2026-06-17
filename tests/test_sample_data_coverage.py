@@ -5,12 +5,13 @@ chain (curated SAMPLE_DATA -> inline registry sample -> category auto-default,
 see teamarr/templates/sample_data.py). Because the chain always yields a value,
 a newly-registered variable is auto-adopted into previews without a separate
 edit here. These tests guarantee that property and guard against two
-regressions: an unresolved variable, and a niche profile/league leaking another
+regressions: an unresolved variable, and a niche shape/league leaking another
 sport's identity (the old "fall back to the first sport" behavior).
 
-League -> profile resolution is data-driven: it reads each league's real
+League -> shape resolution is data-driven: it reads each league's real
 sport/provider from a freshly initialized database rather than any hardcoded
-list, so these tests also exercise resolve_profile() against the live schema.
+list, so these tests also exercise resolve_profile_for_league() against the live
+schema.
 """
 
 import sqlite3
@@ -22,9 +23,13 @@ from teamarr.templates.sample_data import (
     AVAILABLE_SPORTS,
     get_all_sample_data,
     get_all_sample_data_for_league,
-    resolve_profile,
+    resolve_profile_for_league,
+    resolve_shape,
 )
 from teamarr.templates.variables import SuffixRules, get_registry
+
+# The three generic sample shapes every league resolves to.
+SHAPES = ("team", "combat", "racing")
 
 
 def _registered_variable_names() -> list[str]:
@@ -55,12 +60,25 @@ def league_records(tmp_path_factory) -> list[tuple[str, str, str]]:
     return [(r["league_code"], r["provider"], r["sport"]) for r in rows]
 
 
-def test_every_variable_resolves_for_every_profile():
-    """Every registered variable (and suffix) resolves for each profile.
+def test_every_variable_resolves_for_every_shape():
+    """Every registered variable (and suffix) resolves for each shape.
 
     Some variables legitimately resolve to an empty string (e.g. no national
     broadcast, pre-game scores); the guarantee is that the name is present and
     never renders as its raw ``{name}`` literal in the preview.
+    """
+    names = _registered_variable_names()
+    for shape in SHAPES:
+        samples = get_all_sample_data(shape)
+        for name in names:
+            assert name in samples, f"{name!r} unresolved for shape {shape!r}"
+
+
+def test_every_variable_resolves_for_every_base_profile():
+    """Every registered variable resolves for each shape-base profile.
+
+    The ``sport=`` query param selects a base profile (NBA/UFC/F1) directly;
+    guard that path stays fully covered too.
     """
     names = _registered_variable_names()
     for profile in AVAILABLE_SPORTS:
@@ -69,51 +87,49 @@ def test_every_variable_resolves_for_every_profile():
             assert name in samples, f"{name!r} unresolved for profile {profile!r}"
 
 
-def test_no_identity_leak_across_profiles():
-    """Non-NBA profiles must not show NBA's identity placeholders."""
-    nba = get_all_sample_data("NBA")
-    for profile in AVAILABLE_SPORTS:
-        if profile == "NBA":
-            continue
-        samples = get_all_sample_data(profile)
+def test_no_identity_leak_across_shapes():
+    """Combat/racing shapes must not show the team shape's identity."""
+    team = get_all_sample_data("team")
+    for shape in ("combat", "racing"):
+        samples = get_all_sample_data(shape)
         for var in ("team_name", "opponent", "team_short"):
-            assert samples.get(var) != nba.get(var), (
-                f"profile {profile!r} leaks NBA {var!r}={nba.get(var)!r}"
+            assert samples.get(var) != team.get(var), (
+                f"shape {shape!r} leaks team {var!r}={team.get(var)!r}"
             )
 
 
-def test_every_league_resolves_to_a_known_profile(league_records):
-    """Every league resolves (from its sport/provider) to a real profile.
+def test_team_shape_uses_fictitious_identity():
+    """The team shape previews against a fictitious team, never a real one."""
+    blob = " ".join(str(v) for v in get_all_sample_data("team").values())
+    for real in ("Pistons", "Detroit", "Lakers"):
+        assert real not in blob, f"team shape leaks real-team token {real!r}"
+
+
+def test_every_league_resolves_to_a_known_shape(league_records):
+    """Every league resolves (from its sport/provider) to a known shape.
 
     Driven by the live DB, so a newly-added league can't slip through without a
     sport mapping, and every variable still resolves for it.
     """
     names = _registered_variable_names()
     for code, provider, sport in league_records:
-        profile = resolve_profile(sport, provider, code)
-        assert profile in AVAILABLE_SPORTS, (
-            f"league {code!r} (sport={sport!r}) resolved to unknown profile {profile!r}"
+        shape = resolve_profile_for_league(code, sport, provider)
+        assert shape in SHAPES, (
+            f"league {code!r} (sport={sport!r}) resolved to unknown shape {shape!r}"
         )
         samples = get_all_sample_data_for_league(code, sport, provider)
         for name in names:
             assert name in samples, f"{name!r} unresolved for league {code!r}"
 
 
-def test_report_leagues_on_generic_fallback(league_records, capsys):
-    """Soft, non-failing report of non-basketball leagues hitting the NBA default.
+def test_resolve_shape_covers_combat_and_racing(league_records):
+    """At least one league exercises each non-default shape.
 
-    Surfaces a new ``leagues.sport`` value not yet in _SPORT_PROFILE without
-    blocking merges. Always passes.
+    Guards against a regression where every league collapses onto "team" (which
+    would silently break combat/racing previews).
     """
-    flagged = [
-        f"{code} (sport={sport})"
-        for code, provider, sport in league_records
-        if resolve_profile(sport, provider, code) == "NBA"
-        and (sport or "").lower() != "basketball"
-    ]
-    if flagged:
-        with capsys.disabled():
-            print(
-                "\n[sample-data] leagues hitting the generic NBA fallback "
-                f"(add their sport to _SPORT_PROFILE): {flagged}"
-            )
+    shapes_seen = {
+        resolve_shape(sport) for _code, _provider, sport in league_records
+    }
+    assert "combat" in shapes_seen, "no league resolves to the combat shape"
+    assert "racing" in shapes_seen, "no league resolves to the racing shape"
