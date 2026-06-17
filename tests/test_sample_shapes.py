@@ -42,12 +42,12 @@ def test_team_shape_uses_funny_identities():
         ("usa.nwsl", "soccer"),
     ]:
         data = get_all_sample_data_for_league(code, sport)
-        assert data["home_team"] == "Greenwich Mean Time"
-        assert data["team_name"] == "Greenwich Mean Time"
-        assert data["opponent"] == "Baltimore Pinchy Crabs"
+        assert data["home_team"] == "Flint Tropics"
+        assert data["team_name"] == "Flint Tropics"
+        assert data["opponent"] == "Greenwich Mean Time"
         assert data["league"] == "Placeholder Premier League"
         assert data["league_abbrev"] == "PPL"
-        assert data["venue"] == "The Placeholder Dome"
+        assert data["venue"] == "The Coconut Coliseum"
 
 
 def test_team_shape_carries_both_pro_and_college_fields():
