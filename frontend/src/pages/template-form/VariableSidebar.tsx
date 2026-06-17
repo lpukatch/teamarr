@@ -205,7 +205,12 @@ export function VariableSidebar({ categories, onInsert, lastFocusedField, isTeam
                 title={selectedLeague?.name ?? previewLeague}
               >
                 {selectedLeague && logoFor(selectedLeague) && (
-                  <img src={logoFor(selectedLeague)!} alt="" className="h-4 w-4 object-contain shrink-0" />
+                  <img
+                    src={logoFor(selectedLeague)!}
+                    alt=""
+                    className="h-4 w-4 object-contain shrink-0"
+                    onError={(e) => (e.currentTarget.style.display = "none")}
+                  />
                 )}
                 <span className="truncate">
                   {selectedLeague ? leagueAbbrev(selectedLeague) : previewLeague.toUpperCase()}
@@ -276,7 +281,12 @@ export function VariableSidebar({ categories, onInsert, lastFocusedField, isTeam
                           }`}
                         >
                           {logoFor(lg) ? (
-                            <img src={logoFor(lg)!} alt="" className="h-4 w-4 object-contain shrink-0" />
+                            <img
+                              src={logoFor(lg)!}
+                              alt=""
+                              className="h-4 w-4 object-contain shrink-0"
+                              onError={(e) => (e.currentTarget.style.display = "none")}
+                            />
                           ) : (
                             <span className="h-4 w-4 shrink-0" />
                           )}
