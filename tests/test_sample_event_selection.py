@@ -69,3 +69,37 @@ def test_ignores_events_missing_a_team():
 
 def test_none_when_no_candidates():
     assert _svc([]).get_sample_event("nba") is None
+
+
+class _OffseasonProvider:
+    """No finals in the slate (only upcoming), but a deep look-back finds the
+    last completed game — like NFL in June returning the Super Bowl."""
+
+    def __init__(self, upcoming, deep_final):
+        self._upcoming = upcoming
+        self._deep = deep_final
+
+    def supports_league(self, league):
+        return True
+
+    def get_sample_candidates(self, league):
+        return self._upcoming
+
+    def get_recent_final(self, league):
+        return self._deep
+
+
+def test_deep_lookback_used_when_no_recent_final():
+    upcoming = _event("preseason", NOW + timedelta(days=60), "scheduled")  # 0-0 upcoming
+    super_bowl = _event("superbowl", NOW - timedelta(days=130), "final")
+    svc = SportsDataService([_OffseasonProvider([upcoming], super_bowl)])
+    ev = svc.get_sample_event("nfl")
+    assert ev is not None and ev.id == "superbowl"  # prefers the real final over empty upcoming
+
+
+def test_recent_final_beats_deep_lookback():
+    # When the slate already has a final, don't bother with the look-back.
+    recent = _event("recent", NOW - timedelta(hours=2), "final")
+    old = _event("old", NOW - timedelta(days=200), "final")
+    svc = SportsDataService([_OffseasonProvider([recent], old)])
+    assert svc.get_sample_event("nfl").id == "recent"

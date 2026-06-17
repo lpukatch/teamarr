@@ -255,9 +255,11 @@ class SportsDataService:
         """
         candidates: list[Event] = []
         today = date.today()
+        chosen = None
         for provider in self._providers:
             if not provider.supports_league(league):
                 continue
+            chosen = provider
             bulk = getattr(provider, "get_sample_candidates", None)
             if callable(bulk):
                 candidates = bulk(league)
@@ -274,15 +276,24 @@ class SportsDataService:
             break
 
         candidates = [e for e in candidates if e.home_team and e.away_team]
-        if not candidates:
-            return None
 
         finals = [e for e in candidates if is_event_final(e)]
         if finals:
-            # Most-recently-completed game is the richest sample.
+            # Most-recently-completed game in the slate is the richest sample.
             return _enrich_event_teams(max(finals, key=lambda e: e.start_time))
 
-        # Nothing final → nearest game to now (in-progress or soonest upcoming).
+        # No recent final in the primary slate — between seasons, try a deep
+        # look-back for the last completed game (e.g. NFL in June → the Super
+        # Bowl). A finished game populates every postgame variable.
+        deep = getattr(chosen, "get_recent_final", None) if chosen else None
+        if callable(deep):
+            ev = deep(league)
+            if ev and ev.home_team and ev.away_team:
+                return _enrich_event_teams(ev)
+
+        if not candidates:
+            return None
+        # Else the nearest game to now (in-progress or soonest upcoming).
         now = datetime.now(UTC)
         return _enrich_event_teams(
             min(candidates, key=lambda e: abs((e.start_time - now).total_seconds()))

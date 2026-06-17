@@ -25,6 +25,7 @@ from teamarr.providers.espn.client import ESPN_TEAM_ID_CORRECTIONS, ESPNClient
 from teamarr.providers.espn.constants import STATUS_MAP, TOURNAMENT_SPORTS
 from teamarr.providers.espn.tournament import TournamentParserMixin
 from teamarr.providers.espn.ufc import UFCParserMixin
+from teamarr.utilities.event_status import is_event_final
 from teamarr.utilities.tz import to_user_tz
 
 logger = logging.getLogger(__name__)
@@ -217,6 +218,36 @@ class ESPNProvider(UFCParserMixin, TournamentParserMixin, SportsProvider):
                 if event:
                     by_id[event.id] = event
         return list(by_id.values())
+
+    def get_recent_final(self, league: str) -> Event | None:
+        """The single most-recent FINAL game, however long ago it was.
+
+        ESPN's default scoreboard jumps to the *next* season in the deep
+        offseason, so a between-seasons league (NFL in June) otherwise yields
+        only empty upcoming games. This walks back in ~35-day windows (well
+        under ESPN's ~100-event range cap) until it finds a window with finals,
+        then returns the most recent one — e.g. NFL in June → the Super Bowl.
+        Best sample, since a finished game populates every postgame variable.
+        """
+        if league == "ufc" or self._get_sport(league) in TOURNAMENT_SPORTS:
+            return None
+        sport_league = self._get_sport_league_from_db(league)
+        window = timedelta(days=35)
+        end = date.today()
+        for _ in range(9):  # ~9 months back
+            start = end - window
+            data = self._client.get_scoreboard(
+                league, f"{start.strftime('%Y%m%d')}-{end.strftime('%Y%m%d')}", sport_league
+            )
+            finals = []
+            for event_data in (data or {}).get("events", []):
+                event = self._parse_event(event_data, league)
+                if event and event.home_team and event.away_team and is_event_final(event):
+                    finals.append(event)
+            if finals:
+                return max(finals, key=lambda e: e.start_time)
+            end = start
+        return None
 
     def get_team_schedule(
         self,
