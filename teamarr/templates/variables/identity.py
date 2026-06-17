@@ -266,7 +266,7 @@ def extract_league_abbrev(ctx: TemplateContext, game_ctx: GameContext | None) ->
     service = get_league_mapping_service()
     name = service.get_league_alias(ctx.team_config.league)
     abbrev = construct_league_abbrev(name or "")
-    
+
     if abbrev:
         return abbrev
     return construct_league_abbrev(ctx.team_config.league or "")
