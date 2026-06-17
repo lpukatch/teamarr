@@ -94,10 +94,19 @@ The idea: scrape the public Gracenote grid for upcoming events' descriptions. Bl
 | New var | Source | Purpose | Notes |
 |---------|--------|---------|-------|
 | `{home_team_the}` / `{away_team_the}` | article heuristic + national-team detection | "The Lions" vs "Netherlands" | needs national-team signal (soccer international leagues / provider hint); `Team` model has no flag today |
-| `{game_recap}` | ESPN `headlines[0].description` | authentic postgame recap | **free/bulk**; strip leading AP `"— "`; postgame-only → fallback |
-| `{game_note}` (+ `{round}`) | ESPN `competitions[0].altGameNote` | tournament/playoff context | free/bulk; `{round}` strips league prefix → "Group E" |
+| `{game_recap}` | ESPN scoreboard `headlines[type=Recap].description` | authentic postgame recap | **free/bulk**; raw passthrough (leading AP `"— "` kept); postgame-only → fallback |
+| `{game_event_note}` | ESPN scoreboard `notes[0].headline` (type `event`) | marquee/playoff designation ("NBA Finals - Game 5", "Stanley Cup Final", cups, bowls) | free/bulk; marquee-only, empty for regular season |
+| `{soccer_match_note}` | ESPN scoreboard `competitions[0].altGameNote` | soccer competition + group, untouched ("FIFA World Cup, Group J") | free/bulk; soccer-only, empty otherwise |
 
-`Event` model additions: `alt_game_note`, `game_recap` (or parse at generation).
+**SHIPPED (tvnk.10, 2026-06-17):** the three free-tier vars above as raw 1:1 field maps —
+no post-processing. Multisport spikes killed the earlier `{game_note}`/`{round}` idea
+(`altGameNote` is soccer-only and mostly = league name; the cross-sport round/stage lives
+in `notes[0].headline` with per-sport shapes — so it became the two honest vars above
+rather than one normalized field). Per-event `{game_preview}` (summary `article` type
+Preview) and `{series_summary}` (`seasonseries[0].summary`) are the gated Tier-2 follow-ups.
+New variable category: `SUMMARY`.
+
+`Event` model additions: `game_recap`, `game_event_note`, `soccer_match_note`.
 All new vars require the CLAUDE.md docs-table updates (variables count, etc.).
 
 **`gracenote_category` gaps** (majors match perfectly): curate **UFC** (`"Ultimate

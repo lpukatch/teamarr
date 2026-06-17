@@ -11,7 +11,7 @@ redirect_from:
 
 # Template Variables
 
-Templates use variables enclosed in curly braces that get replaced with real data when EPG is generated. Teamarr provides 217 variables across 18 categories.
+Templates use variables enclosed in curly braces that get replaced with real data when EPG is generated. Teamarr provides 224 variables across 19 categories.
 
 ## Team vs Event Templates
 
@@ -367,6 +367,20 @@ TV and streaming information.
 
 ---
 
+## Summary & Context
+
+Provider editorial/context copy for a game, passed through raw. These are **sparse by nature** — empty when the provider didn't supply them — and come free from the scoreboard (no extra API calls).
+
+| Variable | Description | Suffixes | Sample |
+|----------|-------------|----------|--------|
+| `{game_recap}` | Postgame recap blurb. Empty until a game is final | base, .next, .last | `Jalen Brunson and the Comeback Knicks did it again.` |
+| `{game_event_note}` | Marquee/playoff designation. Empty for ordinary regular-season games | base, .next, .last | `NBA Finals - Game 5` |
+
+{: .note }
+Because these populate only for some games (recaps after finals, event notes for marquee/playoff games), pair them with other content or a static fallback so a template never renders blank.
+
+---
+
 ## Rankings
 
 College rankings (NCAAF, NCAAM, NCAAW).
@@ -432,6 +446,10 @@ Soccer-specific variables for teams that play in multiple competitions.
 | `{soccer_match_league}` | League for THIS game (may differ from primary) | base, .next, .last | `` |
 | `{soccer_match_league_id}` | League ID for THIS game (e.g., 'uefa.champions') | base, .next, .last | `` |
 | `{soccer_match_league_logo}` | Logo URL for THIS game's league | base, .next, .last | `` |
+| `{soccer_match_note}` | Provider's competition note for the match, untouched — competition name plus group/stage where present | base, .next, .last | `FIFA World Cup, Group J` |
+
+{: .note }
+Unlike `{soccer_match_league_name}` (which Teamarr builds from its league cache), `{soccer_match_note}` is the provider's raw value and carries group-level detail. It's soccer-only and empty otherwise.
 
 {: .note }
 Soccer teams often play in multiple competitions (domestic league, cups, Champions League). The `soccer_match_league` variables tell you which competition a specific game is in, while `soccer_primary_league` is the team's home league.

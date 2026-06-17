@@ -1563,6 +1563,13 @@ _SHAPE_OVERRIDES: dict[str, dict[str, str]] = {
         "venue_full": "The Coconut Coliseum, Flint, ZZ",
         "venue_full.next": "The Crab Pot Pavilion, Baltimore, ZZ",
         "venue_full.last": "The Thin Air Arena, Denver, ZZ",
+        # --- summary / context copy ---
+        "game_recap": "The Tropics rode a 40-point fourth quarter to bury the Mean Time.",
+        "game_recap.last": "Flint edged the Mile High Club in double overtime last week.",
+        "game_event_note": "Placeholder Premier League Finals - Game 4",
+        "game_event_note.next": "Placeholder Premier League Finals - Game 5",
+        "game_event_note.last": "Placeholder Premier League Semifinals - Game 7",
+        "soccer_match_note": "Placeholder Premier League, Group Z",
         # --- scores / outcome ---
         "team_score": "3",
         "team_score.last": "3",
@@ -1731,6 +1738,8 @@ _SHAPE_OVERRIDES: dict[str, dict[str, str]] = {
         "venue_state": "ZZ",
         "venue_full": "Madison Square Pixels, New York, ZZ",
         "exception_keyword": "PPV",
+        "game_recap": "Little Mac dropped Super Macho Man in the third to take the title.",
+        "game_event_note": "WVBA Title Night - Main Event",
     },
     # ============== RACING (base F1) — Ricky Bobby x Cars (Pixar) ==============
     "racing": {
@@ -1768,6 +1777,8 @@ _SHAPE_OVERRIDES: dict[str, dict[str, str]] = {
         "venue_state": "ZZ",
         "venue_full": "Radiator Springs Speedway, Radiator Springs, ZZ",
         "exception_keyword": "4K",
+        "game_recap": "Ricky Bobby held off Lightning McQueen on the final lap.",
+        "game_event_note": "Piston Cup 500 - Championship Race",
     },
 }
 

@@ -577,6 +577,12 @@ class ESPNProvider(UFCParserMixin, TournamentParserMixin, SportsProvider):
             broadcasts = self._parse_broadcasts(competition.get("broadcasts", []))
             odds_data = self._parse_odds(competition.get("odds", []))
 
+            # Editorial/context copy — all raw from the scoreboard, no per-event call.
+            game_recap = self._headline_of_type(competition, "Recap")
+            notes = competition.get("notes") or []
+            game_event_note = (notes[0].get("headline") if notes else "") or ""
+            soccer_match_note = competition.get("altGameNote") or ""
+
             home_score = self._parse_score(home_data.get("score"))
             away_score = self._parse_score(away_data.get("score"))
 
@@ -603,10 +609,25 @@ class ESPNProvider(UFCParserMixin, TournamentParserMixin, SportsProvider):
                 odds_data=odds_data,
                 season_type=season_type,
                 season_year=season_year,
+                game_recap=game_recap,
+                game_event_note=game_event_note,
+                soccer_match_note=soccer_match_note,
             )
         except Exception as e:
             logger.warning("[ESPN] Failed to parse event %s: %s", data.get("id", "unknown"), e)
             return None
+
+    @staticmethod
+    def _headline_of_type(competition: dict, want_type: str) -> str:
+        """Return the .description of the first headline matching want_type.
+
+        ESPN tags scoreboard headlines by type ('Recap', 'Preview'); we select
+        by tag rather than infer from game state. Empty when none present.
+        """
+        for headline in competition.get("headlines") or []:
+            if headline.get("type") == want_type:
+                return headline.get("description") or ""
+        return ""
 
     def _parse_team(self, competitor: dict, league: str, sport: str) -> Team:
         """Parse competitor data into Team."""
