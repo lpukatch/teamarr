@@ -309,3 +309,4 @@
 {"id":"int-dffe9d74","kind":"field_change","created_at":"2026-06-17T16:04:44.157792551Z","actor":"egyptiangio","issue_id":"teamarrv2-kbbk.3","extra":{"field":"status","new_value":"in_progress","old_value":"open"}}
 {"id":"int-75ec65fc","kind":"field_change","created_at":"2026-06-17T16:05:40.793472572Z","actor":"egyptiangio","issue_id":"teamarrv2-pi5p","extra":{"field":"status","new_value":"in_progress","old_value":"open"}}
 {"id":"int-65cb9e63","kind":"field_change","created_at":"2026-06-17T19:18:14.736052706Z","actor":"egyptiangio","issue_id":"teamarrv2-pi5p","extra":{"field":"status","new_value":"closed","old_value":"in_progress","reason":"Closed"}}
+{"id":"int-2a1a7fac","kind":"field_change","created_at":"2026-06-17T19:24:55.038609274Z","actor":"egyptiangio","issue_id":"teamarrv2-kbbk.3","extra":{"field":"status","new_value":"closed","old_value":"in_progress","reason":"Closed"}}
