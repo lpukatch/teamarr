@@ -214,6 +214,6 @@ See `GET /variables/samples` (`live`, `gaps`, `live_populated`, `live_total`).
 | `templates/context_builder.py` | Build TemplateContext from Event + Team |
 | `templates/variables/` | 18 category modules with 217 variable definitions |
 | `templates/variables/registry.py` | VariableRegistry singleton |
-| `templates/sample_data.py` | Test fixtures for UI preview |
+| `templates/sample_data.py` | 3-shape fictitious sample values + `resolve_shape` for UI preview |
 | `utilities/art_url.py` | Game-thumbs base URL join helper + reader (`apply_art_base_url`, `read_art_base_url`) |
 | `utilities/xmltv.py` | XMLTV serialization (applies art base as an idempotent safety net) |
