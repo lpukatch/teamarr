@@ -39,6 +39,16 @@ from teamarr.utilities.event_status import is_event_final
 
 logger = logging.getLogger(__name__)
 
+# Coalesce window for refresh_event_status. The same event is matched to many
+# channels and re-checked by the filler, so during one generation run an event
+# can be refreshed dozens-to-hundreds of times — each call invalidating the
+# event cache and re-hitting the provider summary endpoint serially. The marker
+# lives in the shared cache (so the teams and event-group passes coordinate),
+# and the window is short enough that separate scheduled runs still pull fresh
+# scores. Must stay well under CACHE_TTL_SINGLE_EVENT so get_event can serve the
+# cached event during the window.
+REFRESH_COALESCE_TTL = 300  # seconds
+
 
 def _backfill_team_from_cache(team: Team | None, league: str) -> Team | None:
     """Patch a Team's short_name/abbreviation/name from team_cache when missing.
@@ -441,9 +451,19 @@ class SportsDataService:
         if not event:
             return event
 
-        # Invalidate cache to force fresh fetch from provider
+        # Coalesce repeated refreshes of the same event within a run. Normally we
+        # invalidate the event cache to force a fresh provider fetch, but the same
+        # event is refreshed once per channel (and again by the filler), so a
+        # popular event would otherwise trigger many identical serial summary
+        # fetches. Skip the invalidating delete when we've already refreshed this
+        # event inside the coalesce window — get_event then serves the fresh-enough
+        # copy from the (30-min) event cache. The marker is in the shared cache so
+        # the teams and event-group passes coordinate.
         cache_key = make_cache_key("event", event.league, event.id)
-        self._cache.delete(cache_key)
+        coalesce_key = make_cache_key("event_refresh", event.league, event.id)
+        if not self._cache.get(coalesce_key):
+            self._cache.delete(cache_key)
+            self._cache.set(coalesce_key, True, REFRESH_COALESCE_TTL)
 
         fresh_event = self.get_event(event.id, event.league)
         if not fresh_event:

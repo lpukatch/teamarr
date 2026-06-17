@@ -2014,7 +2014,9 @@ class EventGroupProcessor:
             event = match.get("event")
             if event:
                 old_status = event.status.state if event.status else "N/A"
-                # Refresh event status from provider (invalidates cache, fetches fresh)
+                # Refresh event status from provider. The service coalesces
+                # repeated refreshes of the same event within a run, so an event
+                # matched to many channels triggers a single provider fetch.
                 refreshed = self._service.refresh_event_status(event)
                 new_status = refreshed.status.state if refreshed.status else "N/A"
                 if old_status != new_status:
