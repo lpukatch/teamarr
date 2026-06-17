@@ -42,9 +42,9 @@ def test_team_shape_uses_funny_identities():
         ("usa.nwsl", "soccer"),
     ]:
         data = get_all_sample_data_for_league(code, sport)
-        assert data["home_team"] == "Sample City Sasquatches"
-        assert data["team_name"] == "Sample City Sasquatches"
-        assert data["opponent"] == "Mockingham Yetis"
+        assert data["home_team"] == "Greenwich Mean Time"
+        assert data["team_name"] == "Greenwich Mean Time"
+        assert data["opponent"] == "Baltimore Pinchy Crabs"
         assert data["league"] == "Placeholder Premier League"
         assert data["league_abbrev"] == "PPL"
         assert data["venue"] == "The Placeholder Dome"
@@ -62,16 +62,26 @@ def test_team_shape_carries_both_pro_and_college_fields():
 
 def test_combat_shape_uses_funny_fighters():
     data = get_all_sample_data_for_league("ufc", "mma")
-    assert data["fighter1"] == "Knuckles McTestface"
-    assert data["fighter2"] == "Dummy Von Punchington"
-    assert data["league"] == "Sample Fighting Championship"
-    assert data["venue"] == "The Testing Octagon"
+    assert data["fighter1"] == "Little Mac"
+    assert data["fighter2"] == "Super Macho Man"
+    assert data["league"] == "World Video Boxing Association"
+    assert data["venue"] == "Madison Square Pixels"
 
 
 def test_racing_shape_uses_funny_drivers():
     data = get_all_sample_data_for_league("f1", "racing")
-    assert data["race_winner"] == "Speedy McTestface"
-    assert data["pole_position"] == "Speedy McTestface"
-    assert data["circuit_name"] == "Mock Raceway"
-    assert data["league"] == "Placeholder Grand Prix"
-    assert data["league_abbrev"] == "PGP"
+    assert data["race_winner"] == "Ricky Bobby"
+    assert data["pole_position"] == "Lightning McQueen"
+    assert data["circuit_name"] == "Radiator Springs Speedway"
+    assert data["league"] == "Piston Cup Series"
+    assert data["league_abbrev"] == "PCS"
+
+
+def test_team_shape_has_no_real_team_leak():
+    """Regression guard: no real franchise/RSN may bleed into the fictitious
+    team shape. A substring-replace bug once leaked 'Detroit Pistons' into the
+    .next/.last matchups when the override keys got corrupted."""
+    blob = " ".join(str(v) for v in get_all_sample_data_for_league("nba", "basketball").values())
+    for token in ("Pistons", "Bucks", "Cavaliers", "Lakers", "Bulls",
+                  "Detroit", "Milwaukee", "Cleveland", "Bally Sports"):
+        assert token not in blob, f"real-team leak in team sample: {token!r}"
