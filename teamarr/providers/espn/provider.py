@@ -515,7 +515,16 @@ class ESPNProvider(UFCParserMixin, TournamentParserMixin, SportsProvider):
             "season": header.get("season"),
         }
 
-        return self._parse_event(event_data, league)
+        event = self._parse_event(event_data, league)
+        if event:
+            # Per-event editorial copy lives at the summary top level (not in the
+            # competition), so attach it here. Raw passthrough, empty when absent.
+            article = data.get("article") or {}
+            if article.get("type") == "Preview":
+                event.game_preview = article.get("description") or ""
+            series = data.get("seasonseries") or []
+            event.series_summary = (series[0].get("summary") if series else "") or ""
+        return event
 
     def _build_short_name(self, competition: dict) -> str:
         """Build short name from competitors."""

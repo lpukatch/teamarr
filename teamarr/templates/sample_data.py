@@ -1570,6 +1570,10 @@ _SHAPE_OVERRIDES: dict[str, dict[str, str]] = {
         "game_event_note.next": "Placeholder Premier League Finals - Game 5",
         "game_event_note.last": "Placeholder Premier League Semifinals - Game 7",
         "soccer_match_note": "Placeholder Premier League, Group Z",
+        "game_preview": "The Tropics look to close out the series against the Mean Time.",
+        "game_preview.next": "Flint visits the Pinchy Crabs to open the next round.",
+        "series_summary": "Tropics lead series 3-1",
+        "series_summary.last": "Tropics won series 4-2",
         # --- scores / outcome ---
         "team_score": "3",
         "team_score.last": "3",
@@ -1740,6 +1744,7 @@ _SHAPE_OVERRIDES: dict[str, dict[str, str]] = {
         "exception_keyword": "PPV",
         "game_recap": "Little Mac dropped Super Macho Man in the third to take the title.",
         "game_event_note": "WVBA Title Night - Main Event",
+        "game_preview": "Little Mac takes on Super Macho Man for the WVBA title tonight.",
     },
     # ============== RACING (base F1) — Ricky Bobby x Cars (Pixar) ==============
     "racing": {
@@ -1779,6 +1784,7 @@ _SHAPE_OVERRIDES: dict[str, dict[str, str]] = {
         "exception_keyword": "4K",
         "game_recap": "Ricky Bobby held off Lightning McQueen on the final lap.",
         "game_event_note": "Piston Cup 500 - Championship Race",
+        "game_preview": "Ricky Bobby starts second as the Piston Cup field rolls out.",
     },
 }
 

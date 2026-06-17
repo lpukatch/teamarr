@@ -11,7 +11,7 @@ redirect_from:
 
 # Template Variables
 
-Templates use variables enclosed in curly braces that get replaced with real data when EPG is generated. Teamarr provides 224 variables across 19 categories.
+Templates use variables enclosed in curly braces that get replaced with real data when EPG is generated. Teamarr provides 226 variables across 19 categories.
 
 ## Team vs Event Templates
 
@@ -369,15 +369,17 @@ TV and streaming information.
 
 ## Summary & Context
 
-Provider editorial/context copy for a game, passed through raw. These are **sparse by nature** — empty when the provider didn't supply them — and come free from the scoreboard (no extra API calls).
+Provider editorial/context copy for a game, passed through raw. These are **sparse by nature** — empty when the provider didn't supply them.
 
 | Variable | Description | Suffixes | Sample |
 |----------|-------------|----------|--------|
 | `{game_recap}` | Postgame recap blurb. Empty until a game is final | base, .next, .last | `Jalen Brunson and the Comeback Knicks did it again.` |
+| `{game_preview}` | Pregame preview blurb. Empty once a game is final (use `{game_recap}` then) | base, .next, .last | `Toronto Blue Jays (35-38) vs. Boston Red Sox` |
 | `{game_event_note}` | Marquee/playoff designation. Empty for ordinary regular-season games | base, .next, .last | `NBA Finals - Game 5` |
+| `{series_summary}` | Playoff/season-series state. Empty when there's no series context | base, .next, .last | `Series tied 1-1` |
 
 {: .note }
-Because these populate only for some games (recaps after finals, event notes for marquee/playoff games), pair them with other content or a static fallback so a template never renders blank.
+Because these populate only for some games, pair them with other content or a static fallback so a template never renders blank. `{game_recap}` and `{game_event_note}` come free from the scoreboard; `{game_preview}` and `{series_summary}` come from the per-event summary fetch that EPG generation already makes (no extra API calls).
 
 ---
 

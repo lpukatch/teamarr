@@ -100,6 +100,13 @@ def _fetch_live_samples(league: str) -> dict[str, str] | None:
         if not event:
             return None
 
+        # The sample event comes from the scoreboard, which carries free fields
+        # (game_recap, etc.) but not the summary-only ones (game_preview,
+        # series_summary). Refresh through the summary endpoint so the preview
+        # shows exactly what generation produces. One cached call; the same
+        # refresh generation already makes.
+        event = service.refresh_event_status(event) or event
+
         team_id = event.home_team.id
 
         # Keep the chosen event (the best sample — ideally a just-completed game)

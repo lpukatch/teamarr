@@ -16,7 +16,9 @@ from teamarr.templates.context import (
 from teamarr.templates.variables.soccer import extract_soccer_match_note
 from teamarr.templates.variables.summary import (
     extract_game_event_note,
+    extract_game_preview,
     extract_game_recap,
+    extract_series_summary,
 )
 
 
@@ -102,17 +104,37 @@ def test_soccer_match_note_passthrough():
     assert extract_soccer_match_note(ctx, gc) == "FIFA World Cup, Group J"
 
 
+def test_game_preview_passthrough():
+    ctx, gc = _ctx(_event(game_preview="Toronto Blue Jays vs. Boston Red Sox"))
+    assert extract_game_preview(ctx, gc) == "Toronto Blue Jays vs. Boston Red Sox"
+
+
+def test_series_summary_passthrough():
+    ctx, gc = _ctx(_event(series_summary="Series tied 1-1"))
+    assert extract_series_summary(ctx, gc) == "Series tied 1-1"
+
+
 def test_extractors_empty_when_unset():
     ctx, gc = _ctx(_event())
-    assert extract_game_recap(ctx, gc) == ""
-    assert extract_game_event_note(ctx, gc) == ""
-    assert extract_soccer_match_note(ctx, gc) == ""
+    for fn in (
+        extract_game_recap,
+        extract_game_event_note,
+        extract_soccer_match_note,
+        extract_game_preview,
+        extract_series_summary,
+    ):
+        assert fn(ctx, gc) == ""
 
 
 def test_extractors_safe_without_event():
     ctx, gc = _ctx(_event())
     ctx.game_context.event = None
     gc = ctx.game_context
-    assert extract_game_recap(ctx, gc) == ""
-    assert extract_game_event_note(ctx, gc) == ""
-    assert extract_soccer_match_note(ctx, gc) == ""
+    for fn in (
+        extract_game_recap,
+        extract_game_event_note,
+        extract_soccer_match_note,
+        extract_game_preview,
+        extract_series_summary,
+    ):
+        assert fn(ctx, gc) == ""

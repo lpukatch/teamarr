@@ -40,3 +40,31 @@ def extract_game_event_note(ctx: TemplateContext, game_ctx: GameContext | None) 
     if not game_ctx or not game_ctx.event:
         return ""
     return game_ctx.event.game_event_note or ""
+
+
+@register_variable(
+    name="game_preview",
+    category=Category.SUMMARY,
+    suffix_rules=SuffixRules.ALL,
+    description="Pregame preview blurb from the provider (e.g. 'Toronto Blue Jays "
+    "(35-38) vs. Boston Red Sox…'). Empty once a game is final (use game_recap then). "
+    "Comes from the per-event summary fetch refresh already makes — no extra call.",
+)
+def extract_game_preview(ctx: TemplateContext, game_ctx: GameContext | None) -> str:
+    if not game_ctx or not game_ctx.event:
+        return ""
+    return game_ctx.event.game_preview or ""
+
+
+@register_variable(
+    name="series_summary",
+    category=Category.SUMMARY,
+    suffix_rules=SuffixRules.ALL,
+    description="Playoff/season-series state for the matchup (e.g. 'Series tied 1-1', "
+    "'SF leads series 1-0'). Empty when there's no series context (e.g. group-stage "
+    "soccer). From the per-event summary fetch — no extra call.",
+)
+def extract_series_summary(ctx: TemplateContext, game_ctx: GameContext | None) -> str:
+    if not game_ctx or not game_ctx.event:
+        return ""
+    return game_ctx.event.series_summary or ""

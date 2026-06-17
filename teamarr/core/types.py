@@ -131,6 +131,10 @@ class Event:
     game_recap: str = ""  # scoreboard headlines[type=Recap].description
     game_event_note: str = ""  # notes[0].headline, e.g. "NBA Finals - Game 5"
     soccer_match_note: str = ""  # altGameNote, e.g. "FIFA World Cup, Group J"
+    # Per-event tier — from the summary endpoint (overlaid by refresh_event_status,
+    # which already fetches it, so zero extra calls).
+    game_preview: str = ""  # summary article[type=Preview].description (pregame)
+    series_summary: str = ""  # summary seasonseries[0].summary, e.g. "Series tied 1-1"
 
     # MMA-specific: when main card begins (prelims start at start_time)
     main_card_start: datetime | None = None

@@ -430,6 +430,11 @@ class SportsDataService:
         "fight_result_method",
         "finish_round",
         "finish_time",
+        # Per-event editorial copy — only the summary endpoint carries these, so
+        # they must overlay from the fresh fetch (the scoreboard-parsed original
+        # has them empty). The summary call is already made here; zero extra cost.
+        "game_preview",
+        "series_summary",
     )
 
     def refresh_event_status(self, event: Event) -> Event:
