@@ -219,6 +219,13 @@ def run_full_generation(
         current_generation = increment_generation_counter(db_factory)
         logger.info("[GENERATION] Starting with cache generation %d", current_generation)
 
+        # Reset the run-scoped provider-call counter so this run's totals start
+        # clean. Runs are serialized (duplicate runs are rejected above), so a
+        # single process-global counter is safe. Snapshot is persisted at run end.
+        from teamarr.utilities import call_metrics
+
+        call_metrics.reset()
+
         # Create a single SportsDataService instance to share across all processing
         # This ensures the event cache stays warm throughout the entire run
         # (Previously each consumer created its own service with a cold cache)

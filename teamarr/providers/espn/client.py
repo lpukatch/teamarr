@@ -17,6 +17,8 @@ import time
 
 import httpx
 
+from teamarr.utilities import call_metrics
+
 logger = logging.getLogger(__name__)
 
 # Environment variable configuration with defaults
@@ -168,6 +170,7 @@ class ESPNClient:
 
                 response.raise_for_status()
                 logger.debug("[FETCH] %s", url.split("/sports/")[-1] if "/sports/" in url else url)
+                call_metrics.record_call("espn", url)
                 return response.json()
 
             except httpx.HTTPStatusError as e:

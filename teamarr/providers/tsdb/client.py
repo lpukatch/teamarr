@@ -35,6 +35,7 @@ from datetime import date, datetime
 import httpx
 
 from teamarr.core import LeagueMappingSource
+from teamarr.utilities import call_metrics
 from teamarr.utilities.cache import TTLCache, make_cache_key
 
 logger = logging.getLogger(__name__)
@@ -348,6 +349,7 @@ class TSDBClient:
                         f"TSDB request succeeded after {backoff_attempt} rate limit retry(ies)"
                     )
 
+                call_metrics.record_call("tsdb", endpoint)
                 return response.json()
 
             except httpx.HTTPStatusError as e:
