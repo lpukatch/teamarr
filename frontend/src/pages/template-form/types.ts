@@ -16,6 +16,10 @@ export interface VariableSidebarProps {
   liveRequested: boolean
   isLive: boolean
   onToggleLive: () => void
+  /** Live coverage for the current event: how many relevant variables the real
+   *  event populates vs. total relevant (gaps = relevant variables it can't
+   *  fill). Null when not previewing live. */
+  liveCoverage?: { populated: number; total: number; gaps: string[] } | null
 }
 
 export interface Variable {

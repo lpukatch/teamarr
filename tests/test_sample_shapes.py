@@ -124,3 +124,23 @@ def test_static_preview_has_no_gaps():
     assert resp["live"] is False
     assert resp["gaps"] == []
     assert resp["live_populated"] is None
+
+
+@pytest.mark.parametrize(
+    "code,sport,must_fill",
+    [
+        ("nba", "basketball", ["home_team", "away_team", "score", "team_record",
+                               "team_rank", "pro_conference", "college_conference",
+                               "venue", "streak"]),
+        ("ufc", "mma", ["fighter1", "fighter2", "weight_class", "fight_card",
+                        "event_title", "venue"]),
+        ("f1", "racing", ["race_winner", "pole_position", "circuit_name",
+                          "podium", "grid", "venue"]),
+    ],
+)
+def test_each_shape_fills_its_native_variables(code, sport, must_fill):
+    """Kitchen-sink coverage: each shape fills its native variables, so a
+    template of that kind previews with no blanks where data should exist."""
+    data = get_all_sample_data_for_league(code, sport)
+    for var in must_fill:
+        assert data.get(var), f"{code}/{sport} shape left {var!r} empty"

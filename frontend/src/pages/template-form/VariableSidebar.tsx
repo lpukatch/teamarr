@@ -48,7 +48,7 @@ function getSuffixClass(suffixes: string[]): string {
   return "var-all" // default
 }
 
-export function VariableSidebar({ categories, onInsert, lastFocusedField, isTeamTemplate, leagues, subscribedSlugs, previewLeague, onLeagueChange, liveRequested, isLive, onToggleLive }: VariableSidebarProps) {
+export function VariableSidebar({ categories, onInsert, lastFocusedField, isTeamTemplate, leagues, subscribedSlugs, previewLeague, onLeagueChange, liveRequested, isLive, onToggleLive, liveCoverage }: VariableSidebarProps) {
   const [search, setSearch] = useState("")
   const [expandedCat, setExpandedCat] = useState<string | null>(null)
   const [recentlyUsed, setRecentlyUsed] = useState<string[]>(() => getRecentlyUsed())
@@ -239,6 +239,21 @@ export function VariableSidebar({ categories, onInsert, lastFocusedField, isTeam
                 {isLive ? "Live" : liveRequested ? "No event" : "Sample"}
               </button>
             </div>
+            {isLive && liveCoverage && (
+              <div className="mt-1 px-2 flex items-center justify-end text-[10px] text-muted-foreground tabular-nums">
+                <span
+                  title={`${liveCoverage.populated} of ${liveCoverage.total} sport-relevant variables populate from this live event${
+                    liveCoverage.gaps.length
+                      ? ` — ${liveCoverage.gaps.length} gap${liveCoverage.gaps.length === 1 ? "" : "s"} the event doesn't provide`
+                      : ""
+                  }`}
+                >
+                  {liveCoverage.populated}/{liveCoverage.total} variables live
+                  {liveCoverage.gaps.length > 0 &&
+                    ` · ${liveCoverage.gaps.length} gap${liveCoverage.gaps.length === 1 ? "" : "s"}`}
+                </span>
+              </div>
+            )}
             {leaguePickerOpen && (
               <div className="absolute z-20 mt-1 left-0 right-0 bg-popover border border-border rounded shadow-lg max-h-72 overflow-hidden flex flex-col">
                 <div className="p-1.5 border-b border-border">

@@ -25,6 +25,11 @@ export interface SamplesResponse {
   live?: boolean
   available_sports: string[]
   samples: Record<string, string>
+  // Live-only: variable names the real event couldn't populate (surfaced as
+  // gaps instead of masked with the fictitious sample), plus coverage counts.
+  gaps?: string[]
+  live_populated?: number | null
+  live_total?: number | null
 }
 
 export interface Condition {

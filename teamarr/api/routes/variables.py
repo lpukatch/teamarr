@@ -32,17 +32,20 @@ _SHAPE_IRRELEVANT_CATEGORIES: dict[str, frozenset[str]] = {
 
 
 def _relevant_keys(keys, shape: str) -> list[str]:
-    """Sample keys whose variable category applies to the event's shape.
+    """Base sample keys whose variable category applies to the event's shape.
 
-    Combat/racing variables aren't gaps on a team game (they're N/A), so they're
-    excluded from the live gap list and the coverage count.
+    Coverage counts BASE variables only — the `.next`/`.last` variants depend on
+    the sample event having adjacent games, which it usually doesn't, so counting
+    them would dwarf the tally with non-gaps. Combat/racing variables are N/A on a
+    team game, so they're excluded too.
     """
     registry = get_registry()
     irrelevant = _SHAPE_IRRELEVANT_CATEGORIES.get(shape, frozenset())
     out = []
     for k in keys:
-        base = k.replace(".next", "").replace(".last", "")
-        var_def = registry.get(base)
+        if k.endswith(".next") or k.endswith(".last"):
+            continue  # base variables only
+        var_def = registry.get(k)
         if var_def is not None and var_def.category.name not in irrelevant:
             out.append(k)
     return out

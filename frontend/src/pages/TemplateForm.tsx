@@ -391,6 +391,15 @@ export function TemplateForm() {
             liveRequested={liveRequested}
             isLive={isLivePreview}
             onToggleLive={() => setLiveRequested((v) => !v)}
+            liveCoverage={
+              isLivePreview && samplesData?.live_total != null
+                ? {
+                    populated: samplesData.live_populated ?? 0,
+                    total: samplesData.live_total,
+                    gaps: samplesData.gaps ?? [],
+                  }
+                : null
+            }
           />
         </div>
       </div>

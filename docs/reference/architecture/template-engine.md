@@ -186,6 +186,24 @@ This guarantees the EPG icon and the Dispatcharr channel logo never diverge.
 and relativizes them; v76 normalizes relative paths to a leading slash;
 `create_template`/`update_template` keep new art relative on write.
 
+## Sample Data & Live Preview
+
+The variable picker previews each `{variable}` against sample values. Two sources, with live preferred by default:
+
+**Static sample — three shapes.** Every league resolves (by sport, via `resolve_shape`) to one of three generic, **fictitious** shapes rather than a per-league profile:
+
+| Shape | Sport(s) | Sample identity |
+|-------|----------|-----------------|
+| `team` | all team sports (incl. soccer) | Greenwich Mean Time @ Flint Tropics |
+| `combat` | boxing, MMA | Little Mac vs Super Macho Man (WVBA) |
+| `racing` | motorsport | Ricky Bobby / Lightning McQueen (Piston Cup) |
+
+Each shape is a kitchen-sink: every variable that applies to it is filled (the `team` shape carries both pro *and* college fields so either template type previews fully). Identities are invented on purpose, so a sample never looks like a real (and likely wrong-league) event — a regression test guards against any real franchise/RSN leaking in.
+
+**Live preview.** When live is on, the picker fetches a real recent/upcoming event (`get_sample_event`, provider-aware, cached) and shows its actual values. A variable the real event can't fill is **surfaced as a gap** — left empty and counted — rather than masked with the fictitious sample, so users don't get a false sense of availability. Gaps are scoped to **categories relevant to the event's shape** (a basketball preview doesn't flag empty combat/racing variables), and the picker shows live coverage (`live_populated`/`live_total`). Any failure (no event, provider down) falls back silently to the static sample.
+
+See `GET /variables/samples` (`live`, `gaps`, `live_populated`, `live_total`).
+
 ## File Locations
 
 | File | Purpose |
