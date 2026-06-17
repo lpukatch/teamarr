@@ -4188,6 +4188,359 @@ _seed_league_abbrev_samples()
 
 
 # --------------------------------------------------------------------------
+# SHAPES — generic, FICTITIOUS sample identities (epic gruy .1/.2)
+#
+# Instead of previewing against a real league's identity (which looks wrong
+# whenever the league guess is off), every league resolves to one of three
+# generic *shapes* — "team", "combat", "racing" — each populated with funny,
+# obviously-fake placeholder identities. A shape borrows all sport-agnostic
+# values (dates, broadcast timeslots, generic flags, odds, statistics) from a
+# base profile (NBA / UFC / F1) and overrides every variable that would
+# otherwise read as a real league/sport identity.
+#
+# The shape data here LAYERS on top of the legacy 18 profiles, which are left
+# intact for now (their removal is gruy.7). Direct profile names ("NBA", ...)
+# still resolve exactly as before.
+# --------------------------------------------------------------------------
+
+# Each shape borrows non-identity values (dates/broadcast/flags) from this base.
+_SHAPE_TO_BASE: dict[str, str] = {"team": "NBA", "combat": "UFC", "racing": "F1"}
+_SHAPES = frozenset(_SHAPE_TO_BASE)
+
+
+def resolve_shape(sport: str | None) -> str:
+    """Map a league's sport onto one of the three generic sample shapes."""
+    s = (sport or "").lower()
+    if s in {"boxing", "mma"}:
+        return "combat"
+    if s == "racing":
+        return "racing"
+    return "team"
+
+
+# Fictitious, in-theme identity/score/standings/venue overrides per shape.
+# Anything NOT listed here falls through to the shape's base profile (so generic
+# categories stay realistic). The team shape deliberately carries BOTH pro-style
+# fields (conference/division) AND college-style fields (AP rank/ranking) so pro
+# and college templates both preview fully — no single real league has both.
+_SHAPE_OVERRIDES: dict[str, dict[str, str]] = {
+    # ===================== TEAM (base NBA) =====================
+    "team": {
+        # --- focus team / opponent identity ---
+        "team_name": "Sample City Sasquatches",
+        "team_short": "Sasquatches",
+        "team_abbrev": "SAS",
+        "team_abbrev_lower": "sas",
+        "team_name_pascal": "SampleCitySasquatches",
+        "opponent": "Mockingham Yetis",
+        "opponent.next": "Bigfoot Borough Chupacabras",
+        "opponent.last": "Loch Ness Navigators",
+        "opponent_short": "Yetis",
+        "opponent_short.next": "Chupacabras",
+        "opponent_short.last": "Navigators",
+        "opponent_abbrev": "YET",
+        "opponent_abbrev.next": "CHU",
+        "opponent_abbrev.last": "NAV",
+        "opponent_abbrev_lower": "yet",
+        "opponent_abbrev_lower.next": "chu",
+        "opponent_abbrev_lower.last": "nav",
+        "matchup": "Mockingham Yetis @ Sample City Sasquatches",
+        "matchup.next": "Sample City Sasquatches @ Bigfoot Borough Chupacabras",
+        "matchup.last": "Sample City Sasquatches @ Loch Ness Navigators",
+        "matchup_abbrev": "YET @ SAS",
+        "matchup_abbrev.next": "SAS @ CHU",
+        "matchup_abbrev.last": "SAS @ NAV",
+        "matchup_short": "Yetis @ Sasquatches",
+        "matchup_short.next": "Sasquatches @ Chupacabras",
+        "matchup_short.last": "Sasquatches @ Navigators",
+        # --- league / sport identity ---
+        "league": "Placeholder Premier League",
+        "league_name": "Placeholder Premier League",
+        "league_code": "ppl",
+        "league_id": "ppl",
+        "sport": "Placeholderball",
+        "sport_lower": "placeholderball",
+        "gracenote_category": "Placeholder Premier League",
+        # --- home / away identity ---
+        "home_team": "Sample City Sasquatches",
+        "home_team.next": "Bigfoot Borough Chupacabras",
+        "home_team.last": "Loch Ness Navigators",
+        "home_team_short": "Sasquatches",
+        "home_team_short.next": "Chupacabras",
+        "home_team_short.last": "Navigators",
+        "home_team_abbrev": "SAS",
+        "home_team_abbrev.next": "CHU",
+        "home_team_abbrev.last": "NAV",
+        "home_team_abbrev_lower": "sas",
+        "home_team_abbrev_lower.next": "chu",
+        "home_team_abbrev_lower.last": "nav",
+        "home_team_pascal": "SampleCitySasquatches",
+        "home_team_pascal.next": "BigfootBoroughChupacabras",
+        "home_team_pascal.last": "LochNessNavigators",
+        "away_team": "Mockingham Yetis",
+        "away_team.next": "Sample City Sasquatches",
+        "away_team.last": "Sample City Sasquatches",
+        "away_team_short": "Yetis",
+        "away_team_short.next": "Sasquatches",
+        "away_team_short.last": "Sasquatches",
+        "away_team_abbrev": "YET",
+        "away_team_abbrev.next": "SAS",
+        "away_team_abbrev.last": "SAS",
+        "away_team_abbrev_lower": "yet",
+        "away_team_abbrev_lower.next": "sas",
+        "away_team_abbrev_lower.last": "sas",
+        "away_team_pascal": "MockinghamYetis",
+        "away_team_pascal.next": "SampleCitySasquatches",
+        "away_team_pascal.last": "SampleCitySasquatches",
+        "feed_team": "Sample City Sasquatches",
+        "feed_team_short": "Sasquatches",
+        "feed_team_abbrev": "SAS",
+        "feed_team_abbrev_lower": "sas",
+        "broadcast_feed_team": "Sample City Sasquatches",
+        # --- venue ---
+        "venue": "The Placeholder Dome",
+        "venue.next": "Cryptid Coliseum",
+        "venue.last": "Folklore Field",
+        "venue_city": "Sample City",
+        "venue_city.next": "Bigfoot Borough",
+        "venue_city.last": "Loch Ness",
+        "venue_state": "ZZ",
+        "venue_state.next": "ZZ",
+        "venue_state.last": "ZZ",
+        "venue_full": "The Placeholder Dome, Sample City, ZZ",
+        "venue_full.next": "Cryptid Coliseum, Bigfoot Borough, ZZ",
+        "venue_full.last": "Folklore Field, Loch Ness, ZZ",
+        # --- scores / outcome ---
+        "team_score": "3",
+        "team_score.last": "3",
+        "opponent_score": "1",
+        "opponent_score.last": "1",
+        "home_team_score": "3",
+        "home_team_score.last": "3",
+        "away_team_score": "1",
+        "away_team_score.last": "1",
+        "score": "3-1",
+        "score.last": "3-1",
+        "final_score": "3-1",
+        "final_score.last": "3-1",
+        "winner": "Sample City Sasquatches",
+        "winner.last": "Sample City Sasquatches",
+        "winner_abbrev": "SAS",
+        "winner_abbrev.last": "SAS",
+        "loser": "Mockingham Yetis",
+        "loser.last": "Mockingham Yetis",
+        "loser_abbrev": "YET",
+        "loser_abbrev.last": "YET",
+        "event_result": "Sample City Sasquatches 3 - Mockingham Yetis 1",
+        "event_result.last": "Sample City Sasquatches 3 - Mockingham Yetis 1",
+        "event_result_abbrev": "SAS 3 - YET 1",
+        "event_result_abbrev.last": "SAS 3 - YET 1",
+        # --- records ---
+        "team_record": "10-2",
+        "team_wins": "10",
+        "team_losses": "2",
+        "opponent_record": "8-4",
+        "opponent_record.next": "9-3",
+        "opponent_record.last": "7-5",
+        "opponent_wins": "8",
+        "opponent_losses": "4",
+        "home_record": "6-0",
+        "away_record": "4-2",
+        "home_team_record": "10-2",
+        "home_team_record.next": "9-3",
+        "home_team_record.last": "7-5",
+        "away_team_record": "8-4",
+        "away_team_record.next": "10-2",
+        "away_team_record.last": "10-2",
+        "home_team_seed": "1",
+        "home_team_seed.next": "3",
+        "home_team_seed.last": "5",
+        "away_team_seed": "2",
+        "away_team_seed.next": "1",
+        "away_team_seed.last": "1",
+        # --- streaks ---
+        "streak": "W3",
+        "win_streak": "3",
+        "home_team_streak": "W3",
+        "home_team_streak.next": "W4",
+        "home_team_streak.last": "W2",
+        "away_team_streak": "L1",
+        "away_team_streak.next": "W3",
+        "away_team_streak.last": "W3",
+        "opponent_streak": "L1",
+        "opponent_streak.next": "W2",
+        "opponent_streak.last": "W1",
+        # --- standings ---
+        "playoff_seed": "1",
+        "opponent_playoff_seed": "2",
+        "opponent_playoff_seed.next": "1",
+        "opponent_playoff_seed.last": "3",
+        # --- conference / division (pro-style) ---
+        "pro_conference": "Cryptid Conference",
+        "pro_conference_abbrev": "Cryptid",
+        "pro_division": "Folklore Division",
+        "college_conference": "Tall Tales Conference",
+        "college_conference_abbrev": "TTC",
+        "opponent_pro_conference": "Cryptid Conference",
+        "opponent_pro_conference.next": "Cryptid Conference",
+        "opponent_pro_conference.last": "Cryptid Conference",
+        "opponent_pro_conference_abbrev": "Cryptid",
+        "opponent_pro_conference_abbrev.next": "Cryptid",
+        "opponent_pro_conference_abbrev.last": "Cryptid",
+        "opponent_pro_division": "Folklore Division",
+        "opponent_pro_division.next": "Folklore Division",
+        "opponent_pro_division.last": "Folklore Division",
+        "opponent_college_conference": "Tall Tales Conference",
+        "opponent_college_conference_abbrev": "TTC",
+        "home_team_pro_conference": "Cryptid Conference",
+        "home_team_pro_conference.next": "Cryptid Conference",
+        "home_team_pro_conference.last": "Cryptid Conference",
+        "home_team_pro_conference_abbrev": "Cryptid",
+        "home_team_pro_conference_abbrev.next": "Cryptid",
+        "home_team_pro_conference_abbrev.last": "Cryptid",
+        "home_team_pro_division": "Folklore Division",
+        "home_team_pro_division.next": "Folklore Division",
+        "home_team_pro_division.last": "Folklore Division",
+        "home_team_college_conference": "Tall Tales Conference",
+        "home_team_college_conference_abbrev": "TTC",
+        "away_team_pro_conference": "Cryptid Conference",
+        "away_team_pro_conference.next": "Cryptid Conference",
+        "away_team_pro_conference.last": "Cryptid Conference",
+        "away_team_pro_conference_abbrev": "Cryptid",
+        "away_team_pro_conference_abbrev.next": "Cryptid",
+        "away_team_pro_conference_abbrev.last": "Cryptid",
+        "away_team_pro_division": "Folklore Division",
+        "away_team_pro_division.next": "Folklore Division",
+        "away_team_pro_division.last": "Folklore Division",
+        "away_team_college_conference": "Tall Tales Conference",
+        "away_team_college_conference_abbrev": "TTC",
+        # --- rankings (college/AP-style, so college templates render) ---
+        "team_rank": "7",
+        "team_rank_display": "#7",
+        "is_ranked": "true",
+        "opponent_rank": "14",
+        "opponent_rank_display": "#14",
+        "opponent_is_ranked": "true",
+        "is_ranked_matchup": "true",
+        "home_team_rank": "7",
+        "home_team_rank.next": "5",
+        "home_team_rank.last": "9",
+        "away_team_rank": "14",
+        "away_team_rank.next": "7",
+        "away_team_rank.last": "7",
+        # --- odds (de-NBA the spread/details so no DET sneaks in) ---
+        "odds_details": "SAS -3.5, O/U 210.5",
+        "odds_details.next": "SAS -1.5, O/U 214.5",
+    },
+    # ===================== COMBAT (base UFC) =====================
+    "combat": {
+        "fighter1": "Knuckles McTestface",
+        "fighter2": "Dummy Von Punchington",
+        "fighter1_record": "12-0-0",
+        "fighter2_record": "9-3-0",
+        "event_title": "Sample Fight Night 1",
+        "event_number": "1",
+        "matchup": "Knuckles McTestface vs Dummy Von Punchington",
+        "matchup.next": "Brawler O'Placeholder vs Mock Tyson",
+        "matchup.last": "Knuckles McTestface vs Sandbag Sanchez",
+        "weight_class": "Cruiserweight (Sample)",
+        "weight_class_short": "CW",
+        "fight_result": "Decision (Unanimous)",
+        "fight_result_short": "UD",
+        "fight_summary": "Decision (Unanimous) R3 5:00",
+        "finish_round": "3",
+        "finish_time": "5:00",
+        "finish_info": "R3 5:00",
+        "judge_scores": "30-27, 30-27, 29-28",
+        "fight_card": (
+            "Knuckles McTestface vs Dummy Von Punchington\n"
+            "Brawler O'Placeholder vs Mock Tyson\n"
+            "Sandbag Sanchez vs Filler Ferreira"
+        ),
+        "main_card_bouts": (
+            "Knuckles McTestface vs Dummy Von Punchington\n"
+            "Brawler O'Placeholder vs Mock Tyson"
+        ),
+        "prelims_bouts": (
+            "Sandbag Sanchez vs Filler Ferreira\n"
+            "Stub McGee vs Lorem Ipsum"
+        ),
+        "early_prelims_bouts": (
+            "Test Subject A vs Test Subject B\n"
+            "Placeholder Pete vs Mockingbird Malone"
+        ),
+        "bout_count": "12",
+        "league": "Sample Fighting Championship",
+        "league_name": "Sample Fighting Championship",
+        "league_code": "sfc",
+        "league_id": "sfc",
+        "sport": "Combat Sports (Sample)",
+        "sport_lower": "combat sports (sample)",
+        "gracenote_category": "Sample Fighting Championship",
+        "venue": "The Testing Octagon",
+        "venue_city": "Sample City",
+        "venue_state": "ZZ",
+        "venue_full": "The Testing Octagon, Sample City, ZZ",
+        "exception_keyword": "PPV",
+    },
+    # ===================== RACING (base F1) =====================
+    "racing": {
+        "race_name": "Placeholder Grand Prix",
+        "race_winner": "Speedy McTestface",
+        "pole_position": "Speedy McTestface",
+        "pole_team": "Team Placeholder Racing",
+        "podium": "1. Speedy McTestface, 2. Lance Placeholder, 3. Dusty Mockwell",
+        "podium_2": "Lance Placeholder",
+        "podium_3": "Dusty Mockwell",
+        "fastest_lap_driver": "Speedy McTestface",
+        "circuit_name": "Mock Raceway",
+        "session_name": "Qualifying",
+        "session_type": "qualifying",
+        "next_session_name": "Race",
+        "grid": (
+            "1. Speedy McTestface (Team Placeholder)\n"
+            "2. Lance Placeholder (Mock Motors)\n"
+            "3. Dusty Mockwell (Sample Speed)"
+        ),
+        "results": (
+            "1. Speedy McTestface (Team Placeholder)\n"
+            "2. Lance Placeholder (Mock Motors)\n"
+            "3. Dusty Mockwell (Sample Speed)"
+        ),
+        "league": "Placeholder Grand Prix",
+        "league_name": "Placeholder Grand Prix Series",
+        "league_code": "pgp",
+        "league_id": "pgp",
+        "sport": "Motorsport (Sample)",
+        "sport_lower": "motorsport (sample)",
+        "gracenote_category": "Placeholder Grand Prix",
+        "venue": "Mock Raceway",
+        "venue_city": "Sample City",
+        "venue_state": "ZZ",
+        "venue_full": "Mock Raceway, Sample City, ZZ",
+        "exception_keyword": "4K",
+    },
+}
+
+
+def _seed_shape_league_abbrevs() -> None:
+    """Derive each shape's ``league_abbrev`` from its ``league`` override.
+
+    Mirrors the live extractor's construction rule (e.g. "Placeholder Premier
+    League" -> "PPL"), keeping the shape preview consistent with real output.
+    """
+    from teamarr.templates.variables.identity import construct_league_abbrev
+
+    for overrides in _SHAPE_OVERRIDES.values():
+        league = overrides.get("league")
+        if league:
+            overrides.setdefault("league_abbrev", construct_league_abbrev(league))
+
+
+_seed_shape_league_abbrevs()
+
+
+# --------------------------------------------------------------------------
 # League -> profile resolution, driven by the league's own record (sport +
 # provider + code) rather than a hardcoded list of league codes. Every league
 # in the `leagues` table carries a `sport` and `provider`; the route looks the
@@ -4334,14 +4687,22 @@ def _profile_from_code(league_code: str) -> str:
 def resolve_profile_for_league(
     league_code: str, sport: str | None = None, provider: str | None = None
 ) -> str:
-    """Resolve the sample profile a league should preview against.
+    """Resolve the sample SHAPE a league should preview against.
 
-    When the league's sport/provider are known (from get_league), resolve from
-    those. Otherwise fall back to the name heuristic.
+    Every league previews against one of three generic, fictitious shapes
+    ("team" / "combat" / "racing"), keyed off its sport. When the sport is
+    unknown (no DB record), the name heuristic still resolves to a shape via the
+    underlying sport guess, defaulting to "team".
     """
     if sport:
-        return resolve_profile(sport, provider, league_code)
-    return _profile_from_code(league_code)
+        return resolve_shape(sport)
+    # Name-heuristic fallback: derive the sport, then the shape (defaults team).
+    from teamarr.utilities.sports import get_sport_from_league
+
+    guessed = _HEURISTIC_SPORT_TO_LEAGUE_SPORT.get(
+        get_sport_from_league(league_code), ""
+    )
+    return resolve_shape(guessed)
 
 
 # --------------------------------------------------------------------------
@@ -4449,10 +4810,37 @@ def _category_default(category_name: str, full_name: str) -> str:
     return defaults.get(category_name, "Sample")
 
 
+def _shape_override(shape: str, full_name: str) -> str | None:
+    """Funny per-shape override for a variable, or None if not overridden.
+
+    Tries the exact name then the suffix-stripped base name, so a single base
+    override (e.g. ``team_record``) covers ``.next``/``.last`` unless those are
+    overridden explicitly.
+    """
+    overrides = _SHAPE_OVERRIDES.get(shape, {})
+    base = full_name.replace(".next", "").replace(".last", "")
+    for name in (full_name, base):
+        if name in overrides:
+            return overrides[name]
+    return None
+
+
 def _resolve_one(var_def, full_name: str, profile: str) -> str:
-    """Resolve a single variable for a profile via the precedence chain."""
+    """Resolve a single variable for a profile/shape via the precedence chain.
+
+    For the three generic shapes, funny shape overrides win first; everything
+    else borrows from the shape's base profile (NBA/UFC/F1) so sport-agnostic
+    values (dates, broadcast, flags) stay realistic.
+    """
     category_name = var_def.category.name
     generic_ok = category_name in _GENERIC_FALLBACK_CATEGORIES
+
+    if profile in _SHAPES:
+        override = _shape_override(profile, full_name)
+        if override is not None:
+            return override
+        # Borrow non-identity values from the shape's base profile.
+        profile = _SHAPE_TO_BASE[profile]
 
     curated = _curated_value(full_name, profile, generic_ok)
     if curated is not None:
@@ -4477,6 +4865,11 @@ def get_sample_value(var_name: str, sport: str) -> str:
         return _resolve_one(var_def, var_name, sport)
 
     # Not a registered variable - fall back to raw curated lookup.
+    if sport in _SHAPES:
+        override = _shape_override(sport, var_name)
+        if override is not None:
+            return override
+        sport = _SHAPE_TO_BASE[sport]
     value = _curated_value(var_name, sport, generic_ok=True)
     return value if value is not None else ""
 
@@ -4503,9 +4896,16 @@ def get_all_sample_data(sport: str) -> dict[str, str]:
             result[full_name] = _resolve_one(var_def, full_name, sport)
 
     # Include any curated keys not backed by a registered variable (defensive).
+    lookup = _SHAPE_TO_BASE.get(sport, sport)
     for name, sport_data in SAMPLE_DATA.items():
         if name not in result and sport_data:
-            result[name] = sport_data.get(sport) or next(iter(sport_data.values()))
+            override = _shape_override(sport, name) if sport in _SHAPES else None
+            if override is not None:
+                result[name] = override
+            else:
+                result[name] = sport_data.get(lookup) or next(
+                    iter(sport_data.values())
+                )
 
     # Post-process time-related variables to honor user settings
     result = _format_time_samples(result)
@@ -4524,7 +4924,9 @@ def get_all_sample_data_for_league(
     """
     profile = resolve_profile_for_league(league_code, sport, provider)
     data = get_all_sample_data(profile)
-    data.update(LEAGUE_SAMPLE_OVERRIDES.get(league_code, {}))
+    # NOTE: LEAGUE_SAMPLE_OVERRIDES is intentionally NOT applied — shapes use
+    # fictitious identities by design (epic gruy), so a preview never looks like
+    # a real (and likely wrong-league) game. The dict is retained for gruy.7.
     return data
 
 
