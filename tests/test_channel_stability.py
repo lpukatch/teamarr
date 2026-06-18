@@ -126,6 +126,34 @@ def test_gap_locked_channels_never_move_on_sticky(db):
     assert _numbers(db) == {"A": 101, "B": 104}
 
 
+def test_gap_initial_placement_leaves_gaps(db):
+    # All-new channels (nothing locked yet) must space out on the grid so late
+    # events have room to slot in — not pack contiguously.
+    _set_mode(db, "gap", gap=3)
+    _add(db, 1, "A", "500", 0, "2026-06-18 10:00:00", "e1")
+    _add(db, 2, "B", "501", 0, "2026-06-18 12:00:00", "e2")
+    _add(db, 3, "C", "502", 0, "2026-06-18 14:00:00", "e3")
+    db.commit()
+
+    cn.reassign_all_channels(db)
+    assert _numbers(db) == {"A": 101, "B": 104, "C": 107}
+
+
+def test_gap_invalidated_lock_is_replaced(db):
+    # A locked channel whose number fell outside the range (e.g. range was
+    # shrunk) is re-gridded on the next sticky run, not stranded until reset.
+    db.execute("UPDATE settings SET channel_range_end = 110")
+    _set_mode(db, "gap", gap=3)
+    _add(db, 1, "A", "101", 1, "2026-06-18 10:00:00", "e1")
+    _add(db, 2, "OUT", "9999", 1, "2026-06-18 12:00:00", "e2")  # out of range
+    db.commit()
+
+    cn.reassign_all_channels(db)
+    nums = _numbers(db)
+    assert nums["A"] == 101  # valid anchor, untouched
+    assert 101 < nums["OUT"] <= 110  # pulled back into range
+
+
 # ---------------------------------------------------------------------------
 # strict mode
 # ---------------------------------------------------------------------------

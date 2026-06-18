@@ -52,6 +52,9 @@ To stop gaps accumulating and to restore priority order, a full re-grid runs onc
 | **Reset Time** | Local time of the low-traffic window for the re-layout (default `04:00`). |
 
 {: .note }
+Reset Time is the **server's** local time. In Docker this is usually UTC unless you set the container `TZ` — pick the value accordingly.
+
+{: .note }
 Number Stability applies to **Auto** mode. Manual mode uses its own per-league sequential numbering.
 
 ## Per-League Starting Channels (Manual Mode)

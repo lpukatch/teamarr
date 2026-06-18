@@ -312,7 +312,8 @@ export function ChannelNumbering() {
                       <p className="text-xs text-muted-foreground">
                         The first generation at or after this time re-grids every
                         channel — the only moment existing numbers change. Pick a
-                        low-traffic window.
+                        low-traffic window. Uses the server's local time (usually
+                        UTC in Docker unless the container TZ is set).
                       </p>
                     </div>
                   )}

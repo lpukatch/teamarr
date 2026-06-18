@@ -566,23 +566,39 @@ def _reassign_sticky(
     channels the first time the mode is active) are assigned a number and locked:
 
     - gap:    the lowest free number in the channel's sorted neighbourhood
-              (between the surrounding locked anchors); reuses freed slots. Falls
-              back to appending at the end of the range when the neighbourhood is full.
+              (between the surrounding locked anchors), preferring on-grid slots
+              spaced by gap_size so room is left for late events; reuses freed
+              slots. Falls back to appending past the frontier when full.
     - strict: appended to the end of the used range, so nothing existing is displaced.
+
+    A locked channel whose number now collides with an external channel or has
+    fallen outside the configured range is treated as unplaced and re-gridded on
+    this run (rather than waiting for the daily reset to clear the conflict).
     """
     range_start, range_end = get_global_channel_range(conn)
     effective_end = range_end if range_end else MAX_CHANNEL
+    step = gap_size if (mode == "gap" and gap_size > 0) else 1
 
     sorted_channels = get_all_channels_sorted(conn)
     if not sorted_channels:
         return {"channels_processed": 0, "channels_moved": 0, "drift_details": []}
 
-    # Locked anchors (and external channels) occupy their numbers permanently here.
-    used: set[int] = set(ext)
-    for ch in sorted_channels:
+    def is_anchor(ch) -> bool:
+        """A locked channel still acts as a fixed anchor only while its number is
+        valid — within range and not clashing with an external channel."""
         num = _channel_num_as_int(ch["channel_number"])
-        if ch.get("channel_number_locked") and num is not None:
+        if not (ch.get("channel_number_locked") and num is not None):
+            return False
+        return num not in ext and range_start <= num <= effective_end
+
+    # Locked anchors occupy their numbers permanently here; external channels too.
+    used: set[int] = set(ext)
+    locked_teamarr: set[int] = set()
+    for ch in sorted_channels:
+        if is_anchor(ch):
+            num = _channel_num_as_int(ch["channel_number"])
             used.add(num)
+            locked_teamarr.add(num)
 
     # For gap mode: the next locked anchor's number after each index bounds insertion.
     n = len(sorted_channels)
@@ -590,17 +606,38 @@ def _reassign_sticky(
     upcoming: int | None = None
     for i in range(n - 1, -1, -1):
         next_anchor[i] = upcoming
-        ch = sorted_channels[i]
-        num = _channel_num_as_int(ch["channel_number"])
-        if ch.get("channel_number_locked") and num is not None:
-            upcoming = num
+        if is_anchor(sorted_channels[i]):
+            upcoming = _channel_num_as_int(sorted_channels[i]["channel_number"])
 
-    def append_to_end() -> int:
-        base = max(used) if used else (range_start - 1)
-        candidate = max(base + 1, range_start)
+    def first_grid_at_or_after(x: int) -> int:
+        """Lowest grid slot (range_start + k*step) that is >= x."""
+        if x <= range_start:
+            return range_start
+        k = (x - range_start + step - 1) // step  # ceil division
+        return range_start + k * step
+
+    def append_to_end(on_grid: bool) -> int:
+        base = max(locked_teamarr) if locked_teamarr else (range_start - 1)
+        candidate = first_grid_at_or_after(max(base + 1, range_start)) if on_grid \
+            else max(base + 1, range_start)
+        while candidate in used:
+            candidate += step if on_grid else 1
+        return candidate
+
+    def place_gap(lo: int, hi: int) -> int | None:
+        """Lowest free slot in (lo, hi) for gap mode: prefer an on-grid slot
+        (leaving room), else reuse the lowest free in-between (fragmentation) slot."""
+        grid = first_grid_at_or_after(lo + 1)
+        while grid in used:
+            grid += step
+        if grid < hi and grid <= effective_end:
+            return grid
+        candidate = lo + 1
         while candidate in used:
             candidate += 1
-        return candidate
+        if candidate < hi and candidate <= effective_end:
+            return candidate
+        return None
 
     drift_details: list[dict] = []
     channels_moved = 0
@@ -609,22 +646,18 @@ def _reassign_sticky(
     for i, ch in enumerate(sorted_channels):
         cur = _channel_num_as_int(ch["channel_number"])
 
-        if ch.get("channel_number_locked") and cur is not None:
+        if is_anchor(ch):
             lo = cur
             continue
 
-        # Place this unlocked channel.
+        # Place this unlocked (or invalidated) channel.
         if mode == "strict":
-            target = append_to_end()
+            target = append_to_end(on_grid=False)
         else:  # gap
             hi = next_anchor[i] if next_anchor[i] is not None else (effective_end + 1)
-            candidate = lo + 1
-            while candidate in used:
-                candidate += 1
-            if candidate < hi and candidate <= effective_end:
-                target = candidate
-            else:
-                target = append_to_end()
+            target = place_gap(lo, hi)
+            if target is None:
+                target = append_to_end(on_grid=True)
 
         if target > effective_end:
             logger.warning(
