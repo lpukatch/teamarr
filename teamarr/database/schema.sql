@@ -986,7 +986,8 @@ INSERT OR REPLACE INTO leagues (league_code, provider, provider_league_id, provi
     ('rookie', 'mlbstats', '16', NULL, 'Rookie', 'baseball', 'https://images.ctfassets.net/iiozhi00a8lc/7eeTdW5zGYe0sW2ZlIle7E/990464d4b5e4e3b3a65cb6c56ce808ea/milb-alt.svg', NULL, 1, 'Rookie', 'rookie', 'team_vs_team', 'MiLB Baseball', NULL, NULL, NULL, 1),
     ('college-baseball', 'espn', 'baseball/college-baseball', NULL, 'NCAA Baseball', 'baseball', 'https://www.ncaa.com/modules/custom/casablanca_core/img/sportbanners/baseball.png', NULL, 1, NULL, 'ncaabb', 'team_vs_team', 'College Baseball', NULL, NULL, NULL, 1),
     ('college-softball', 'espn', 'baseball/college-softball', NULL, 'NCAA Softball', 'softball', 'https://www.ncaa.com/modules/custom/casablanca_core/img/sportbanners/softball.png', NULL, 1, NULL, 'ncaasbw', 'team_vs_team', 'College Softball', NULL, NULL, NULL, 1),
-    ('world-baseball-classic', 'espn', 'baseball/world-baseball-classic', NULL, 'World Baseball Classic', 'baseball', 'https://a.espncdn.com/i/teamlogos/leagues/500/3454.png', NULL, 1, 'WBC', 'wbc', 'team_vs_team', 'World Baseball Classic', NULL, NULL, NULL, 1),
+    -- ESPN serves no dedicated WBC league logo (only a generic baseball icon), so hardcode the Wikimedia Commons mark.
+    ('world-baseball-classic', 'espn', 'baseball/world-baseball-classic', NULL, 'World Baseball Classic', 'baseball', 'https://upload.wikimedia.org/wikipedia/commons/thumb/3/36/World_Baseball_Classic_logo.svg/500px-World_Baseball_Classic_logo.svg.png', NULL, 1, 'WBC', 'wbc', 'team_vs_team', 'World Baseball Classic', NULL, NULL, NULL, 1),
     ('cbl', 'supabase', 'https://cbl.ca', NULL, 'Canadian Baseball League', 'baseball', 'https://upload.wikimedia.org/wikipedia/en/thumb/1/1e/Canadian_Baseball_League.svg/1280px-Canadian_Baseball_League.svg.png', NULL, 1, 'CBL', 'cbl', 'team_vs_team', NULL, NULL, NULL, NULL, 1),
 
     -- Soccer (ESPN)
