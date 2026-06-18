@@ -114,7 +114,7 @@ def get_channel_stability_settings(conn: Connection) -> dict:
     """
     defaults = {
         "mode": "compact",
-        "gap_size": 1,
+        "gap_size": 3,
         "reset_enabled": True,
         "reset_time": "04:00",
         "last_reset_at": None,
@@ -138,9 +138,9 @@ def get_channel_stability_settings(conn: Connection) -> dict:
         mode = "compact"
 
     try:
-        gap = int(row["channel_gap_size"]) if row["channel_gap_size"] else 1
+        gap = int(row["channel_gap_size"]) if row["channel_gap_size"] else 3
     except (ValueError, TypeError):
-        gap = 1
+        gap = 3
     gap = max(1, gap)
 
     reset_enabled = row["channel_daily_reset_enabled"]

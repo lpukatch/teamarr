@@ -401,7 +401,7 @@ CREATE TABLE IF NOT EXISTS settings (
     -- first generation at/after channel_daily_reset_time each day, if channel_daily_reset_enabled.
     channel_stability_mode TEXT DEFAULT 'compact'
         CHECK(channel_stability_mode IN ('compact', 'gap', 'strict')),
-    channel_gap_size INTEGER DEFAULT 1,                 -- Spacing between channels in 'gap' mode (1 = none)
+    channel_gap_size INTEGER DEFAULT 3,                 -- Spacing between channels in 'gap' mode (1 = none)
     channel_daily_reset_enabled BOOLEAN DEFAULT 1,      -- Run the periodic full re-layout (gap/strict only)
     channel_daily_reset_time TEXT DEFAULT '04:00',      -- Local HH:MM low-traffic window for the reset
     last_channel_reset_at TEXT,                          -- Internal: timestamp of last full reset

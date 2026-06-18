@@ -563,7 +563,7 @@ def update_channel_numbering_settings(
                 "SELECT channel_stability_mode, channel_gap_size FROM settings WHERE id = 1"
             ).fetchone()
             cur_mode = (cur["channel_stability_mode"] if cur else None) or "compact"
-            cur_gap = int((cur["channel_gap_size"] if cur else None) or 1)
+            cur_gap = int((cur["channel_gap_size"] if cur else None) or 3)
             new_mode = channel_stability_mode or cur_mode
             gap_changed = (
                 channel_gap_size is not None and int(channel_gap_size) != cur_gap

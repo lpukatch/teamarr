@@ -521,7 +521,7 @@ def _build_channel_numbering_settings(row) -> ChannelNumberingSettings:
         league_channel_starts=league_starts,
         global_consolidation_mode=row["global_consolidation_mode"] or "consolidate",
         channel_stability_mode=_get("channel_stability_mode", None) or "compact",
-        channel_gap_size=_get("channel_gap_size", None) or 1,
+        channel_gap_size=_get("channel_gap_size", None) or 3,
         channel_daily_reset_enabled=True if reset_enabled is None else bool(reset_enabled),
         channel_daily_reset_time=_get("channel_daily_reset_time", None) or "04:00",
         force_channel_relayout_pending=bool(_get("force_channel_relayout_pending", 0)),

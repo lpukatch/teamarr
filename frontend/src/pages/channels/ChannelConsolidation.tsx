@@ -31,7 +31,7 @@ export function ChannelConsolidation() {
     league_channel_starts: {},
     global_consolidation_mode: "consolidate",
     channel_stability_mode: "compact",
-    channel_gap_size: 1,
+    channel_gap_size: 3,
     channel_daily_reset_enabled: true,
     channel_daily_reset_time: "04:00",
     force_channel_relayout_pending: false,
