@@ -106,7 +106,8 @@ class ESPNProvider(UFCParserMixin, TournamentParserMixin, SportsProvider):
         Resolution chain:
         1. leagues table mapping (authoritative)
         2. league_cache sport (discovered leagues)
-        3. 'unknown' fallback
+        3. dot-notation inference (ESPN soccer slugs, e.g. 'bra.carioca.groupa')
+        4. 'unknown' fallback
         """
         display = self._get_display_sport(league)
         sport = display.lower() if display else "unknown"
@@ -115,6 +116,11 @@ class ESPNProvider(UFCParserMixin, TournamentParserMixin, SportsProvider):
             cached_sport = self._league_mapping_source.get_league_sport(league)
             if cached_sport:
                 sport = cached_sport
+        # ESPN soccer leagues use dot notation (eng.1, bra.carioca.groupa); mirror
+        # the API-path inference in client._resolve_sport_league so discovered
+        # soccer leagues cache as 'soccer' instead of 'unknown'.
+        if sport == "unknown" and "." in league:
+            sport = "soccer"
         return sport
 
     def _capture_league_name(self, data: dict, league: str) -> None:
