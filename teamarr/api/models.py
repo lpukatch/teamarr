@@ -322,6 +322,28 @@ class TemplateFullResponse(TemplateResponse):
     event_channel_logo_url: str | None = None
 
 
+class TemplateValidationWarning(BaseModel):
+    """One advisory finding about a template field (mirrors the editor)."""
+
+    variable: str
+    message: str
+    type: str  # "invalid" | "suffix_not_allowed"
+
+
+class TemplateValidateRequest(BaseModel):
+    """Validate arbitrary template field strings without saving."""
+
+    template_type: str = "team"
+    fields: dict[str, str | None]
+
+
+class TemplateValidateResponse(BaseModel):
+    """Per-field advisory warnings; ``valid`` is True when none were found."""
+
+    valid: bool
+    warnings: dict[str, list[TemplateValidationWarning]]
+
+
 # =============================================================================
 # EPG
 # =============================================================================

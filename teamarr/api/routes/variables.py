@@ -160,16 +160,10 @@ def _category_display_name(category: Category) -> str:
 
 
 def _suffix_rules_display(rules: SuffixRules) -> list[str]:
-    """Get list of supported suffixes for a variable."""
-    if rules == SuffixRules.ALL:
-        return ["base", ".next", ".last"]
-    elif rules == SuffixRules.BASE_ONLY:
-        return ["base"]
-    elif rules == SuffixRules.BASE_NEXT_ONLY:
-        return ["base", ".next"]
-    elif rules == SuffixRules.LAST_ONLY:
-        return [".last"]
-    return ["base"]
+    """Get list of supported suffixes for a variable (shared with validation)."""
+    from teamarr.templates.validation import supported_suffixes
+
+    return supported_suffixes(rules)
 
 
 @router.get("/variables")

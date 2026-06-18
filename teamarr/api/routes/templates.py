@@ -10,12 +10,40 @@ from teamarr.api.models import (
     TemplateFullResponse,
     TemplateResponse,
     TemplateUpdate,
+    TemplateValidateRequest,
+    TemplateValidateResponse,
 )
 from teamarr.database import get_db
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
+
+# Flat string fields that accept template variables. Used to log advisory
+# validation warnings on write so programmatic saves (API/import) surface the
+# same issues the editor shows. Nested conditional/fallback templates are
+# validated separately (see teamarrv2-3zjp.3).
+_VALIDATED_TEXT_FIELDS = (
+    "title_format",
+    "subtitle_template",
+    "description_template",
+    "program_art_url",
+    "event_channel_name",
+    "event_channel_logo_url",
+)
+
+
+def _log_validation_warnings(template_type: str | None, data: dict) -> None:
+    """Validate template text fields and log any warnings (non-blocking)."""
+    from teamarr.templates.validation import validate_fields
+
+    fields = {k: data.get(k) for k in _VALIDATED_TEXT_FIELDS if data.get(k)}
+    if not fields:
+        return
+    results = validate_fields(fields, (template_type or "team") == "event")
+    for field, warnings in results.items():
+        for w in warnings:
+            logger.warning("[template-validation] %s: %s", field, w.message)
 
 # JSON fields that need serialization from Pydantic models to strings
 _JSON_FIELDS = {
@@ -69,6 +97,20 @@ def list_templates():
         return list_templates_with_counts(conn)
 
 
+@router.post("/templates/validate", response_model=TemplateValidateResponse)
+def validate_template(req: TemplateValidateRequest):
+    """Validate template field strings for unknown/misused variables (advisory).
+
+    Returns per-field warnings without saving. Mirrors the editor's inline checks
+    so API/import callers can catch the same issues. Never rejects — the resolver
+    keeps unknown variables literal by design.
+    """
+    from teamarr.templates.validation import validate_fields, warnings_as_dicts
+
+    results = validate_fields(req.fields, req.template_type == "event")
+    return {"valid": not results, "warnings": warnings_as_dicts(results)}
+
+
 @router.post("/templates", response_model=TemplateResponse, status_code=status.HTTP_201_CREATED)
 def create_template(template: TemplateCreate):
     """Create a new template."""
@@ -84,6 +126,8 @@ def create_template(template: TemplateCreate):
     for k, v in data.items():
         if v is not None:
             kwargs[k] = _pydantic_to_plain(k, getattr(template, k, v))
+
+    _log_validation_warnings(template_type, data)
 
     with get_db() as conn:
         try:
@@ -137,7 +181,9 @@ def update_template(template_id: int, template: TemplateUpdate):
         logger.info("[UPDATED] Template id=%d fields=%s", template_id, list(updates.keys()))
         from teamarr.database.templates import get_template_raw
 
-        return get_template_raw(conn, template_id)
+        row = get_template_raw(conn, template_id)
+        _log_validation_warnings((row or {}).get("template_type"), updates)
+        return row
 
 
 @router.delete("/templates/{template_id}", status_code=status.HTTP_204_NO_CONTENT)
