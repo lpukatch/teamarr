@@ -482,6 +482,10 @@ def update_channel_numbering_settings(
     global_channel_mode: str | None = None,
     league_channel_starts: dict | None = None,
     global_consolidation_mode: str | None = None,
+    channel_stability_mode: str | None = None,
+    channel_gap_size: int | None = None,
+    channel_daily_reset_enabled: bool | None = None,
+    channel_daily_reset_time: str | None = None,
 ) -> bool:
     """Update channel numbering and consolidation settings.
 
@@ -490,6 +494,10 @@ def update_channel_numbering_settings(
         global_channel_mode: 'auto' or 'manual'
         league_channel_starts: Dict mapping league_code → starting channel number
         global_consolidation_mode: 'consolidate' or 'separate'
+        channel_stability_mode: 'compact', 'gap', or 'strict'
+        channel_gap_size: spacing between channels in 'gap' mode (>= 1)
+        channel_daily_reset_enabled: run the periodic full re-layout
+        channel_daily_reset_time: local HH:MM reset window
 
     Returns:
         True if updated
@@ -518,6 +526,27 @@ def update_channel_numbering_settings(
             return False
         updates.append("global_consolidation_mode = ?")
         values.append(global_consolidation_mode)
+
+    if channel_stability_mode is not None:
+        if channel_stability_mode not in ("compact", "gap", "strict"):
+            logger.warning(
+                "[CHANNEL_NUM] Invalid channel_stability_mode '%s'", channel_stability_mode,
+            )
+            return False
+        updates.append("channel_stability_mode = ?")
+        values.append(channel_stability_mode)
+
+    if channel_gap_size is not None:
+        updates.append("channel_gap_size = ?")
+        values.append(max(1, int(channel_gap_size)))
+
+    if channel_daily_reset_enabled is not None:
+        updates.append("channel_daily_reset_enabled = ?")
+        values.append(1 if channel_daily_reset_enabled else 0)
+
+    if channel_daily_reset_time is not None:
+        updates.append("channel_daily_reset_time = ?")
+        values.append(channel_daily_reset_time)
 
     if not updates:
         return False

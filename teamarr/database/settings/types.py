@@ -254,6 +254,12 @@ class ChannelNumberingSettings:
     league_channel_starts: dict = field(default_factory=dict)  # {"nfl": 1001, ...}
     global_consolidation_mode: str = "consolidate"  # 'consolidate', 'separate'
 
+    # Stability (AUTO mode only): how existing numbers behave across runs.
+    channel_stability_mode: str = "compact"  # 'compact', 'gap', 'strict'
+    channel_gap_size: int = 1  # spacing between channels in 'gap' mode
+    channel_daily_reset_enabled: bool = True  # run the periodic full re-layout
+    channel_daily_reset_time: str = "04:00"  # local HH:MM reset window
+
 
 @dataclass
 class FeedSeparationSettings:

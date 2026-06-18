@@ -29,6 +29,31 @@ Both modes use a global channel range:
 {: .tip }
 Set the range start above your existing Dispatcharr channels (e.g., start at 1000 if you already use 1–500) to avoid number collisions.
 
+## Number Stability (Auto Mode)
+
+Controls whether a channel can be **renumbered while its event is live**. Dispatcharr relies on channel numbers staying put, so a game shouldn't jump numbers just because another event started or ended.
+
+| Mode | Behaviour |
+|------|-----------|
+| **Compact** | Re-sorts every channel into tidy contiguous order on every run (legacy default). A live channel's number can shift when events start or end. |
+| **Gapped (sticky)** | Channels are spaced apart by the **gap size** (e.g. 3 → 101, 104, 107). A new event slots into a free number near where it sorts (filling the gap, or reusing a slot freed by an ended event); existing channels keep their number for the whole event lifecycle. |
+| **Strict (no drift)** | Existing channels never move. A new event that would displace others is appended to the end of the range instead. Gaps left by ended events are reclaimed only at the daily reset. |
+
+In both **Gapped** and **Strict** modes, a channel's number is fixed for the life of its event. The only time existing numbers change is the **daily re-layout**.
+
+### Daily Re-Layout
+
+To stop gaps accumulating and to restore priority order, a full re-grid runs once per day. It is gated into your generation schedule: the **first generation at or after the configured reset time** re-grids every channel, then it won't run again until the next day.
+
+| Field | Description |
+|-------|-------------|
+| **Gap Size** | (Gapped mode) spacing between channels at reset. Larger gaps leave more room for late events to slot in without moving anyone. |
+| **Daily re-layout** | Toggle the periodic re-grid on/off. With it off, numbers stay sticky indefinitely and gaps are never reclaimed automatically. |
+| **Reset Time** | Local time of the low-traffic window for the re-layout (default `04:00`). |
+
+{: .note }
+Number Stability applies to **Auto** mode. Manual mode uses its own per-league sequential numbering.
+
 ## Per-League Starting Channels (Manual Mode)
 
 When Manual mode is selected, a table lists all leagues with a configurable starting channel number for each. Use the search field and the **Subscribed only** toggle to filter the list.

@@ -297,6 +297,10 @@ class ChannelNumberingSettingsModel(BaseModel):
     global_channel_mode: str = "auto"  # 'auto', 'manual'
     league_channel_starts: dict = {}  # {"nfl": 1001, "nba": 2001}
     global_consolidation_mode: str = "consolidate"  # 'consolidate', 'separate'
+    channel_stability_mode: str = "compact"  # 'compact', 'gap', 'strict'
+    channel_gap_size: int = 1
+    channel_daily_reset_enabled: bool = True
+    channel_daily_reset_time: str = "04:00"
 
 
 class ChannelNumberingSettingsUpdate(BaseModel):
@@ -305,6 +309,10 @@ class ChannelNumberingSettingsUpdate(BaseModel):
     global_channel_mode: str | None = None
     league_channel_starts: dict | None = None
     global_consolidation_mode: str | None = None
+    channel_stability_mode: str | None = None
+    channel_gap_size: int | None = None
+    channel_daily_reset_enabled: bool | None = None
+    channel_daily_reset_time: str | None = None
 
 
 # =============================================================================

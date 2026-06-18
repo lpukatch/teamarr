@@ -56,6 +56,10 @@ export function ChannelNumbering() {
     global_channel_mode: "auto",
     league_channel_starts: {},
     global_consolidation_mode: "consolidate",
+    channel_stability_mode: "compact",
+    channel_gap_size: 1,
+    channel_daily_reset_enabled: true,
+    channel_daily_reset_time: "04:00",
   })
   const [channelRangeStart, setChannelRangeStart] = useState("")
   const [channelRangeEnd, setChannelRangeEnd] = useState("")
@@ -212,6 +216,110 @@ export function ChannelNumbering() {
               </p>
             </div>
           </div>
+
+          {/* Number Stability (Auto mode only) */}
+          {channelNumbering.global_channel_mode === "auto" && (
+            <div className="space-y-3 pt-2 border-t">
+              <div>
+                <Label className="text-sm font-medium">Number Stability</Label>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Controls whether a channel can be renumbered while an event is
+                  live. Dispatcharr relies on stable numbers, so a game shouldn't
+                  move when another event starts or ends.
+                </p>
+              </div>
+              <RadioCards
+                name="channel-stability-mode"
+                value={channelNumbering.channel_stability_mode}
+                onChange={(v) =>
+                  setChannelNumbering({
+                    ...channelNumbering,
+                    channel_stability_mode: v as ChannelNumberingSettings["channel_stability_mode"],
+                  })
+                }
+                options={[
+                  {
+                    value: "compact",
+                    label: "Compact",
+                    description:
+                      "Re-sort everything into tidy contiguous order every run. A live channel's number can shift when events start or end.",
+                  },
+                  {
+                    value: "gap",
+                    label: "Gapped (sticky)",
+                    description:
+                      "Space channels apart on creation. New events fill a gap near where they sort; existing channels keep their number until the daily reset.",
+                  },
+                  {
+                    value: "strict",
+                    label: "Strict (no drift)",
+                    description:
+                      "Existing channels never move. New channels that would displace others are appended to the end; gaps are reclaimed at the daily reset.",
+                  },
+                ]}
+              />
+
+              {channelNumbering.channel_stability_mode === "gap" && (
+                <div className="space-y-2 max-w-xs">
+                  <Label htmlFor="ch-gap-size">Gap Size</Label>
+                  <Input
+                    id="ch-gap-size"
+                    type="number"
+                    min={1}
+                    value={channelNumbering.channel_gap_size}
+                    onChange={(e) =>
+                      setChannelNumbering({
+                        ...channelNumbering,
+                        channel_gap_size: Math.max(1, parseInt(e.target.value) || 1),
+                      })
+                    }
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Spacing between channels at reset (e.g. 3 → 101, 104, 107).
+                    Leaves room for late events to slot in without moving anyone.
+                  </p>
+                </div>
+              )}
+
+              {channelNumbering.channel_stability_mode !== "compact" && (
+                <div className="space-y-3">
+                  <label className="flex items-center gap-2 cursor-pointer text-sm">
+                    <Switch
+                      checked={channelNumbering.channel_daily_reset_enabled}
+                      onCheckedChange={(checked) =>
+                        setChannelNumbering({
+                          ...channelNumbering,
+                          channel_daily_reset_enabled: checked,
+                        })
+                      }
+                    />
+                    Daily re-layout (reclaim gaps &amp; restore priority order)
+                  </label>
+                  {channelNumbering.channel_daily_reset_enabled && (
+                    <div className="space-y-2 max-w-xs">
+                      <Label htmlFor="ch-reset-time">Reset Time (local)</Label>
+                      <Input
+                        id="ch-reset-time"
+                        type="time"
+                        value={channelNumbering.channel_daily_reset_time}
+                        onChange={(e) =>
+                          setChannelNumbering({
+                            ...channelNumbering,
+                            channel_daily_reset_time: e.target.value,
+                          })
+                        }
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        The first generation at or after this time re-grids every
+                        channel — the only moment existing numbers change. Pick a
+                        low-traffic window.
+                      </p>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Per-League Start Numbers (Manual mode only) */}
           {channelNumbering.global_channel_mode === "manual" && (

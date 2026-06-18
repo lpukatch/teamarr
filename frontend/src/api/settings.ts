@@ -125,16 +125,26 @@ export interface TeamFilterSettingsUpdate {
   bypass_filter_for_playoffs?: boolean
 }
 
+export type ChannelStabilityMode = "compact" | "gap" | "strict"
+
 export interface ChannelNumberingSettings {
   global_channel_mode: "auto" | "manual"
   league_channel_starts: Record<string, number>
   global_consolidation_mode: "consolidate" | "separate"
+  channel_stability_mode: ChannelStabilityMode
+  channel_gap_size: number
+  channel_daily_reset_enabled: boolean
+  channel_daily_reset_time: string
 }
 
 export interface ChannelNumberingSettingsUpdate {
   global_channel_mode?: "auto" | "manual"
   league_channel_starts?: Record<string, number>
   global_consolidation_mode?: "consolidate" | "separate"
+  channel_stability_mode?: ChannelStabilityMode
+  channel_gap_size?: number
+  channel_daily_reset_enabled?: boolean
+  channel_daily_reset_time?: string
 }
 
 export interface StreamOrderingRule {

@@ -18,6 +18,13 @@ logger = logging.getLogger(__name__)
 
 MAX_CHANNEL = 999999  # Effectively no limit per Dispatcharr update
 
+# Assign a channel its number and mark it sticky (gap/strict modes).
+_SET_NUMBER_LOCKED_SQL = (
+    "UPDATE managed_channels SET channel_number = ?, channel_number_locked = 1 WHERE id = ?"
+)
+# Lock a channel in place without changing its number.
+_LOCK_SQL = "UPDATE managed_channels SET channel_number_locked = 1 WHERE id = ?"
+
 
 # =============================================================================
 # Settings Accessors
@@ -87,6 +94,130 @@ def get_global_consolidation_mode(conn: Connection) -> str:
         return "consolidate"
     mode = row["global_consolidation_mode"]
     return mode if mode in ("consolidate", "separate") else "consolidate"
+
+
+def get_channel_stability_settings(conn: Connection) -> dict:
+    """Get channel numbering stability settings.
+
+    Stability mode governs how *existing* channel numbers behave across runs
+    (AUTO mode only — MANUAL keeps its per-league sequential behavior):
+
+    - 'compact': re-sort everyone into contiguous priority order every run (legacy).
+    - 'gap':     sticky; new channels slot into a free number in their sorted
+                 neighbourhood (gap_size spacing) or append; existing channels
+                 never move except at the daily reset.
+    - 'strict':  sticky; new channels append to the end of the used range so they
+                 never displace anyone; gaps reclaimed only at the daily reset.
+
+    Returns:
+        Dict with keys: mode, gap_size, reset_enabled, reset_time, last_reset_at
+    """
+    defaults = {
+        "mode": "compact",
+        "gap_size": 1,
+        "reset_enabled": True,
+        "reset_time": "04:00",
+        "last_reset_at": None,
+    }
+    try:
+        cursor = conn.execute(
+            """SELECT channel_stability_mode, channel_gap_size,
+                      channel_daily_reset_enabled, channel_daily_reset_time,
+                      last_channel_reset_at
+               FROM settings WHERE id = 1"""
+        )
+        row = cursor.fetchone()
+    except sqlite3.OperationalError:
+        return defaults
+
+    if not row:
+        return defaults
+
+    mode = row["channel_stability_mode"] or "compact"
+    if mode not in ("compact", "gap", "strict"):
+        mode = "compact"
+
+    try:
+        gap = int(row["channel_gap_size"]) if row["channel_gap_size"] else 1
+    except (ValueError, TypeError):
+        gap = 1
+    gap = max(1, gap)
+
+    reset_enabled = row["channel_daily_reset_enabled"]
+    reset_enabled = True if reset_enabled is None else bool(reset_enabled)
+
+    return {
+        "mode": mode,
+        "gap_size": gap,
+        "reset_enabled": reset_enabled,
+        "reset_time": row["channel_daily_reset_time"] or "04:00",
+        "last_reset_at": row["last_channel_reset_at"],
+    }
+
+
+def is_sticky_mode(conn: Connection) -> bool:
+    """True when channels should be sticky (AUTO + gap/strict stability mode).
+
+    Used to skip the mid-run reassign passes: in sticky modes the only place
+    numbers are (re)assigned is the single end-of-run pass, which also pushes to
+    Dispatcharr, so intermediate passes would write DB numbers that never sync.
+    """
+    if get_global_channel_mode(conn) == "manual":
+        return False
+    return get_channel_stability_settings(conn)["mode"] in ("gap", "strict")
+
+
+def should_run_channel_reset(conn: Connection) -> bool:
+    """Whether the daily full re-layout should run on this generation.
+
+    True only for gap/strict modes when the reset is enabled and this is the
+    first generation at/after the configured local reset time today. This is
+    how the reset "fits into generation windows" — no separate scheduler.
+    """
+    if get_global_channel_mode(conn) == "manual":
+        return False
+    settings = get_channel_stability_settings(conn)
+    if settings["mode"] == "compact" or not settings["reset_enabled"]:
+        return False
+
+    from datetime import time as _time
+
+    try:
+        hh, mm = str(settings["reset_time"]).split(":")
+        boundary_time = _time(int(hh), int(mm))
+    except (ValueError, AttributeError):
+        boundary_time = _time(4, 0)
+
+    now = datetime.now()
+    boundary = datetime.combine(now.date(), boundary_time)
+    if now < boundary:
+        return False
+
+    last = settings["last_reset_at"]
+    if not last:
+        return True
+    try:
+        last_dt = datetime.fromisoformat(last)
+    except (ValueError, TypeError):
+        return True
+    return last_dt < boundary
+
+
+def _mark_channel_reset(conn: Connection) -> None:
+    """Record that the daily full re-layout has run (resets the daily gate)."""
+    conn.execute(
+        "UPDATE settings SET last_channel_reset_at = ? WHERE id = 1",
+        (datetime.now().isoformat(),),
+    )
+
+
+def _table_has_column(conn: Connection, table: str, column: str) -> bool:
+    """Return True if `table` has `column` (defensive for un-reconciled DBs/tests)."""
+    try:
+        cols = {row[1] for row in conn.execute(f"PRAGMA table_info({table})")}
+    except sqlite3.OperationalError:
+        return False
+    return column in cols
 
 
 # =============================================================================
@@ -270,12 +401,20 @@ def get_all_channels_sorted(conn: Connection) -> list[dict]:
     # top if either its home or away team matches one (see channel_priority_teams).
     priority_keys = get_priority_team_match_keys(conn)
 
-    # 2. Get all channels from enabled groups with event info
-    cursor = conn.execute("""
+    # 2. Get all channels from enabled groups with event info.
+    # channel_number_locked may be absent on un-reconciled DBs / partial test
+    # schemas — fall back to 0 (treated as not-yet-placed) when missing.
+    locked_col = (
+        "mc.channel_number_locked"
+        if _table_has_column(conn, "managed_channels", "channel_number_locked")
+        else "0 AS channel_number_locked"
+    )
+    cursor = conn.execute(f"""
         SELECT
             mc.id,
             mc.dispatcharr_channel_id,
             mc.channel_number,
+            {locked_col},
             mc.channel_name,
             mc.event_epg_group_id,
             mc.primary_stream_id,
@@ -300,6 +439,7 @@ def get_all_channels_sorted(conn: Connection) -> list[dict]:
                 "id": row["id"],
                 "dispatcharr_channel_id": row["dispatcharr_channel_id"],
                 "channel_number": row["channel_number"],
+                "channel_number_locked": row["channel_number_locked"],
                 "channel_name": row["channel_name"],
                 "event_epg_group_id": row["event_epg_group_id"],
                 "primary_stream_id": row["primary_stream_id"],
@@ -367,15 +507,22 @@ def get_all_channels_sorted(conn: Connection) -> list[dict]:
 def reassign_all_channels(
     conn: Connection,
     external_occupied: set[int] | None = None,
+    force_reset: bool = False,
 ) -> dict:
     """Reassign all active channel numbers based on global mode.
 
-    AUTO: Sequential numbers from range_start by sort priority order.
-    MANUAL: Sequential within each league's configured range.
+    AUTO: behaviour depends on the channel stability mode:
+        - compact: sequential numbers from range_start by sort priority (legacy).
+        - gap/strict: sticky — existing (locked) channels keep their number; only
+          unplaced channels are assigned. A full re-layout runs only when
+          force_reset=True (the daily reset window).
+    MANUAL: Sequential within each league's configured range (stability modes N/A).
 
     Args:
         conn: Database connection
         external_occupied: Channel numbers occupied by non-Teamarr channels (#146)
+        force_reset: When True (gap/strict only), perform the full re-layout that
+            re-grids every channel by priority — the one time existing channels move.
 
     Returns:
         Dict with statistics: channels_processed, channels_moved, drift_details
@@ -383,7 +530,209 @@ def reassign_all_channels(
     mode = get_global_channel_mode(conn)
     if mode == "manual":
         return _reassign_manual(conn, external_occupied)
-    return _reassign_auto(conn, external_occupied)
+
+    stability = get_channel_stability_settings(conn)
+    smode = stability["mode"]
+    if smode == "compact":
+        return _reassign_auto(conn, external_occupied)
+
+    ext = external_occupied or set()
+    if force_reset:
+        result = _reassign_reset(conn, smode, stability["gap_size"], ext)
+        _mark_channel_reset(conn)
+        return result
+    return _reassign_sticky(conn, smode, stability["gap_size"], ext)
+
+
+def _channel_num_as_int(value) -> int | None:
+    """Parse a stored channel_number (TEXT) into an int, or None."""
+    if value is None or value == "":
+        return None
+    try:
+        return int(float(value))
+    except (ValueError, TypeError):
+        return None
+
+
+def _reassign_sticky(
+    conn: Connection,
+    mode: str,
+    gap_size: int,
+    ext: set[int],
+) -> dict:
+    """Sticky placement for gap/strict modes (no full re-layout).
+
+    Locked channels never move. Unlocked channels (newly created, or existing
+    channels the first time the mode is active) are assigned a number and locked:
+
+    - gap:    the lowest free number in the channel's sorted neighbourhood
+              (between the surrounding locked anchors); reuses freed slots. Falls
+              back to appending at the end of the range when the neighbourhood is full.
+    - strict: appended to the end of the used range, so nothing existing is displaced.
+    """
+    range_start, range_end = get_global_channel_range(conn)
+    effective_end = range_end if range_end else MAX_CHANNEL
+
+    sorted_channels = get_all_channels_sorted(conn)
+    if not sorted_channels:
+        return {"channels_processed": 0, "channels_moved": 0, "drift_details": []}
+
+    # Locked anchors (and external channels) occupy their numbers permanently here.
+    used: set[int] = set(ext)
+    for ch in sorted_channels:
+        num = _channel_num_as_int(ch["channel_number"])
+        if ch.get("channel_number_locked") and num is not None:
+            used.add(num)
+
+    # For gap mode: the next locked anchor's number after each index bounds insertion.
+    n = len(sorted_channels)
+    next_anchor: list[int | None] = [None] * n
+    upcoming: int | None = None
+    for i in range(n - 1, -1, -1):
+        next_anchor[i] = upcoming
+        ch = sorted_channels[i]
+        num = _channel_num_as_int(ch["channel_number"])
+        if ch.get("channel_number_locked") and num is not None:
+            upcoming = num
+
+    def append_to_end() -> int:
+        base = max(used) if used else (range_start - 1)
+        candidate = max(base + 1, range_start)
+        while candidate in used:
+            candidate += 1
+        return candidate
+
+    drift_details: list[dict] = []
+    channels_moved = 0
+    lo = range_start - 1  # so the first grid slot considered is range_start
+
+    for i, ch in enumerate(sorted_channels):
+        cur = _channel_num_as_int(ch["channel_number"])
+
+        if ch.get("channel_number_locked") and cur is not None:
+            lo = cur
+            continue
+
+        # Place this unlocked channel.
+        if mode == "strict":
+            target = append_to_end()
+        else:  # gap
+            hi = next_anchor[i] if next_anchor[i] is not None else (effective_end + 1)
+            candidate = lo + 1
+            while candidate in used:
+                candidate += 1
+            if candidate < hi and candidate <= effective_end:
+                target = candidate
+            else:
+                target = append_to_end()
+
+        if target > effective_end:
+            logger.warning(
+                "[CHANNEL_SORT] %s sticky stopped at channel %d - range exhausted",
+                mode.upper(), ch["id"],
+            )
+            break
+
+        used.add(target)
+        lo = target
+
+        if cur != target:
+            conn.execute(
+                _SET_NUMBER_LOCKED_SQL,
+                (target, ch["id"]),
+            )
+            drift_details.append({
+                "channel_id": ch["id"],
+                "dispatcharr_channel_id": ch["dispatcharr_channel_id"],
+                "channel_name": ch["channel_name"],
+                "old_number": cur,
+                "new_number": target,
+            })
+            channels_moved += 1
+            logger.debug(
+                "[CHANNEL_NUM] '%s' placed #%s → #%d (%s)",
+                ch["channel_name"], cur, target, mode,
+            )
+        else:
+            # Number already correct — just lock it so it's sticky from now on.
+            conn.execute(_LOCK_SQL, (ch["id"],))
+
+    logger.info(
+        "[CHANNEL_SORT] %s sticky: %d channels processed, %d placed",
+        mode.upper(), len(sorted_channels), channels_moved,
+    )
+    return {
+        "channels_processed": len(sorted_channels),
+        "channels_moved": channels_moved,
+        "drift_details": drift_details,
+    }
+
+
+def _reassign_reset(
+    conn: Connection,
+    mode: str,
+    gap_size: int,
+    ext: set[int],
+) -> dict:
+    """Full re-layout for gap/strict modes (the daily reset window).
+
+    Re-grids every channel by priority order and re-locks them: contiguous for
+    strict, spaced by gap_size for gap. This is the only path that moves a
+    channel that is already locked.
+    """
+    range_start, range_end = get_global_channel_range(conn)
+    effective_end = range_end if range_end else MAX_CHANNEL
+    step = gap_size if (mode == "gap" and gap_size > 0) else 1
+
+    sorted_channels = get_all_channels_sorted(conn)
+    if not sorted_channels:
+        return {"channels_processed": 0, "channels_moved": 0, "drift_details": []}
+
+    drift_details: list[dict] = []
+    channels_moved = 0
+
+    num = range_start
+    while num in ext:
+        num += 1
+
+    for ch in sorted_channels:
+        if num > effective_end:
+            logger.warning(
+                "[CHANNEL_SORT] %s reset stopped at channel %d - range exhausted",
+                mode.upper(), ch["id"],
+            )
+            break
+
+        cur = _channel_num_as_int(ch["channel_number"])
+        if cur != num:
+            conn.execute(
+                _SET_NUMBER_LOCKED_SQL,
+                (num, ch["id"]),
+            )
+            drift_details.append({
+                "channel_id": ch["id"],
+                "dispatcharr_channel_id": ch["dispatcharr_channel_id"],
+                "channel_name": ch["channel_name"],
+                "old_number": cur,
+                "new_number": num,
+            })
+            channels_moved += 1
+        else:
+            conn.execute(_LOCK_SQL, (ch["id"],))
+
+        num += step
+        while num in ext:
+            num += 1
+
+    logger.info(
+        "[CHANNEL_SORT] %s reset re-layout: %d channels processed, %d moved",
+        mode.upper(), len(sorted_channels), channels_moved,
+    )
+    return {
+        "channels_processed": len(sorted_channels),
+        "channels_moved": channels_moved,
+        "drift_details": drift_details,
+    }
 
 
 def _reassign_auto(
