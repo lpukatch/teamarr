@@ -9,7 +9,9 @@ import { Input } from "@/components/ui/input"
 import { Switch } from "@/components/ui/switch"
 import { RadioCards } from "@/components/ui/radio-cards"
 import { SortPriorityManager } from "@/components/SortPriorityManager"
+import { Button } from "@/components/ui/button"
 import { getLeagues, getSports } from "@/api/teams"
+import { requestChannelRelayout } from "@/api/settings"
 import { getSportDisplayName } from "@/lib/utils"
 import {
   useSettings,
@@ -60,6 +62,7 @@ export function ChannelNumbering() {
     channel_gap_size: 1,
     channel_daily_reset_enabled: true,
     channel_daily_reset_time: "04:00",
+    force_channel_relayout_pending: false,
   })
   const [channelRangeStart, setChannelRangeStart] = useState("")
   const [channelRangeEnd, setChannelRangeEnd] = useState("")
@@ -116,6 +119,20 @@ export function ChannelNumbering() {
       toast.success("Channel numbering settings saved")
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed to save")
+    }
+  }
+
+  const [regridding, setRegridding] = useState(false)
+  const handleRegrid = async () => {
+    setRegridding(true)
+    try {
+      const updated = await requestChannelRelayout()
+      setChannelNumbering(updated)
+      toast.success("Re-grid queued — channels renumber on the next generation")
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to queue re-grid")
+    } finally {
+      setRegridding(false)
     }
   }
 
@@ -317,6 +334,28 @@ export function ChannelNumbering() {
                       </p>
                     </div>
                   )}
+
+                  <div className="space-y-2 pt-1">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={handleRegrid}
+                      disabled={regridding || channelNumbering.force_channel_relayout_pending}
+                    >
+                      {channelNumbering.force_channel_relayout_pending
+                        ? "Re-grid queued ✓"
+                        : regridding
+                          ? "Queuing…"
+                          : "Re-grid channels now"}
+                    </Button>
+                    <p className="text-xs text-muted-foreground">
+                      Renumber every channel back into priority order on the next
+                      generation, without waiting for the daily window. Use after
+                      changing the gap size, mode, or sort priority. (These changes
+                      also queue a re-grid automatically.)
+                    </p>
+                  </div>
                 </div>
               )}
             </div>

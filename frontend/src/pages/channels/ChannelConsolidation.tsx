@@ -34,6 +34,7 @@ export function ChannelConsolidation() {
     channel_gap_size: 1,
     channel_daily_reset_enabled: true,
     channel_daily_reset_time: "04:00",
+    force_channel_relayout_pending: false,
   })
 
   useEffect(() => {

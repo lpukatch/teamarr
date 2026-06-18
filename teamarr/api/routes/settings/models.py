@@ -301,6 +301,7 @@ class ChannelNumberingSettingsModel(BaseModel):
     channel_gap_size: int = 1
     channel_daily_reset_enabled: bool = True
     channel_daily_reset_time: str = "04:00"
+    force_channel_relayout_pending: bool = False  # one-shot re-grid armed for next run
 
 
 class ChannelNumberingSettingsUpdate(BaseModel):

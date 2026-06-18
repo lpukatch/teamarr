@@ -177,7 +177,16 @@ def should_run_channel_reset(conn: Connection) -> bool:
     if get_global_channel_mode(conn) == "manual":
         return False
     settings = get_channel_stability_settings(conn)
-    if settings["mode"] == "compact" or not settings["reset_enabled"]:
+    if settings["mode"] == "compact":
+        return False
+
+    # An explicitly armed re-grid (manual button or auto-armed by a gap-size /
+    # stability-mode / sort-priority change) runs on the very next generation,
+    # bypassing both the daily time gate and the reset_enabled toggle.
+    if _relayout_pending(conn):
+        return True
+
+    if not settings["reset_enabled"]:
         return False
 
     from datetime import time as _time
@@ -204,11 +213,50 @@ def should_run_channel_reset(conn: Connection) -> bool:
 
 
 def _mark_channel_reset(conn: Connection) -> None:
-    """Record that the daily full re-layout has run (resets the daily gate)."""
+    """Record that the full re-layout has run: reset the daily gate and clear any
+    armed one-shot re-grid flag."""
+    if _table_has_column(conn, "settings", "force_channel_relayout_pending"):
+        conn.execute(
+            "UPDATE settings SET last_channel_reset_at = ?, "
+            "force_channel_relayout_pending = 0 WHERE id = 1",
+            (datetime.now().isoformat(),),
+        )
+    else:
+        conn.execute(
+            "UPDATE settings SET last_channel_reset_at = ? WHERE id = 1",
+            (datetime.now().isoformat(),),
+        )
+
+
+def _relayout_pending(conn: Connection) -> bool:
+    """True if a one-shot full re-layout has been armed (manual "Re-grid now" or
+    auto-armed by a gap-size / stability-mode / sort-priority change)."""
+    if not _table_has_column(conn, "settings", "force_channel_relayout_pending"):
+        return False
+    try:
+        row = conn.execute(
+            "SELECT force_channel_relayout_pending FROM settings WHERE id = 1"
+        ).fetchone()
+    except sqlite3.OperationalError:
+        return False
+    return bool(row and row[0])
+
+
+def arm_channel_relayout(conn: Connection) -> bool:
+    """Arm a one-shot full re-layout to run on the next generation.
+
+    Used by the manual "Re-grid now" action and auto-armed when a setting that
+    only takes effect at re-layout changes (gap size, stability mode, sort
+    priority) — existing locked channels otherwise keep their numbers until the
+    daily reset. No-op (returns False) if the column is absent on an
+    un-reconciled DB / partial test schema.
+    """
+    if not _table_has_column(conn, "settings", "force_channel_relayout_pending"):
+        return False
     conn.execute(
-        "UPDATE settings SET last_channel_reset_at = ? WHERE id = 1",
-        (datetime.now().isoformat(),),
+        "UPDATE settings SET force_channel_relayout_pending = 1 WHERE id = 1"
     )
+    return True
 
 
 def _table_has_column(conn: Connection, table: str, column: str) -> bool:

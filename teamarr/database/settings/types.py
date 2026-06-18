@@ -259,6 +259,7 @@ class ChannelNumberingSettings:
     channel_gap_size: int = 1  # spacing between channels in 'gap' mode
     channel_daily_reset_enabled: bool = True  # run the periodic full re-layout
     channel_daily_reset_time: str = "04:00"  # local HH:MM reset window
+    force_channel_relayout_pending: bool = False  # one-shot re-grid armed for next run
 
 
 @dataclass

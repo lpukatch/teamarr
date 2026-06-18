@@ -25,6 +25,7 @@ def _to_model(settings) -> ChannelNumberingSettingsModel:
         channel_gap_size=settings.channel_gap_size,
         channel_daily_reset_enabled=settings.channel_daily_reset_enabled,
         channel_daily_reset_time=settings.channel_daily_reset_time,
+        force_channel_relayout_pending=settings.force_channel_relayout_pending,
     )
 
 
@@ -92,6 +93,43 @@ def update_channel_numbering_settings(update: ChannelNumberingSettingsUpdate):
             channel_daily_reset_enabled=update.channel_daily_reset_enabled,
             channel_daily_reset_time=update.channel_daily_reset_time,
         )
+
+    with get_db() as conn:
+        settings = get_channel_numbering_settings(conn)
+
+    return _to_model(settings)
+
+
+@router.post(
+    "/settings/channel-numbering/relayout",
+    response_model=ChannelNumberingSettingsModel,
+)
+def request_channel_relayout():
+    """Arm a one-shot full channel re-grid for the next generation run.
+
+    Renumbers every channel back into priority order (re-applying gap spacing and
+    reclaiming gaps) on the next run, bypassing the daily reset window. Only
+    meaningful in gap/strict stability modes; harmless otherwise.
+    """
+    from teamarr.database.channel_numbers import (
+        arm_channel_relayout,
+        get_global_channel_mode,
+    )
+    from teamarr.database.settings import get_channel_numbering_settings
+
+    with get_db() as conn:
+        if get_global_channel_mode(conn) == "manual":
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Re-grid applies to Auto numbering mode only.",
+            )
+        settings = get_channel_numbering_settings(conn)
+        if settings.channel_stability_mode == "compact":
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Re-grid applies to Gapped/Strict stability modes only.",
+            )
+        arm_channel_relayout(conn)
 
     with get_db() as conn:
         settings = get_channel_numbering_settings(conn)

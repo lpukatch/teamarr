@@ -405,6 +405,11 @@ CREATE TABLE IF NOT EXISTS settings (
     channel_daily_reset_enabled BOOLEAN DEFAULT 1,      -- Run the periodic full re-layout (gap/strict only)
     channel_daily_reset_time TEXT DEFAULT '04:00',      -- Local HH:MM low-traffic window for the reset
     last_channel_reset_at TEXT,                          -- Internal: timestamp of last full reset
+    -- Internal: one-shot "re-grid on the next generation" flag. Set by the manual
+    -- "Re-grid now" action and auto-armed when a setting that only takes effect at
+    -- re-layout changes (gap size, stability mode, sort priority). Bypasses the
+    -- daily time gate and reset_enabled; cleared once the re-layout runs.
+    force_channel_relayout_pending BOOLEAN DEFAULT 0,
 
     -- Feed Separation (HOME/AWAY stream detection)
     -- When enabled, detects feed indicators in stream names and creates separate channels per feed

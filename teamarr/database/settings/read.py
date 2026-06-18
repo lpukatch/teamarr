@@ -524,6 +524,7 @@ def _build_channel_numbering_settings(row) -> ChannelNumberingSettings:
         channel_gap_size=_get("channel_gap_size", None) or 1,
         channel_daily_reset_enabled=True if reset_enabled is None else bool(reset_enabled),
         channel_daily_reset_time=_get("channel_daily_reset_time", None) or "04:00",
+        force_channel_relayout_pending=bool(_get("force_channel_relayout_pending", 0)),
     )
 
 
@@ -540,7 +541,8 @@ def get_channel_numbering_settings(conn: Connection) -> ChannelNumberingSettings
         cursor = conn.execute(
             """SELECT global_channel_mode, league_channel_starts, global_consolidation_mode,
                       channel_stability_mode, channel_gap_size,
-                      channel_daily_reset_enabled, channel_daily_reset_time
+                      channel_daily_reset_enabled, channel_daily_reset_time,
+                      force_channel_relayout_pending
                FROM settings WHERE id = 1"""
         )
         row = cursor.fetchone()

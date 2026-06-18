@@ -33,7 +33,8 @@ def db():
           channel_gap_size INTEGER DEFAULT 1,
           channel_daily_reset_enabled INTEGER DEFAULT 1,
           channel_daily_reset_time TEXT DEFAULT '04:00',
-          last_channel_reset_at TEXT
+          last_channel_reset_at TEXT,
+          force_channel_relayout_pending INTEGER DEFAULT 0
         );
         CREATE TABLE event_epg_groups (id INTEGER PRIMARY KEY, enabled INTEGER DEFAULT 1);
         CREATE TABLE managed_channels (
@@ -265,3 +266,55 @@ def test_sticky_mode_detection(db):
     db.execute("UPDATE settings SET global_channel_mode = 'manual'")
     db.commit()
     assert cn.is_sticky_mode(db) is False
+
+
+# ---------------------------------------------------------------------------
+# one-shot manual / auto-armed re-grid
+# ---------------------------------------------------------------------------
+
+
+def test_armed_relayout_fires_before_window(db):
+    # Armed re-grid bypasses the daily time gate (reset time in the future today).
+    _set_mode(db, "gap", gap=3)
+    db.execute("UPDATE settings SET channel_daily_reset_time = '23:59'")
+    db.execute(
+        "UPDATE settings SET last_channel_reset_at = ?",
+        (datetime.now().isoformat(),),  # already reset today → time gate would block
+    )
+    db.commit()
+    assert cn.should_run_channel_reset(db) is False
+    assert cn.arm_channel_relayout(db) is True
+    assert cn.should_run_channel_reset(db) is True
+
+
+def test_armed_relayout_bypasses_reset_disabled(db):
+    # An explicit re-grid runs even when the daily auto-reset is turned off.
+    _set_mode(db, "gap", gap=3)
+    db.execute("UPDATE settings SET channel_daily_reset_enabled = 0")
+    db.commit()
+    assert cn.should_run_channel_reset(db) is False
+    cn.arm_channel_relayout(db)
+    assert cn.should_run_channel_reset(db) is True
+
+
+def test_armed_relayout_ignored_in_compact(db):
+    _set_mode(db, "compact")
+    cn.arm_channel_relayout(db)
+    assert cn.should_run_channel_reset(db) is False
+
+
+def test_reset_clears_armed_flag(db):
+    # Running the re-layout consumes the one-shot flag so it won't refire.
+    _set_mode(db, "gap", gap=3)
+    db.execute("UPDATE settings SET channel_daily_reset_enabled = 0")
+    db.commit()
+    cn.arm_channel_relayout(db)
+    _add(db, 1, "A", "101", 1, "2026-06-18 10:00:00", "e1")
+    db.commit()
+
+    cn.reassign_all_channels(db, force_reset=cn.should_run_channel_reset(db))
+    assert cn.should_run_channel_reset(db) is False
+    row = db.execute(
+        "SELECT force_channel_relayout_pending FROM settings WHERE id = 1"
+    ).fetchone()
+    assert not row[0]

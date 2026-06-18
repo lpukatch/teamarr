@@ -135,6 +135,8 @@ export interface ChannelNumberingSettings {
   channel_gap_size: number
   channel_daily_reset_enabled: boolean
   channel_daily_reset_time: string
+  // One-shot re-grid armed for the next generation (read-only; set via relayout endpoint)
+  force_channel_relayout_pending: boolean
 }
 
 export interface ChannelNumberingSettingsUpdate {
@@ -503,6 +505,11 @@ export async function updateChannelNumberingSettings(
   data: ChannelNumberingSettingsUpdate
 ): Promise<ChannelNumberingSettings> {
   return api.put("/settings/channel-numbering", data)
+}
+
+// Arm a one-shot full re-grid for the next generation (gap/strict modes only).
+export async function requestChannelRelayout(): Promise<ChannelNumberingSettings> {
+  return api.post("/settings/channel-numbering/relayout", {})
 }
 
 // Stream Ordering Settings API
