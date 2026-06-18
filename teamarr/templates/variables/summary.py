@@ -1,7 +1,9 @@
 """Summary variables: provider editorial/context copy for a game.
 
-Raw 1:1 maps of provider fields — no post-processing. Each is empty when the
-provider didn't supply it (sparse by nature; see
+Near-raw maps of provider fields. The provider boundary picks the EPG-friendly
+form (a clean headline over the long wire body) and strips the leftover AP
+dateline dash, but does no other rewriting. Each is empty when the provider
+didn't supply it (sparse by nature; see
 docs/reference/architecture/gracenote-template-design.md). All three free-tier
 vars come from the scoreboard payload Teamarr already fetches, so they cost no
 extra API calls.
@@ -19,8 +21,9 @@ from teamarr.templates.variables.registry import (
     name="game_recap",
     category=Category.SUMMARY,
     suffix_rules=SuffixRules.ALL,
-    description="Postgame recap blurb from the provider (e.g. 'Jalen Brunson and the "
-    "Comeback Knicks did it again.'). Empty until a game is final. Free/bulk.",
+    description="Postgame recap headline from the provider — short and self-contained "
+    "with the result (e.g. 'Brunson scores 45, and New York tops Spurs for title'). "
+    "Empty until a game is final. Free/bulk.",
 )
 def extract_game_recap(ctx: TemplateContext, game_ctx: GameContext | None) -> str:
     if not game_ctx or not game_ctx.event:

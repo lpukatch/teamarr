@@ -373,7 +373,7 @@ Provider editorial/context copy for a game, passed through raw. These are **spar
 
 | Variable | Description | Suffixes | Sample |
 |----------|-------------|----------|--------|
-| `{game_recap}` | Postgame recap blurb. Empty until a game is final | base, .next, .last | `Jalen Brunson and the Comeback Knicks did it again.` |
+| `{game_recap}` | Postgame recap headline — short, self-contained, carries the result. Empty until a game is final | base, .next, .last | `Brunson scores 45, and New York tops Spurs for title` |
 | `{game_preview}` | Pregame preview blurb. Empty once a game is final (use `{game_recap}` then) | base, .next, .last | `Toronto Blue Jays (35-38) vs. Boston Red Sox` |
 | `{game_event_note}` | Marquee/playoff designation. Empty for ordinary regular-season games | base, .next, .last | `NBA Finals - Game 5` |
 | `{series_summary}` | Playoff/season-series state. Empty when there's no series context | base, .next, .last | `Series tied 1-1` |

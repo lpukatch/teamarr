@@ -1,7 +1,8 @@
 """Tests for the summary/context variables (tvnk.10 free tier).
 
-Covers the type-keyed headline selection in the ESPN provider and the three
-raw-passthrough extractors: game_recap, game_event_note, soccer_match_note.
+Covers the type-keyed headline selection + EPG-friendly text extraction in the
+ESPN provider (shortLinkText preference, dateline-dash strip) and the
+passthrough extractors: game_recap, game_event_note, soccer_match_note.
 """
 
 from datetime import datetime
@@ -61,14 +62,14 @@ def _ctx(event: Event) -> tuple[TemplateContext, GameContext]:
     return TemplateContext(game_context=gc, team_config=tc, team_stats=None), gc
 
 
-# --- type-keyed headline selection (the only real logic in the provider) ---
+# --- type-keyed headline selection + EPG-friendly text extraction (provider logic) ---
 
 
 def test_headline_of_type_selects_by_tag():
     comp = {
         "headlines": [
-            {"type": "Preview", "description": "preview text"},
-            {"type": "Recap", "description": "recap text"},
+            {"type": "Preview", "shortLinkText": "preview text"},
+            {"type": "Recap", "shortLinkText": "recap text"},
         ]
     }
     assert ESPNProvider._headline_of_type(comp, "Recap") == "recap text"
@@ -80,10 +81,42 @@ def test_headline_of_type_empty_when_absent():
     assert ESPNProvider._headline_of_type({"headlines": []}, "Recap") == ""
     assert (
         ESPNProvider._headline_of_type(
-            {"headlines": [{"type": "Preview", "description": "p"}]}, "Recap"
+            {"headlines": [{"type": "Preview", "shortLinkText": "p"}]}, "Recap"
         )
         == ""
     )
+
+
+def test_editorial_text_prefers_short_link():
+    # The clean headline wins over the long wire body.
+    obj = {
+        "shortLinkText": "Mets beat Reds 9-1 to avoid sweep",
+        "description": "— Bo Bichette continued his hot streak with three hits…",
+    }
+    assert ESPNProvider._editorial_text(obj) == "Mets beat Reds 9-1 to avoid sweep"
+
+
+def test_editorial_text_strips_dateline_dash():
+    # No shortLinkText → fall back to description with the AP em dash stripped.
+    obj = {"description": "— Bo Bichette continued his hot streak with three hits."}
+    assert (
+        ESPNProvider._editorial_text(obj)
+        == "Bo Bichette continued his hot streak with three hits."
+    )
+
+
+def test_editorial_text_leaves_clean_description_untouched():
+    # Soccer copy has no dateline dash — must pass through verbatim.
+    obj = {"description": "Brighton sealed a European spot despite a Man Utd loss."}
+    assert (
+        ESPNProvider._editorial_text(obj)
+        == "Brighton sealed a European spot despite a Man Utd loss."
+    )
+
+
+def test_editorial_text_empty_when_absent():
+    assert ESPNProvider._editorial_text({}) == ""
+    assert ESPNProvider._editorial_text({"shortLinkText": "", "description": ""}) == ""
 
 
 # --- extractors are raw passthrough, empty when absent ---

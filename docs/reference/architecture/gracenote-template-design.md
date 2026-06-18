@@ -94,7 +94,7 @@ The idea: scrape the public Gracenote grid for upcoming events' descriptions. Bl
 | New var | Source | Purpose | Notes |
 |---------|--------|---------|-------|
 | `{home_team_the}` / `{away_team_the}` | article heuristic + national-team detection | "The Lions" vs "Netherlands" | needs national-team signal (soccer international leagues / provider hint); `Team` model has no flag today |
-| `{game_recap}` | ESPN scoreboard `headlines[type=Recap].description` | authentic postgame recap | **free/bulk**; raw passthrough (leading AP `"— "` kept); postgame-only → fallback |
+| `{game_recap}` | ESPN scoreboard `headlines[type=Recap].shortLinkText` (clean headline; falls back to dash-stripped `.description`) | EPG-friendly postgame recap, self-contained with the result | **free/bulk**; postgame-only → fallback |
 | `{game_event_note}` | ESPN scoreboard `notes[0].headline` (type `event`) | marquee/playoff designation ("NBA Finals - Game 5", "Stanley Cup Final", cups, bowls) | free/bulk; marquee-only, empty for regular season |
 | `{soccer_match_note}` | ESPN scoreboard `competitions[0].altGameNote` | soccer competition + group, untouched ("FIFA World Cup, Group J") | free/bulk; soccer-only, empty otherwise |
 
@@ -105,6 +105,13 @@ in `notes[0].headline` with per-sport shapes — so it became the two honest var
 rather than one normalized field). Per-event `{game_preview}` (summary `article` type
 Preview) and `{series_summary}` (`seasonseries[0].summary`) are the gated Tier-2 follow-ups.
 New variable category: `SUMMARY`.
+
+**FOLLOW-UP (tvnk.11, 2026-06-18):** `{game_recap}` now prefers ESPN's `shortLinkText`
+(a clean, EPG-sized headline that carries the score — 'Mets beat Reds 9-1 to avoid sweep')
+over the long `.description` wire body, falling back to the body with the AP dateline em
+dash stripped. `{game_preview}` keeps `article.description` (previews carry no
+`shortLinkText`) and gets the same dash strip. The provider boundary now does this light
+EPG normalization; everything downstream is still passthrough.
 
 `Event` model additions: `game_recap`, `game_event_note`, `soccer_match_note`.
 All new vars require the CLAUDE.md docs-table updates (variables count, etc.).

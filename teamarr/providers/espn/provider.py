@@ -5,6 +5,7 @@ Pure fetch + normalize - no caching (caching is in service layer).
 """
 
 import logging
+import re
 from datetime import UTC, date, datetime, timedelta
 
 from teamarr.core import (
@@ -521,7 +522,7 @@ class ESPNProvider(UFCParserMixin, TournamentParserMixin, SportsProvider):
             # competition), so attach it here. Raw passthrough, empty when absent.
             article = data.get("article") or {}
             if article.get("type") == "Preview":
-                event.game_preview = article.get("description") or ""
+                event.game_preview = self._editorial_text(article)
             series = data.get("seasonseries") or []
             event.series_summary = (series[0].get("summary") if series else "") or ""
         return event
@@ -586,7 +587,7 @@ class ESPNProvider(UFCParserMixin, TournamentParserMixin, SportsProvider):
             broadcasts = self._parse_broadcasts(competition.get("broadcasts", []))
             odds_data = self._parse_odds(competition.get("odds", []))
 
-            # Editorial/context copy — all raw from the scoreboard, no per-event call.
+            # Editorial/context copy — straight from the scoreboard, no per-event call.
             game_recap = self._headline_of_type(competition, "Recap")
             notes = competition.get("notes") or []
             game_event_note = (notes[0].get("headline") if notes else "") or ""
@@ -627,15 +628,33 @@ class ESPNProvider(UFCParserMixin, TournamentParserMixin, SportsProvider):
             return None
 
     @staticmethod
-    def _headline_of_type(competition: dict, want_type: str) -> str:
-        """Return the .description of the first headline matching want_type.
+    def _editorial_text(obj: dict) -> str:
+        """EPG-friendly editorial copy from an ESPN headline/article object.
+
+        Prefer `shortLinkText` — a clean, self-contained headline that carries
+        the result/score and fits a guide-grid cell ('Mets beat Reds 9-1 to
+        avoid sweep'). Fall back to the long `description` body, stripping the
+        leftover AP-dateline em dash ('— Bo Bichette continued…' → 'Bo
+        Bichette continued…'). US wire copy carries the dash; soccer does not,
+        so the strip is conditional by construction. Empty when neither field
+        is present.
+        """
+        short = (obj.get("shortLinkText") or "").strip()
+        if short:
+            return short
+        desc = obj.get("description") or ""
+        return re.sub(r"^\s*[—–-]\s+", "", desc).strip()
+
+    @classmethod
+    def _headline_of_type(cls, competition: dict, want_type: str) -> str:
+        """Return EPG-friendly copy from the first headline matching want_type.
 
         ESPN tags scoreboard headlines by type ('Recap', 'Preview'); we select
         by tag rather than infer from game state. Empty when none present.
         """
         for headline in competition.get("headlines") or []:
             if headline.get("type") == want_type:
-                return headline.get("description") or ""
+                return cls._editorial_text(headline)
         return ""
 
     def _parse_team(self, competitor: dict, league: str, sport: str) -> Team:

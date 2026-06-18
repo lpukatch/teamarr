@@ -125,10 +125,11 @@ class Event:
     # Betting odds (from scoreboard API, usually same-day only)
     odds_data: dict | None = None
 
-    # Editorial/context copy from the provider, raw (empty when absent). All three
-    # come free from the scoreboard payload — no per-event call. See
+    # Editorial/context copy from the provider — EPG-friendly form, dateline dash
+    # stripped (empty when absent). All three come free from the scoreboard
+    # payload — no per-event call. See
     # docs/reference/architecture/gracenote-template-design.md.
-    game_recap: str = ""  # scoreboard headlines[type=Recap].description
+    game_recap: str = ""  # scoreboard headlines[type=Recap].shortLinkText (clean headline)
     game_event_note: str = ""  # notes[0].headline, e.g. "NBA Finals - Game 5"
     soccer_match_note: str = ""  # altGameNote, e.g. "FIFA World Cup, Group J"
     # Per-event tier — from the summary endpoint (overlaid by refresh_event_status,
