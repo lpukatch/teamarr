@@ -32,6 +32,9 @@ Subscribe to as many or as few leagues as you like — there is no cost to a bro
 {: .tip }
 > Subscribe to a league *before* you expect its first game of the season. An unsubscribed league produces nothing, so it's easy to forget you never turned it on.
 
+{: .note }
+> **Unsubscribing cleans up after itself.** When you uncheck a league, the next generation run deletes the channels it created for that league — you no longer have to wipe all channels to apply the change. The source group can stay enabled; only the dropped league's channels are removed.
+
 ## Soccer modes
 
 Soccer is special because there are hundreds of leagues. Rather than checking each one, you choose a **mode**:

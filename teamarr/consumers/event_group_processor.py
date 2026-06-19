@@ -861,6 +861,72 @@ class EventGroupProcessor:
             except Exception as e:
                 logger.warning("[EVENT_EPG] Disabled group cleanup failed: %s", e)
 
+        # 6. Subscription cleanup: delete channels for leagues no longer subscribed.
+        #    Followed leagues/teams can change while the source group stays enabled;
+        #    the stream sync won't remove those streams (they're still in the M3U),
+        #    so the channels linger until a full wipe without this (psoi).
+        if lifecycle_service:
+            try:
+                self._cleanup_unsubscribed_leagues(conn, lifecycle_service)
+            except Exception as e:
+                logger.warning("[EVENT_EPG] Subscription league cleanup failed: %s", e)
+
+    def _cleanup_unsubscribed_leagues(self, conn: Connection, lifecycle_service) -> None:
+        """Delete channels whose league is no longer subscribed in any enabled group.
+
+        The "Subscriptions" (followed leagues/teams) can change between runs while
+        the source group stays enabled. The group keeps matching its M3U streams, so
+        the per-group stream sync never removes them — leaving stale channels for
+        dropped leagues until a full wipe. This sweeps them immediately (psoi).
+
+        Conservative by construction:
+        - Union of effective subscribed leagues across all enabled, non-system
+          groups (reusing _resolve_subscription_leagues, so soccer expansion etc.
+          are honored).
+        - Bails out if that union is empty (never mass-delete on a resolution miss).
+        - Skips channel-source/system groups and channels with no league.
+        """
+        from teamarr.database.channels import get_all_managed_channels
+
+        all_groups = get_all_groups(conn, include_disabled=True)
+        enabled_real_groups = [
+            g for g in all_groups
+            if g.enabled and not getattr(g, "is_channel_source", False)
+        ]
+        subscribed: set[str] = set()
+        for g in enabled_real_groups:
+            subscribed.update(lg.lower() for lg in self._resolve_subscription_leagues(conn, g))
+
+        # Safety guard: an empty set means we couldn't resolve any subscription —
+        # never interpret that as "delete everything".
+        if not subscribed:
+            return
+
+        # Channels owned by channel-source/system groups are exempt (their leagues
+        # aren't driven by the subscription).
+        system_group_ids = {
+            g.id for g in all_groups if getattr(g, "is_channel_source", False)
+        }
+
+        deleted = 0
+        for ch in get_all_managed_channels(conn, include_deleted=False):
+            league = (ch.league or "").strip().lower()
+            if not league or league in subscribed:
+                continue
+            if ch.event_epg_group_id in system_group_ids:
+                continue
+            if lifecycle_service.delete_managed_channel(
+                conn, ch.id, reason="unsubscribed_league"
+            ):
+                deleted += 1
+
+        if deleted:
+            logger.info(
+                "[EVENT_EPG] Subscription cleanup: deleted %d channel(s) for "
+                "unsubscribed leagues",
+                deleted,
+            )
+
     def _process_group_internal(
         self,
         conn: Connection,
