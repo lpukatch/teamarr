@@ -110,7 +110,8 @@ export function SoccerModeSelector({
               Following a team adds <strong>all leagues that team could play in</strong> (its
               domestic league, cups, and continental competitions) — so you'll see every match in
               those competitions, not just this team's. To surface events for the followed teams
-              only, set an additional team filter.
+              only, enable the <strong>Default Team Filter</strong> in the <strong>Teams</strong> tab
+              (Include mode) and select them.
             </span>
           </div>
 
