@@ -34,13 +34,18 @@ _VALIDATED_TEXT_FIELDS = (
 
 
 def _log_validation_warnings(template_type: str | None, data: dict) -> None:
-    """Validate template text fields and log any warnings (non-blocking)."""
-    from teamarr.templates.validation import validate_fields
+    """Validate template text + conditional-description fields, log warnings (non-blocking)."""
+    from teamarr.templates.validation import (
+        validate_conditional_descriptions,
+        validate_fields,
+    )
 
+    is_event = (template_type or "team") == "event"
     fields = {k: data.get(k) for k in _VALIDATED_TEXT_FIELDS if data.get(k)}
-    if not fields:
-        return
-    results = validate_fields(fields, (template_type or "team") == "event")
+    results = validate_fields(fields, is_event) if fields else {}
+    cond = data.get("conditional_descriptions")
+    if cond:
+        results.update(validate_conditional_descriptions(cond, is_event))
     for field, warnings in results.items():
         for w in warnings:
             logger.warning("[template-validation] %s: %s", field, w.message)
@@ -105,9 +110,17 @@ def validate_template(req: TemplateValidateRequest):
     so API/import callers can catch the same issues. Never rejects — the resolver
     keeps unknown variables literal by design.
     """
-    from teamarr.templates.validation import validate_fields, warnings_as_dicts
+    from teamarr.templates.validation import (
+        validate_conditional_descriptions,
+        validate_fields,
+        warnings_as_dicts,
+    )
 
-    results = validate_fields(req.fields, req.template_type == "event")
+    is_event = req.template_type == "event"
+    results = validate_fields(req.fields, is_event)
+    results.update(
+        validate_conditional_descriptions(req.conditional_descriptions or [], is_event)
+    )
     return {"valid": not results, "warnings": warnings_as_dicts(results)}
 
 

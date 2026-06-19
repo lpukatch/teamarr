@@ -11,6 +11,8 @@ from teamarr.api.app import app
 from teamarr.templates.validation import (
     build_valid_variable_sets,
     extract_variables,
+    valid_condition_names,
+    validate_conditional_descriptions,
     validate_fields,
     validate_template,
 )
@@ -87,7 +89,65 @@ def test_validate_fields_returns_only_fields_with_warnings():
     assert "subtitle_template" in results
 
 
+# --- conditions + conditional descriptions ---
+
+
+def test_valid_condition_names_from_introspection():
+    names = valid_condition_names()
+    # Representative evaluators that must be present (introspected from _eval_*).
+    assert {"always", "is_home", "win_streak", "is_playoff"} <= names
+    assert "_eval_is_home" not in names  # prefix stripped
+
+
+def test_conditional_description_unknown_condition_flagged():
+    results = validate_conditional_descriptions(
+        [{"condition": "is_hom", "template": "{team_name}"}],  # typo
+        is_event_template=False,
+    )
+    assert "conditional_descriptions[0]" in results
+    types = {w.type for w in results["conditional_descriptions[0]"]}
+    assert "invalid_condition" in types
+
+
+def test_conditional_description_bad_template_flagged():
+    results = validate_conditional_descriptions(
+        [{"condition": "is_home", "template": "{bogus_var}"}],
+        is_event_template=False,
+    )
+    assert "conditional_descriptions[0]" in results
+    assert results["conditional_descriptions[0]"][0].type == "invalid"
+
+
+def test_conditional_description_clean_entry_no_warning():
+    results = validate_conditional_descriptions(
+        [
+            {"condition": "is_home", "template": "{team_name} at home"},
+            {"condition": None, "template": "{matchup}"},  # default branch, no condition
+        ],
+        is_event_template=False,
+    )
+    assert results == {}
+
+
 # --- endpoint ---
+
+
+def test_validate_endpoint_conditional_descriptions():
+    client = TestClient(app)
+    resp = client.post(
+        "/api/v1/templates/validate",
+        json={
+            "template_type": "team",
+            "fields": {},
+            "conditional_descriptions": [
+                {"condition": "is_bogus", "template": "{team_name}"}
+            ],
+        },
+    )
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["valid"] is False
+    assert "conditional_descriptions[0]" in body["warnings"]
 
 
 def test_validate_endpoint_reports_warnings():

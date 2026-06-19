@@ -335,6 +335,7 @@ class TemplateValidateRequest(BaseModel):
 
     template_type: str = "team"
     fields: dict[str, str | None]
+    conditional_descriptions: list[dict] | None = None
 
 
 class TemplateValidateResponse(BaseModel):

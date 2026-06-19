@@ -123,6 +123,64 @@ def validate_template(
     return warnings
 
 
+def valid_condition_names() -> set[str]:
+    """Authoritative set of condition names a conditional description may use.
+
+    The engine resolves a condition via ``getattr(evaluator, f"_eval_{name}")``
+    (conditions.py), so the valid set is exactly the evaluator's ``_eval_*``
+    methods — introspected here rather than hardcoded, so it can't drift.
+    """
+    from teamarr.templates.conditions import ConditionEvaluator
+
+    prefix = "_eval_"
+    return {
+        name[len(prefix):]
+        for name in dir(ConditionEvaluator)
+        if name.startswith(prefix)
+    }
+
+
+def validate_conditional_descriptions(
+    entries: list,
+    is_event_template: bool,
+) -> dict[str, list[ValidationWarning]]:
+    """Validate conditional-description entries (templates + condition names).
+
+    Each entry (dict or model) carries a ``template`` string and an optional
+    ``condition``. The template is checked like any field; the condition must be a
+    known evaluator (a typo'd condition silently falls through to the default at
+    runtime, so it's worth surfacing). ``condition=None`` is the default branch
+    and always valid. Keyed ``conditional_descriptions[i]``.
+    """
+    if not entries:
+        return {}
+
+    def _get(entry, key):
+        return entry.get(key) if isinstance(entry, dict) else getattr(entry, key, None)
+
+    valid_names, base_names = build_valid_variable_sets()
+    conditions = valid_condition_names()
+    results: dict[str, list[ValidationWarning]] = {}
+
+    for i, entry in enumerate(entries):
+        warnings = validate_template(
+            _get(entry, "template") or "", valid_names, base_names, is_event_template
+        )
+        cond = _get(entry, "condition")
+        if cond and cond not in conditions:
+            warnings.append(
+                ValidationWarning(
+                    variable=cond,
+                    message=f"Unknown condition: '{cond}'",
+                    type="invalid_condition",
+                )
+            )
+        if warnings:
+            results[f"conditional_descriptions[{i}]"] = warnings
+
+    return results
+
+
 def validate_fields(
     fields: dict[str, str | None],
     is_event_template: bool,
