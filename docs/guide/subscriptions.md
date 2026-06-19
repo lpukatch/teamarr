@@ -47,6 +47,9 @@ Soccer is special because there are hundreds of leagues. Rather than checking ea
 
 In **Teams** mode, the followed-teams list lives here in Subscriptions because it's a *subscription* concept (which competitions to scan). The team-channel workflow itself — persistent channels for specific teams — lives under [EPG → Teams](epg/teams).
 
+{: .note }
+> **Following a soccer team adds *all* the leagues that team could potentially participate in** — its domestic league, cups, and continental/club competitions — not just that team's individual matches. For example, following Barcelona subscribes you to all of La Liga, the Copa del Rey, and the Champions League, so you'll see *every* match in those competitions. To surface events for the followed teams **only**, an additional team filter must be set.
+
 ## Custom Leagues
 
 Custom Leagues let you add a competition Teamarr doesn't ship with. They live inside Subscriptions and are powered by [TheSportsDB](https://www.thesportsdb.com/).
