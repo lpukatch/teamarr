@@ -64,6 +64,28 @@ class TestFifaOverrides:
         assert resolver.resolve(name) == expected
 
 
+class TestAbbreviations:
+    """Colloquial abbreviations babel/pycountry never supply (#256)."""
+
+    @pytest.mark.parametrize(
+        "name,expected",
+        [
+            ("EE. UU.", "united states"),  # Spanish, with periods + space
+            ("EE.UU.", "united states"),   # no space
+            ("EE UU", "united states"),    # space only
+            ("eeuu", "united states"),     # collapsed
+            ("EUA", "united states"),      # Portuguese
+            ("USA", "united states"),
+        ],
+    )
+    def test_us_abbreviations_resolve(self, resolver, name, expected):
+        assert resolver.resolve(name) == expected
+
+    def test_full_name_still_resolves(self, resolver):
+        # The abbreviation entries don't shadow the full localized name.
+        assert resolver.resolve("Estados Unidos") == "united states"
+
+
 class TestImportFallback:
     """Without pycountry/babel, only the dependency-free FIFA overrides load."""
 
