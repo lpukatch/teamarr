@@ -41,6 +41,9 @@ Controls whether a channel can be **renumbered while its event is live**. Dispat
 
 In both **Gapped** and **Strict** modes, a channel's number is fixed for the life of its event. The only time existing numbers change is the **daily re-layout**.
 
+{: .note }
+**Feeds stay together.** When feed separation splits an event into Home / Away / Regular channels, they're treated as one block and placed on **adjacent** numbers — the gap is only ever applied *between* events, never between feeds of the same game. A multi-feed event simply consumes more of its gap (e.g. with gap size 3, a 3-feed event fills 101–103 and the next event starts at 104).
+
 ### Daily Re-Layout
 
 To stop gaps accumulating and to restore priority order, a full re-grid runs once per day. It is gated into your generation schedule: the **first generation at or after the configured reset time** re-grids every channel, then it won't run again until the next day.

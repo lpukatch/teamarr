@@ -176,6 +176,90 @@ def test_strict_new_channel_appends_to_end(db):
 
 
 # ---------------------------------------------------------------------------
+# event feeds — home/away/regular stay contiguous (no gap between them)
+# ---------------------------------------------------------------------------
+
+
+def test_gap_sticky_feeds_placed_as_contiguous_block(db):
+    # A new event's feeds (same event_id) must land on adjacent numbers, even in
+    # gap mode — the gap belongs between events, not between feeds of one game.
+    _set_mode(db, "gap", gap=3)
+    _add(db, 1, "A", "101", 1, "2026-06-18 10:00:00", "e1")
+    _add(db, 2, "B", "104", 1, "2026-06-18 12:00:00", "e2")
+    _add(db, 3, "NEW-Home", "500", 0, "2026-06-18 11:00:00", "e3")
+    _add(db, 4, "NEW-Away", "501", 0, "2026-06-18 11:00:00", "e3")
+    db.commit()
+
+    cn.reassign_all_channels(db)
+    nums = _numbers(db)
+    assert nums["A"] == 101 and nums["B"] == 104  # anchors untouched
+    # Both feeds slot into the 102/103 gap, adjacent, nothing between them.
+    assert {nums["NEW-Home"], nums["NEW-Away"]} == {102, 103}
+
+
+def test_gap_sticky_feed_block_appends_together_when_gap_too_small(db):
+    # 3 feeds can't fit in a 2-slot gap → the whole block appends past the frontier,
+    # still contiguous, without splitting or displacing the anchors.
+    _set_mode(db, "gap", gap=3)
+    _add(db, 1, "A", "101", 1, "2026-06-18 10:00:00", "e1")
+    _add(db, 2, "B", "104", 1, "2026-06-18 12:00:00", "e2")
+    _add(db, 3, "F1", "500", 0, "2026-06-18 11:00:00", "e3")
+    _add(db, 4, "F2", "501", 0, "2026-06-18 11:00:00", "e3")
+    _add(db, 5, "F3", "502", 0, "2026-06-18 11:00:00", "e3")
+    db.commit()
+
+    cn.reassign_all_channels(db)
+    nums = _numbers(db)
+    assert nums["A"] == 101 and nums["B"] == 104
+    feeds = sorted([nums["F1"], nums["F2"], nums["F3"]])
+    assert feeds == [feeds[0], feeds[0] + 1, feeds[0] + 2]  # contiguous
+    assert feeds[0] > 104  # appended past the anchors, none displaced
+
+
+def test_strict_feeds_append_contiguously(db):
+    _set_mode(db, "strict")
+    _add(db, 1, "A", "101", 1, "2026-06-18 10:00:00", "e1")
+    _add(db, 2, "Home", "500", 0, "2026-06-18 12:00:00", "e2")
+    _add(db, 3, "Away", "501", 0, "2026-06-18 12:00:00", "e2")
+    db.commit()
+
+    cn.reassign_all_channels(db)
+    nums = _numbers(db)
+    assert nums["A"] == 101
+    assert {nums["Home"], nums["Away"]} == {102, 103}
+
+
+def test_gap_reset_feeds_contiguous_with_gap_between_events(db):
+    # Reset: a 3-feed event packs 101-103, the next event starts at the next grid
+    # slot (104 here, since the feeds consumed the gap), feeds never spaced apart.
+    _set_mode(db, "gap", gap=3)
+    _add(db, 1, "H", "200", 1, "2026-06-18 10:00:00", "e1")
+    _add(db, 2, "A", "201", 1, "2026-06-18 10:00:00", "e1")
+    _add(db, 3, "R", "202", 1, "2026-06-18 10:00:00", "e1")
+    _add(db, 4, "Solo", "150", 1, "2026-06-18 12:00:00", "e2")
+    db.commit()
+
+    cn.reassign_all_channels(db, force_reset=True)
+    nums = _numbers(db)
+    assert sorted([nums["H"], nums["A"], nums["R"]]) == [101, 102, 103]
+    assert nums["Solo"] == 104  # next grid slot after the block
+
+
+def test_gap_reset_two_feed_event_then_gap(db):
+    # A 2-feed event leaves one free slot before the next event's grid slot.
+    _set_mode(db, "gap", gap=3)
+    _add(db, 1, "H", "200", 1, "2026-06-18 10:00:00", "e1")
+    _add(db, 2, "A", "201", 1, "2026-06-18 10:00:00", "e1")
+    _add(db, 3, "Solo", "150", 1, "2026-06-18 12:00:00", "e2")
+    db.commit()
+
+    cn.reassign_all_channels(db, force_reset=True)
+    nums = _numbers(db)
+    assert sorted([nums["H"], nums["A"]]) == [101, 102]
+    assert nums["Solo"] == 104  # 103 left free as the inter-event gap
+
+
+# ---------------------------------------------------------------------------
 # daily reset
 # ---------------------------------------------------------------------------
 

@@ -602,6 +602,56 @@ def _channel_num_as_int(value) -> int | None:
         return None
 
 
+def _event_group_key(ch) -> object:
+    """Placement-grouping key for a channel.
+
+    Channels for the same event (home / away / regular feeds, keyword variants)
+    share an ``event_id`` and must be placed as one contiguous block — no gap and
+    no unrelated event slotted between them, since they're all the same game.
+    Channels without an event_id are each their own group.
+    """
+    eid = ch.get("event_id")
+    if not eid:
+        return ("__solo__", ch["id"])
+    return ("event", str(eid))
+
+
+def _group_consecutive(channels: list[dict]) -> list[list[dict]]:
+    """Collapse an already-sorted channel list into consecutive runs that share an
+    event group key, preserving order. The global sort keys on event_id, so a
+    single event's channels are always adjacent."""
+    groups: list[list[dict]] = []
+    for ch in channels:
+        if groups and _event_group_key(groups[-1][0]) == _event_group_key(ch):
+            groups[-1].append(ch)
+        else:
+            groups.append([ch])
+    return groups
+
+
+def _apply_number(conn: Connection, ch: dict, target: int, mode: str, drift: list[dict]) -> bool:
+    """Persist a channel's placed number and lock it; record drift if it moved.
+
+    Returns True when the number changed (a Dispatcharr push is needed)."""
+    cur = _channel_num_as_int(ch["channel_number"])
+    if cur != target:
+        conn.execute(_SET_NUMBER_LOCKED_SQL, (target, ch["id"]))
+        drift.append({
+            "channel_id": ch["id"],
+            "dispatcharr_channel_id": ch["dispatcharr_channel_id"],
+            "channel_name": ch["channel_name"],
+            "old_number": cur,
+            "new_number": target,
+        })
+        logger.debug(
+            "[CHANNEL_NUM] '%s' placed #%s → #%d (%s)", ch["channel_name"], cur, target, mode,
+        )
+        return True
+    # Number already correct — just lock it so it's sticky from now on.
+    conn.execute(_LOCK_SQL, (ch["id"],))
+    return False
+
+
 def _reassign_sticky(
     conn: Connection,
     mode: str,
@@ -648,14 +698,22 @@ def _reassign_sticky(
             used.add(num)
             locked_teamarr.add(num)
 
-    # For gap mode: the next locked anchor's number after each index bounds insertion.
-    n = len(sorted_channels)
-    next_anchor: list[int | None] = [None] * n
+    # Feeds of one event are placed as a contiguous block — no gap or other event
+    # may land between home/away/regular feeds of the same game.
+    groups = _group_consecutive(sorted_channels)
+
+    # The next locked anchor's number after each group bounds gap insertion so a
+    # placed block never crosses into an existing anchored event's range.
+    ng = len(groups)
+    next_anchor_after: list[int | None] = [None] * ng
     upcoming: int | None = None
-    for i in range(n - 1, -1, -1):
-        next_anchor[i] = upcoming
-        if is_anchor(sorted_channels[i]):
-            upcoming = _channel_num_as_int(sorted_channels[i]["channel_number"])
+    for gi in range(ng - 1, -1, -1):
+        next_anchor_after[gi] = upcoming
+        anchor_nums = [
+            _channel_num_as_int(ch["channel_number"]) for ch in groups[gi] if is_anchor(ch)
+        ]
+        if anchor_nums:
+            upcoming = min(anchor_nums)
 
     def first_grid_at_or_after(x: int) -> int:
         """Lowest grid slot (range_start + k*step) that is >= x."""
@@ -664,79 +722,110 @@ def _reassign_sticky(
         k = (x - range_start + step - 1) // step  # ceil division
         return range_start + k * step
 
-    def append_to_end(on_grid: bool) -> int:
-        base = max(locked_teamarr) if locked_teamarr else (range_start - 1)
-        candidate = first_grid_at_or_after(max(base + 1, range_start)) if on_grid \
-            else max(base + 1, range_start)
-        while candidate in used:
-            candidate += step if on_grid else 1
-        return candidate
+    def free_run(start: int, k: int) -> bool:
+        """True if the k contiguous slots from `start` are all free and in range."""
+        return start + (k - 1) <= effective_end and all(
+            (start + j) not in used for j in range(k)
+        )
 
-    def place_gap(lo: int, hi: int) -> int | None:
-        """Lowest free slot in (lo, hi) for gap mode: prefer an on-grid slot
-        (leaving room), else reuse the lowest free in-between (fragmentation) slot."""
+    def place_block(lo: int, hi: int, k: int) -> int | None:
+        """Lowest start for a contiguous run of k free slots in (lo, hi): prefer an
+        on-grid start (leaving room for late events), else the lowest free run."""
         grid = first_grid_at_or_after(lo + 1)
-        while grid in used:
+        while grid + (k - 1) < hi and grid + (k - 1) <= effective_end:
+            if free_run(grid, k):
+                return grid
             grid += step
-        if grid < hi and grid <= effective_end:
-            return grid
-        candidate = lo + 1
-        while candidate in used:
-            candidate += 1
-        if candidate < hi and candidate <= effective_end:
-            return candidate
+        cand = lo + 1
+        while cand + (k - 1) < hi and cand + (k - 1) <= effective_end:
+            if free_run(cand, k):
+                return cand
+            cand += 1
         return None
+
+    def append_block(on_grid: bool, k: int) -> int | None:
+        """A contiguous run of k free slots past the current frontier."""
+        base = max(locked_teamarr) if locked_teamarr else (range_start - 1)
+        start = (
+            first_grid_at_or_after(max(base + 1, range_start))
+            if on_grid
+            else max(base + 1, range_start)
+        )
+        while start <= effective_end:
+            if free_run(start, k):
+                return start
+            start += step if on_grid else 1
+        return None
+
+    def claim(ch, target) -> None:
+        """Record a placement: mark slot used and persist (+lock)."""
+        nonlocal channels_moved
+        used.add(target)
+        locked_teamarr.add(target)
+        if _apply_number(conn, ch, target, mode, drift_details):
+            channels_moved += 1
 
     drift_details: list[dict] = []
     channels_moved = 0
     lo = range_start - 1  # so the first grid slot considered is range_start
 
-    for i, ch in enumerate(sorted_channels):
-        cur = _channel_num_as_int(ch["channel_number"])
+    for gi, group in enumerate(groups):
+        anchors = [ch for ch in group if is_anchor(ch)]
+        unplaced = [ch for ch in group if not is_anchor(ch)]
 
-        if is_anchor(ch):
-            lo = cur
+        if not unplaced:
+            # Fully anchored event — fixed; advance the neighbourhood low-water mark.
+            anchor_nums = [_channel_num_as_int(ch["channel_number"]) for ch in anchors]
+            if anchor_nums:
+                lo = max(lo, max(anchor_nums))
             continue
 
-        # Place this unlocked (or invalidated) channel.
-        if mode == "strict":
-            target = append_to_end(on_grid=False)
-        else:  # gap
-            hi = next_anchor[i] if next_anchor[i] is not None else (effective_end + 1)
-            target = place_gap(lo, hi)
-            if target is None:
-                target = append_to_end(on_grid=True)
+        hi = next_anchor_after[gi] if next_anchor_after[gi] is not None else (effective_end + 1)
 
-        if target > effective_end:
+        if anchors:
+            # Mixed event (rare: a feed added to an already-locked game). Anchors keep
+            # their numbers; place each new feed individually near the group.
+            lo = max(lo, max(_channel_num_as_int(c["channel_number"]) for c in anchors))
+            stopped = False
+            for ch in unplaced:
+                if mode == "strict":
+                    target = append_block(on_grid=False, k=1)
+                else:
+                    target = place_block(lo, hi, 1)
+                    if target is None:
+                        target = append_block(on_grid=True, k=1)
+                if target is None or target > effective_end:
+                    logger.warning(
+                        "[CHANNEL_SORT] %s sticky stopped (event=%s) - range exhausted",
+                        mode.upper(), group[0].get("event_id"),
+                    )
+                    stopped = True
+                    break
+                claim(ch, target)
+                lo = max(lo, target)
+            if stopped:
+                break
+            continue
+
+        # Fully new event — place all its feeds as one contiguous block.
+        k = len(group)
+        if mode == "strict":
+            start = append_block(on_grid=False, k=k)
+        else:
+            start = place_block(lo, hi, k)
+            if start is None:
+                start = append_block(on_grid=True, k=k)
+
+        if start is None or start + (k - 1) > effective_end:
             logger.warning(
-                "[CHANNEL_SORT] %s sticky stopped at channel %d - range exhausted",
-                mode.upper(), ch["id"],
+                "[CHANNEL_SORT] %s sticky stopped (event=%s, %d feed(s)) - range exhausted",
+                mode.upper(), group[0].get("event_id"), k,
             )
             break
 
-        used.add(target)
-        lo = target
-
-        if cur != target:
-            conn.execute(
-                _SET_NUMBER_LOCKED_SQL,
-                (target, ch["id"]),
-            )
-            drift_details.append({
-                "channel_id": ch["id"],
-                "dispatcharr_channel_id": ch["dispatcharr_channel_id"],
-                "channel_name": ch["channel_name"],
-                "old_number": cur,
-                "new_number": target,
-            })
-            channels_moved += 1
-            logger.debug(
-                "[CHANNEL_NUM] '%s' placed #%s → #%d (%s)",
-                ch["channel_name"], cur, target, mode,
-            )
-        else:
-            # Number already correct — just lock it so it's sticky from now on.
-            conn.execute(_LOCK_SQL, (ch["id"],))
+        for j, ch in enumerate(group):
+            claim(ch, start + j)
+        lo = start + (k - 1)
 
     logger.info(
         "[CHANNEL_SORT] %s sticky: %d channels processed, %d placed",
@@ -757,9 +846,10 @@ def _reassign_reset(
 ) -> dict:
     """Full re-layout for gap/strict modes (the daily reset window).
 
-    Re-grids every channel by priority order and re-locks them: contiguous for
-    strict, spaced by gap_size for gap. This is the only path that moves a
-    channel that is already locked.
+    Re-grids every channel by priority order and re-locks them. Feeds of one event
+    are placed contiguously (no gap between home/away/regular); the gap_size spacing
+    is applied only *between* events (strict is fully contiguous). This is the only
+    path that moves a channel that is already locked.
     """
     range_start, range_end = get_global_channel_range(conn)
     effective_end = range_end if range_end else MAX_CHANNEL
@@ -771,39 +861,40 @@ def _reassign_reset(
 
     drift_details: list[dict] = []
     channels_moved = 0
+    used: set[int] = set(ext)
 
-    num = range_start
-    while num in ext:
-        num += 1
+    def first_grid_at_or_after(x: int) -> int:
+        if x <= range_start:
+            return range_start
+        k = (x - range_start + step - 1) // step
+        return range_start + k * step
 
-    for ch in sorted_channels:
-        if num > effective_end:
+    def free_run(start: int, k: int) -> bool:
+        return start + (k - 1) <= effective_end and all(
+            (start + j) not in used for j in range(k)
+        )
+
+    # Each event is a grid-aligned contiguous block; the next event starts at the
+    # next grid slot, so gap_size spacing sits between events (a wide multi-feed
+    # event simply consumes more of its gap). Matches the sticky allocator so the
+    # reset doesn't shift events that sticky already placed.
+    frontier = range_start
+    for group in _group_consecutive(sorted_channels):
+        k = len(group)
+        start = first_grid_at_or_after(frontier)
+        while start + (k - 1) <= effective_end and not free_run(start, k):
+            start += step
+        if start + (k - 1) > effective_end:
             logger.warning(
-                "[CHANNEL_SORT] %s reset stopped at channel %d - range exhausted",
-                mode.upper(), ch["id"],
+                "[CHANNEL_SORT] %s reset stopped (event=%s, %d feed(s)) - range exhausted",
+                mode.upper(), group[0].get("event_id"), k,
             )
             break
-
-        cur = _channel_num_as_int(ch["channel_number"])
-        if cur != num:
-            conn.execute(
-                _SET_NUMBER_LOCKED_SQL,
-                (num, ch["id"]),
-            )
-            drift_details.append({
-                "channel_id": ch["id"],
-                "dispatcharr_channel_id": ch["dispatcharr_channel_id"],
-                "channel_name": ch["channel_name"],
-                "old_number": cur,
-                "new_number": num,
-            })
-            channels_moved += 1
-        else:
-            conn.execute(_LOCK_SQL, (ch["id"],))
-
-        num += step
-        while num in ext:
-            num += 1
+        for j, ch in enumerate(group):
+            if _apply_number(conn, ch, start + j, mode, drift_details):
+                channels_moved += 1
+            used.add(start + j)
+        frontier = start + k
 
     logger.info(
         "[CHANNEL_SORT] %s reset re-layout: %d channels processed, %d moved",
