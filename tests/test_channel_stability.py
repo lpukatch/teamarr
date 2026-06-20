@@ -55,13 +55,13 @@ def db():
     return conn
 
 
-def _add(conn, cid, name, number, locked, event_date, event_id):
+def _add(conn, cid, name, number, locked, event_date, event_id, keyword=None):
     conn.execute(
         """INSERT INTO managed_channels
            (id, channel_name, channel_number, channel_number_locked,
-            event_date, event_id, sport, league)
-           VALUES (?, ?, ?, ?, ?, ?, 'football', 'nfl')""",
-        (cid, name, number, locked, event_date, event_id),
+            event_date, event_id, exception_keyword, sport, league)
+           VALUES (?, ?, ?, ?, ?, ?, ?, 'football', 'nfl')""",
+        (cid, name, number, locked, event_date, event_id, keyword),
     )
 
 
@@ -227,6 +227,41 @@ def test_strict_feeds_append_contiguously(db):
     nums = _numbers(db)
     assert nums["A"] == 101
     assert {nums["Home"], nums["Away"]} == {102, 103}
+
+
+def test_gap_sticky_keyword_variants_stay_contiguous(db):
+    # An exception keyword breaks a stream out onto its own channel, but that
+    # channel shares the event's event_id — so the main channel and its keyword
+    # variant(s) must be placed as one contiguous block, just like home/away feeds.
+    _set_mode(db, "gap", gap=3)
+    _add(db, 1, "A", "101", 1, "2026-06-18 10:00:00", "e1")
+    _add(db, 2, "B", "104", 1, "2026-06-18 12:00:00", "e2")
+    _add(db, 3, "NEW", "500", 0, "2026-06-18 11:00:00", "e3")
+    _add(db, 4, "NEW (Spanish)", "501", 0, "2026-06-18 11:00:00", "e3", keyword="Spanish")
+    db.commit()
+
+    cn.reassign_all_channels(db)
+    nums = _numbers(db)
+    assert nums["A"] == 101 and nums["B"] == 104  # anchors untouched
+    # Main channel + keyword variant slot into the 102/103 gap, adjacent.
+    assert {nums["NEW"], nums["NEW (Spanish)"]} == {102, 103}
+    # Main channel sorts before the keyword variant.
+    assert nums["NEW"] < nums["NEW (Spanish)"]
+
+
+def test_gap_reset_keyword_variant_contiguous_with_gap_between_events(db):
+    # Reset: a main + keyword channel for one event pack adjacently (101-102), and
+    # the next event still gets its inter-event gap before its grid slot.
+    _set_mode(db, "gap", gap=3)
+    _add(db, 1, "Main", "200", 1, "2026-06-18 10:00:00", "e1")
+    _add(db, 2, "Main (Spanish)", "201", 1, "2026-06-18 10:00:00", "e1", keyword="Spanish")
+    _add(db, 3, "Solo", "150", 1, "2026-06-18 12:00:00", "e2")
+    db.commit()
+
+    cn.reassign_all_channels(db, force_reset=True)
+    nums = _numbers(db)
+    assert nums["Main"] == 101 and nums["Main (Spanish)"] == 102  # adjacent block
+    assert nums["Solo"] == 104  # 103 left free as the inter-event gap
 
 
 def test_gap_reset_feeds_contiguous_with_gap_between_events(db):
