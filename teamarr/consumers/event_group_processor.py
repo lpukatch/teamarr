@@ -1670,6 +1670,10 @@ class EventGroupProcessor:
             custom_regex_time_enabled=group.custom_regex_time_enabled,
             custom_regex_league=group.custom_regex_league,
             custom_regex_league_enabled=group.custom_regex_league_enabled,
+            custom_regex_fighters=group.custom_regex_fighters,
+            custom_regex_fighters_enabled=group.custom_regex_fighters_enabled,
+            custom_regex_event_name=group.custom_regex_event_name,
+            custom_regex_event_name_enabled=group.custom_regex_event_name_enabled,
             shared_events=self._shared_events,  # Reuse events across groups in same run
             stream_timezone=group.stream_timezone,  # TZ for interpreting stream dates
             feed_home_terms=feed_home_terms,

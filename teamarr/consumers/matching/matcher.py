@@ -218,6 +218,10 @@ class StreamMatcher:
         custom_regex_time_enabled: bool = False,
         custom_regex_league: str | None = None,
         custom_regex_league_enabled: bool = False,
+        custom_regex_fighters: str | None = None,
+        custom_regex_fighters_enabled: bool = False,
+        custom_regex_event_name: str | None = None,
+        custom_regex_event_name_enabled: bool = False,
         days_ahead: int | None = None,
         shared_events: dict[str, tuple[list[Event], bool]] | None = None,
         stream_timezone: str | None = None,
@@ -247,6 +251,10 @@ class StreamMatcher:
             custom_regex_time_enabled: Whether custom regex for time is enabled
             custom_regex_league: Custom regex pattern for extracting league hint
             custom_regex_league_enabled: Whether custom regex for league is enabled
+            custom_regex_fighters: Custom regex for extracting fighter names (Combat/Event Card)
+            custom_regex_fighters_enabled: Whether custom regex for fighters is enabled
+            custom_regex_event_name: Custom regex for extracting the event/card name
+            custom_regex_event_name_enabled: Whether custom regex for event name is enabled
             days_ahead: Days to look ahead for events (if None, loaded from settings)
             shared_events: Shared events cache dict (keyed by "league:date") to reuse
                            across multiple matchers in a single generation run.
@@ -292,6 +300,8 @@ class StreamMatcher:
             or (custom_regex_day_enabled and custom_regex_day)
             or (custom_regex_time_enabled and custom_regex_time)
             or (custom_regex_league_enabled and custom_regex_league)
+            or (custom_regex_fighters_enabled and custom_regex_fighters)
+            or (custom_regex_event_name_enabled and custom_regex_event_name)
         )
         self._custom_regex = (
             CustomRegexConfig(
@@ -307,6 +317,10 @@ class StreamMatcher:
                 time_enabled=custom_regex_time_enabled,
                 league_pattern=custom_regex_league,
                 league_enabled=custom_regex_league_enabled,
+                fighters_pattern=custom_regex_fighters,
+                fighters_enabled=custom_regex_fighters_enabled,
+                event_name_pattern=custom_regex_event_name,
+                event_name_enabled=custom_regex_event_name_enabled,
             )
             if has_custom_regex
             else None
