@@ -216,6 +216,23 @@ def test_gap_sticky_feed_block_appends_together_when_gap_too_small(db):
     assert feeds[0] > 104  # appended past the anchors, none displaced
 
 
+def test_gap_sticky_multi_feed_block_then_full_gap(db):
+    # Sticky initial placement: a 3-feed event packs 101-103, and the next event
+    # starts a full gap *after* the block end (103 + 3 = 106) — the inter-event gap
+    # follows the whole home/away block instead of being measured from its first slot.
+    _set_mode(db, "gap", gap=3)
+    _add(db, 1, "H", "500", 0, "2026-06-18 10:00:00", "e1")
+    _add(db, 2, "A", "501", 0, "2026-06-18 10:00:00", "e1")
+    _add(db, 3, "R", "502", 0, "2026-06-18 10:00:00", "e1")
+    _add(db, 4, "Solo", "503", 0, "2026-06-18 12:00:00", "e2")
+    db.commit()
+
+    cn.reassign_all_channels(db)
+    nums = _numbers(db)
+    assert sorted([nums["H"], nums["A"], nums["R"]]) == [101, 102, 103]
+    assert nums["Solo"] == 106  # full gap after the block end (103 + gap)
+
+
 def test_strict_feeds_append_contiguously(db):
     _set_mode(db, "strict")
     _add(db, 1, "A", "101", 1, "2026-06-18 10:00:00", "e1")
@@ -251,7 +268,7 @@ def test_gap_sticky_keyword_variants_stay_contiguous(db):
 
 def test_gap_reset_keyword_variant_contiguous_with_gap_between_events(db):
     # Reset: a main + keyword channel for one event pack adjacently (101-102), and
-    # the next event still gets its inter-event gap before its grid slot.
+    # the next event starts a full gap *after* the block's end (102 + 3 = 105).
     _set_mode(db, "gap", gap=3)
     _add(db, 1, "Main", "200", 1, "2026-06-18 10:00:00", "e1")
     _add(db, 2, "Main (Spanish)", "201", 1, "2026-06-18 10:00:00", "e1", keyword="Spanish")
@@ -261,12 +278,13 @@ def test_gap_reset_keyword_variant_contiguous_with_gap_between_events(db):
     cn.reassign_all_channels(db, force_reset=True)
     nums = _numbers(db)
     assert nums["Main"] == 101 and nums["Main (Spanish)"] == 102  # adjacent block
-    assert nums["Solo"] == 104  # 103 left free as the inter-event gap
+    assert nums["Solo"] == 105  # full gap after the block end (102 + gap)
 
 
 def test_gap_reset_feeds_contiguous_with_gap_between_events(db):
-    # Reset: a 3-feed event packs 101-103, the next event starts at the next grid
-    # slot (104 here, since the feeds consumed the gap), feeds never spaced apart.
+    # Reset: a 3-feed event packs 101-103, and the next event starts a full gap
+    # *after* the block's end (103 + 3 = 106) — the gap follows the block instead
+    # of being eaten by the extra feeds; feeds themselves are never spaced apart.
     _set_mode(db, "gap", gap=3)
     _add(db, 1, "H", "200", 1, "2026-06-18 10:00:00", "e1")
     _add(db, 2, "A", "201", 1, "2026-06-18 10:00:00", "e1")
@@ -277,11 +295,12 @@ def test_gap_reset_feeds_contiguous_with_gap_between_events(db):
     cn.reassign_all_channels(db, force_reset=True)
     nums = _numbers(db)
     assert sorted([nums["H"], nums["A"], nums["R"]]) == [101, 102, 103]
-    assert nums["Solo"] == 104  # next grid slot after the block
+    assert nums["Solo"] == 106  # full gap after the block end (103 + gap)
 
 
 def test_gap_reset_two_feed_event_then_gap(db):
-    # A 2-feed event leaves one free slot before the next event's grid slot.
+    # A 2-feed event packs 101-102, then a full gap follows the block end
+    # (102 + 3 = 105) — same inter-event spacing regardless of block width.
     _set_mode(db, "gap", gap=3)
     _add(db, 1, "H", "200", 1, "2026-06-18 10:00:00", "e1")
     _add(db, 2, "A", "201", 1, "2026-06-18 10:00:00", "e1")
@@ -291,7 +310,7 @@ def test_gap_reset_two_feed_event_then_gap(db):
     cn.reassign_all_channels(db, force_reset=True)
     nums = _numbers(db)
     assert sorted([nums["H"], nums["A"]]) == [101, 102]
-    assert nums["Solo"] == 104  # 103 left free as the inter-event gap
+    assert nums["Solo"] == 105  # full gap after the block end (102 + gap)
 
 
 # ---------------------------------------------------------------------------

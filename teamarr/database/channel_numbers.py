@@ -715,27 +715,29 @@ def _reassign_sticky(
         if anchor_nums:
             upcoming = min(anchor_nums)
 
-    def first_grid_at_or_after(x: int) -> int:
-        """Lowest grid slot (range_start + k*step) that is >= x."""
-        if x <= range_start:
-            return range_start
-        k = (x - range_start + step - 1) // step  # ceil division
-        return range_start + k * step
-
     def free_run(start: int, k: int) -> bool:
         """True if the k contiguous slots from `start` are all free and in range."""
         return start + (k - 1) <= effective_end and all(
             (start + j) not in used for j in range(k)
         )
 
+    def gap_start(prev_end: int) -> int:
+        """Preferred start for the next block: a full gap_size step past the previous
+        block's END, so a multi-feed block consumes its own slots and the inter-event
+        gap follows *after* it (not measured from the block's first slot). The very
+        first block starts at range_start."""
+        return range_start if prev_end < range_start else prev_end + step
+
     def place_block(lo: int, hi: int, k: int) -> int | None:
-        """Lowest start for a contiguous run of k free slots in (lo, hi): prefer an
-        on-grid start (leaving room for late events), else the lowest free run."""
-        grid = first_grid_at_or_after(lo + 1)
-        while grid + (k - 1) < hi and grid + (k - 1) <= effective_end:
-            if free_run(grid, k):
-                return grid
-            grid += step
+        """Lowest start for a contiguous run of k free slots in (lo, hi): prefer the
+        gap-after-block position (a full gap past `lo`, the previous block's end),
+        else the lowest free run that still fits (reuses slots freed by deletions)."""
+        pref = gap_start(lo)
+        cand = pref
+        while cand + (k - 1) < hi and cand + (k - 1) <= effective_end:
+            if free_run(cand, k):
+                return cand
+            cand += 1
         cand = lo + 1
         while cand + (k - 1) < hi and cand + (k - 1) <= effective_end:
             if free_run(cand, k):
@@ -744,13 +746,11 @@ def _reassign_sticky(
         return None
 
     def append_block(on_grid: bool, k: int) -> int | None:
-        """A contiguous run of k free slots past the current frontier."""
+        """A contiguous run of k free slots past the current frontier. With on_grid
+        (gap mode) the run starts a full gap past the last placed block; strict
+        appends contiguously."""
         base = max(locked_teamarr) if locked_teamarr else (range_start - 1)
-        start = (
-            first_grid_at_or_after(max(base + 1, range_start))
-            if on_grid
-            else max(base + 1, range_start)
-        )
+        start = gap_start(base) if on_grid else max(base + 1, range_start)
         while start <= effective_end:
             if free_run(start, k):
                 return start
@@ -863,27 +863,22 @@ def _reassign_reset(
     channels_moved = 0
     used: set[int] = set(ext)
 
-    def first_grid_at_or_after(x: int) -> int:
-        if x <= range_start:
-            return range_start
-        k = (x - range_start + step - 1) // step
-        return range_start + k * step
-
     def free_run(start: int, k: int) -> bool:
         return start + (k - 1) <= effective_end and all(
             (start + j) not in used for j in range(k)
         )
 
-    # Each event is a grid-aligned contiguous block; the next event starts at the
-    # next grid slot, so gap_size spacing sits between events (a wide multi-feed
-    # event simply consumes more of its gap). Matches the sticky allocator so the
+    # Each event is a contiguous block; the next event starts a full gap_size step
+    # past the previous block's END — so a multi-feed block consumes its own slots
+    # and the inter-event gap follows *after* it (not eaten by the extra feeds).
+    # Strict (step=1) packs everything tight. Matches the sticky allocator so the
     # reset doesn't shift events that sticky already placed.
     frontier = range_start
     for group in _group_consecutive(sorted_channels):
         k = len(group)
-        start = first_grid_at_or_after(frontier)
+        start = frontier
         while start + (k - 1) <= effective_end and not free_run(start, k):
-            start += step
+            start += 1
         if start + (k - 1) > effective_end:
             logger.warning(
                 "[CHANNEL_SORT] %s reset stopped (event=%s, %d feed(s)) - range exhausted",
@@ -894,7 +889,7 @@ def _reassign_reset(
             if _apply_number(conn, ch, start + j, mode, drift_details):
                 channels_moved += 1
             used.add(start + j)
-        frontier = start + k
+        frontier = start + (k - 1) + step
 
     logger.info(
         "[CHANNEL_SORT] %s reset re-layout: %d channels processed, %d moved",
