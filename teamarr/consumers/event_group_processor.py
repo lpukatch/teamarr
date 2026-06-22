@@ -3,19 +3,16 @@
 Connects stream matching to channel lifecycle:
 1. Load group config from database
 2. Fetch M3U streams from Dispatcharr
-3. Fetch events from data providers (parallel with ThreadPoolExecutor)
-4. Match streams to events
-5. Create/update channels via ChannelLifecycleService
-6. Generate XMLTV EPG
-7. Optionally push EPG to Dispatcharr
+3. Match streams to events (the matcher fetches events itself, per league)
+4. Create/update channels via ChannelLifecycleService
+5. Generate XMLTV EPG
+6. Optionally push EPG to Dispatcharr
 
 This is the main entry point for event-based EPG generation.
 """
 
 import logging
-import os
 from collections.abc import Callable
-from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import asdict, dataclass, field
 from datetime import date, datetime, timedelta
 from sqlite3 import Connection
@@ -66,10 +63,6 @@ from teamarr.services.stream_filter import FilterResult
 from teamarr.utilities.xmltv import merge_xmltv_content, programmes_to_xmltv
 
 logger = logging.getLogger(__name__)
-
-# Number of parallel workers for event fetching
-# Configurable via ESPN_MAX_WORKERS for users with DNS throttling (PiHole, AdGuard)
-MAX_WORKERS = int(os.environ.get("ESPN_MAX_WORKERS", 100))
 
 
 @dataclass
@@ -1015,33 +1008,11 @@ class EventGroupProcessor:
                 )
                 return result
 
-            # Step 2: Fetch events from data providers
-            # Use subscription leagues (per-group override → global fallback)
+            # Step 2: Resolve subscription leagues (per-group override → global
+            # fallback). The matcher fetches its own events with a 30-day window,
+            # so there is no separate pre-flight event fetch here — an eventless
+            # group simply produces zero matches downstream.
             effective_leagues = self._get_subscription_leagues(conn, group)
-            events = self._fetch_events(effective_leagues, target_date)
-            logger.info(
-                f"Fetched {len(events)} events for group '{group.name}' leagues={effective_leagues}"
-            )
-
-            if not events:
-                result.errors.append(f"No events found for leagues: {effective_leagues}")
-                result.completed_at = datetime.now()
-                stats_run.complete(status="completed", error="No events found")
-                save_run(conn, stats_run)
-                # Update stats - streams are eligible but no events to match against
-                update_group_stats(
-                    conn,
-                    group.id,
-                    stream_count=result.streams_after_filter,  # Eligible streams
-                    matched_count=0,
-                    filtered_stale=filter_result.filtered_stale,
-                    filtered_include_regex=filter_result.filtered_include,
-                    filtered_exclude_regex=filter_result.filtered_exclude,
-                    failed_count=result.streams_after_filter,  # All unmatched due to no events
-                    filtered_not_event=filter_result.filtered_not_event,
-                    total_stream_count=result.streams_fetched,
-                )
-                return result
 
             # Step 3: Match streams to events (uses fingerprint cache)
             match_result = self._match_streams(
@@ -1513,74 +1484,6 @@ class EventGroupProcessor:
         with self._db_factory() as conn:
             cursor = conn.execute("SELECT league_slug FROM league_cache")
             return [row[0] for row in cursor.fetchall()]
-
-    def _fetch_events(self, leagues: list[str], target_date: date) -> list[Event]:
-        """Fetch events from data providers for leagues in parallel.
-
-        Uses a fixed 7-day lookback (for weekly sports like NFL) and
-        event_match_days_ahead setting for future events.
-        """
-        if not leagues:
-            return []
-
-        all_events: list[Event] = []
-        num_workers = min(MAX_WORKERS, len(leagues))
-
-        # Load date range settings
-        # Note: days_back is hardcoded to 7 for weekly sports like NFL
-        with self._db_factory() as conn:
-            row = conn.execute(
-                "SELECT event_match_days_ahead FROM settings WHERE id = 1"
-            ).fetchone()
-            days_back = 7  # Hardcoded for weekly sports
-            days_ahead = (
-                row["event_match_days_ahead"] if row and row["event_match_days_ahead"] else 3
-            )
-
-        # Build date range: [target - days_back, target + days_ahead]
-        dates_to_fetch = [
-            target_date + timedelta(days=offset) for offset in range(-days_back, days_ahead + 1)
-        ]
-        logger.debug(
-            "[EVENT_EPG] Fetching events from %s to %s (%d days)",
-            dates_to_fetch[0],
-            dates_to_fetch[-1],
-            len(dates_to_fetch),
-        )
-
-        def fetch_league_events(league: str, fetch_date: date) -> tuple[str, date, list[Event]]:
-            """Fetch events for a single league/date (for parallel execution)."""
-            try:
-                # TSDB leagues: cache-only (don't hit API during EPG generation)
-                # TSDB cache builds organically from startup/scheduled refresh
-                is_tsdb = self._service.get_provider_name(league) == "tsdb"
-                events = self._service.get_events(league, fetch_date, cache_only=is_tsdb)
-                return (league, fetch_date, events)
-            except Exception as e:
-                logger.warning(
-                    "[EVENT_EPG] Failed to fetch events for %s on %s: %s", league, fetch_date, e
-                )
-                return (league, fetch_date, [])
-
-        with ThreadPoolExecutor(max_workers=num_workers) as executor:
-            # Create tasks for all league/date combinations
-            futures = {}
-            for league in leagues:
-                for fetch_date in dates_to_fetch:
-                    future = executor.submit(fetch_league_events, league, fetch_date)
-                    futures[future] = (league, fetch_date)
-
-            for future in as_completed(futures):
-                try:
-                    league, fetch_date, events = future.result()
-                    all_events.extend(events)
-                except Exception as e:
-                    league, fetch_date = futures[future]
-                    logger.warning(
-                        "[EVENT_EPG] Failed to fetch events for %s on %s: %s", league, fetch_date, e
-                    )
-
-        return all_events
 
     def _match_streams(
         self,
