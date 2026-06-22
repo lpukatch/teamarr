@@ -728,22 +728,26 @@ def _reassign_sticky(
         first block starts at range_start."""
         return range_start if prev_end < range_start else prev_end + step
 
-    def place_block(lo: int, hi: int, k: int) -> int | None:
-        """Lowest start for a contiguous run of k free slots in (lo, hi): prefer the
-        gap-after-block position (a full gap past `lo`, the previous block's end),
-        else the lowest free run that still fits (reuses slots freed by deletions)."""
-        pref = gap_start(lo)
-        cand = pref
-        while cand + (k - 1) < hi and cand + (k - 1) <= effective_end:
-            if free_run(cand, k):
-                return cand
-            cand += 1
-        cand = lo + 1
+    def first_free_run(start: int, hi: int, k: int) -> int | None:
+        """Lowest position >= `start` whose k contiguous slots are all free, staying
+        below `hi` (the next anchored event) and in range. Scanning forward by 1 also
+        reclaims holes left by deletions that fall at/after `start`."""
+        cand = max(start, range_start)
         while cand + (k - 1) < hi and cand + (k - 1) <= effective_end:
             if free_run(cand, k):
                 return cand
             cand += 1
         return None
+
+    def place_block(lo: int, hi: int, k: int) -> int | None:
+        """Lowest start for a contiguous run of k free slots in (lo, hi): prefer the
+        gap-after-block position (a full gap past `lo`, the previous block's end),
+        else the lowest free run that still fits — letting a new event slot into its
+        sorted neighbourhood and reusing slots freed by deletions."""
+        start = first_free_run(gap_start(lo), hi, k)
+        if start is not None:
+            return start
+        return first_free_run(lo + 1, hi, k)
 
     def append_block(on_grid: bool, k: int) -> int | None:
         """A contiguous run of k free slots past the current frontier. With on_grid
@@ -783,17 +787,17 @@ def _reassign_sticky(
         hi = next_anchor_after[gi] if next_anchor_after[gi] is not None else (effective_end + 1)
 
         if anchors:
-            # Mixed event (rare: a feed added to an already-locked game). Anchors keep
-            # their numbers; place each new feed individually near the group.
+            # Mixed event: a feed was added to an already-locked game (feeds are
+            # discovered across runs). Anchors keep their numbers; each new feed
+            # extends the event's run *contiguously* into the gap reserved right
+            # after its existing feeds — so all feeds of one game stay together
+            # instead of being scattered a full gap (or out to the frontier) away.
             lo = max(lo, max(_channel_num_as_int(c["channel_number"]) for c in anchors))
             stopped = False
             for ch in unplaced:
-                if mode == "strict":
-                    target = append_block(on_grid=False, k=1)
-                else:
-                    target = place_block(lo, hi, 1)
-                    if target is None:
-                        target = append_block(on_grid=True, k=1)
+                target = first_free_run(lo + 1, hi, 1)
+                if target is None:
+                    target = append_block(on_grid=(mode == "gap"), k=1)
                 if target is None or target > effective_end:
                     logger.warning(
                         "[CHANNEL_SORT] %s sticky stopped (event=%s) - range exhausted",

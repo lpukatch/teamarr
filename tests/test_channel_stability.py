@@ -140,6 +140,23 @@ def test_gap_initial_placement_leaves_gaps(db):
     assert _numbers(db) == {"A": 101, "B": 104, "C": 107}
 
 
+def test_gap_late_feed_extends_event_contiguously(db):
+    # Feeds of one game are discovered across runs: the base feed locks first, then
+    # home/away feeds appear later. A late feed must extend the event's run into the
+    # gap reserved right after it (102/103) — NOT jump a full gap_size away (105),
+    # which scatters one game's feeds across the channel list.
+    _set_mode(db, "gap", gap=3)
+    _add(db, 1, "GAME", "101", 1, "2026-06-18 10:00:00", "e1")
+    _add(db, 2, "GAME (Home)", "102", 1, "2026-06-18 10:00:00", "e1")
+    _add(db, 3, "GAME (Away)", "500", 0, "2026-06-18 10:00:00", "e1")  # new feed
+    db.commit()
+
+    cn.reassign_all_channels(db)
+    nums = _numbers(db)
+    assert nums["GAME"] == 101 and nums["GAME (Home)"] == 102  # anchors untouched
+    assert nums["GAME (Away)"] == 103  # contiguous, not 105 (a full gap away)
+
+
 def test_gap_invalidated_lock_is_replaced(db):
     # A locked channel whose number fell outside the range (e.g. range was
     # shrunk) is re-gridded on the next sticky run, not stranded until reset.
