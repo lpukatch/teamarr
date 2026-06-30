@@ -199,18 +199,34 @@ def apply_city_translations(text: str) -> str:
 
 # Date patterns to extract and mask
 _MONTHS = r"Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec"
+# Month names matching the 3-letter abbreviation OR full name, anchored so the
+# token ends at a word boundary. The older `(Jan|...)[a-z]*` form let an
+# abbreviation swallow any word that happened to start with it ("Mar" + "auders"
+# → "Marauders 30" mis-read as "Mar 30"); enumerating the valid completions and
+# requiring \b after keeps "Marauders"/"Mariners"/"Mayhem" out of date matches.
+_MONTH_NAMES = (
+    r"Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|"
+    r"Jul(?:y)?|Aug(?:ust)?|Sep(?:t(?:ember)?)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?"
+)
 DATE_PATTERNS = [
     # ISO format: 2026-01-09 (YYYY-MM-DD) - must be before MM/DD/YYYY pattern
     (r"\b(\d{4})[/\-](\d{1,2})[/\-](\d{1,2})\b", "DATE_MASK_ISO"),
     # 12/31/25, 12/31/2025 (MM/DD/YY or MM/DD/YYYY)
     (r"\b(\d{1,2})[/\-](\d{1,2})[/\-](\d{2,4})\b", "DATE_MASK"),
+    # 30 @ Jun - day, then "@", then month (some MiLB/provider feeds put the day
+    # before the month and use "@" as the date/time separator, e.g.
+    # "... Marauders 30 @ Jun 06:30 PM ET"). Masking this here both extracts the
+    # date and removes the stray "@" so it can't be mistaken for the matchup
+    # separator. Requires a month NAME after "@" so real matchups ("LAL @ BOS")
+    # are never touched.
+    (rf"\b(\d{{1,2}})(?:st|nd|rd|th)?\s*@\s*(?:{_MONTH_NAMES})\b", "DATE_MASK"),
     # 1/17, 12/31 (MM/DD without year) - infer year based on proximity to today
     # Must come after MM/DD/YYYY to avoid partial matches
     (r"\b(\d{1,2})[/\-](\d{1,2})\b", "DATE_MASK_NO_YEAR"),
     # 31 Dec, 31 December - check this BEFORE "Dec 31" to prefer "14 Jan" over "Jan 11"
-    (rf"\b(\d{{1,2}})(?:st|nd|rd|th)?\s+({_MONTHS})[a-z]*\b", "DATE_MASK"),
+    (rf"\b(\d{{1,2}})(?:st|nd|rd|th)?\s+(?:{_MONTH_NAMES})\b", "DATE_MASK"),
     # Dec 31, December 31 - use negative lookahead (?!:) to avoid matching "Jan 11:45pm"
-    (rf"\b({_MONTHS})[a-z]*\s+(\d{{1,2}})(?:st|nd|rd|th)?(?!:)\b", "DATE_MASK"),
+    (rf"\b(?:{_MONTH_NAMES})\s+(\d{{1,2}})(?:st|nd|rd|th)?(?!:)\b", "DATE_MASK"),
 ]
 
 # Time patterns to extract and mask (with optional TZ suffix)
