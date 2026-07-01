@@ -18,9 +18,9 @@ router = APIRouter()
 def get_stream_ordering_settings():
     """Get stream ordering rules.
 
-    Returns the list of rules used to prioritize streams within channels.
-    Rules are evaluated in priority order (lowest number first).
-    First matching rule determines the stream's position.
+    Returns the list of scoring rules used to prioritize streams within
+    channels. A stream's score is the sum of the points of every rule it
+    matches; streams are ranked by total score, highest first.
     """
     from teamarr.database.settings import get_stream_ordering_settings
 
@@ -32,7 +32,7 @@ def get_stream_ordering_settings():
             StreamOrderingRuleModel(
                 type=rule.type,
                 value=rule.value,
-                priority=rule.priority,
+                points=rule.points,
             )
             for rule in settings.rules
         ]
@@ -45,9 +45,9 @@ def update_stream_ordering_settings(update: StreamOrderingSettingsUpdate):
 
     Replaces all existing rules with the provided list.
     Rules are validated for:
-    - Valid type (m3u, group, regex)
+    - Valid type (m3u, group, regex, ...)
     - Non-empty value
-    - Priority between 1-99
+    - Points between -1000 and 1000
 
     Changes take effect on the next EPG generation.
     """
@@ -81,7 +81,7 @@ def update_stream_ordering_settings(update: StreamOrderingSettingsUpdate):
         {
             "type": rule.type,
             "value": rule.value.strip(),
-            "priority": rule.priority,
+            "points": rule.points,
         }
         for rule in update.rules
     ]
@@ -98,7 +98,7 @@ def update_stream_ordering_settings(update: StreamOrderingSettingsUpdate):
             StreamOrderingRuleModel(
                 type=rule.type,
                 value=rule.value,
-                priority=rule.priority,
+                points=rule.points,
             )
             for rule in settings.rules
         ]

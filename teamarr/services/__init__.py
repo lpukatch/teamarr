@@ -55,8 +55,8 @@ from teamarr.services.scheduler_service import (
 )
 from teamarr.services.sports_data import SportsDataService, create_default_service
 from teamarr.services.stream_ordering import (
+    RuleEvaluation,
     StreamOrderingService,
-    StreamWithPriority,
     get_stream_ordering_service,
 )
 
@@ -95,8 +95,8 @@ __all__ = [
     "StreamStats",
     "create_group_service",
     # Stream ordering service
+    "RuleEvaluation",
     "StreamOrderingService",
-    "StreamWithPriority",
     "get_stream_ordering_service",
     # Detection keyword service
     "DetectionKeywordService",

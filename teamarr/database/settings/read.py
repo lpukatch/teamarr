@@ -557,11 +557,12 @@ def _parse_stream_ordering_rules(rules_json: str | None) -> list[StreamOrderingR
             StreamOrderingRule(
                 type=rule.get("type", "m3u"),
                 value=rule.get("value", ""),
-                priority=rule.get("priority", 99),
+                points=rule.get("points", 0),
             )
             for rule in rules_data
             if isinstance(rule, dict)
             and rule.get("type")
+            and rule.get("type") != "catch_all"
             and (rule.get("type") in NO_VALUE_RULE_TYPES or rule.get("value"))
         ]
     except json.JSONDecodeError:

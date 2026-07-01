@@ -938,8 +938,8 @@ def _apply_stream_ordering(
 
                 reordered_count = 0
                 if ordering_service:
-                    for stream in streams:
-                        new_priority = ordering_service.compute_priority(stream)
+                    sorted_streams = ordering_service.sort_streams(streams)
+                    for new_priority, stream in enumerate(sorted_streams, start=1):
                         if stream.priority != new_priority:
                             update_stream_priority(conn, stream.id, new_priority)
                             reordered_count += 1

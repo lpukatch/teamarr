@@ -580,6 +580,13 @@ def _run_migrations(conn: sqlite3.Connection) -> None:
         )
         current_version = 76
 
+    if current_version < 77:
+        _apply_migration(
+            conn, 77, "stream ordering: cascade priority -> additive points",
+            _migrate_v77_stream_ordering_points,
+        )
+        current_version = 77
+
 
 # =============================================================================
 # Migration helpers
@@ -1745,6 +1752,72 @@ def _migrate_v76_leading_slash_art_paths(conn: sqlite3.Connection) -> None:
             "[MIGRATE] v76: added leading slash to relative art paths in %d template(s)",
             changed,
         )
+
+
+def _migrate_v77_stream_ordering_points(conn: sqlite3.Connection) -> None:
+    """v77: convert stream ordering rules from cascade priority to additive points.
+
+    Stream Priority used to be a first-match-wins cascade: rules had a
+    "priority" (1-99, lower = tried first) and a "catch_all" fallback rule.
+    It's now additive scoring: every matching rule's "points" contribute to a
+    stream's total score, and streams rank by total score (no catch_all needed
+    — an unmatched stream simply scores 0).
+
+    Best-effort conversion for existing rule sets: drop any catch_all entries
+    (nothing to carry over — 0 score already sorts last), then assign points
+    in descending steps of 10 following the old ascending priority order (the
+    old rule #1 gets the highest points). This preserves relative dominance
+    for the common case where at most one rule ever matched a given stream;
+    once multiple rules match the same stream, additive scoring is
+    intentionally a richer behavior than the old cascade, so users should
+    review their points after upgrading.
+
+    Idempotent: rules already in the new shape (has "points", no "priority")
+    are left untouched.
+    """
+    if not _column_exists(conn, "settings", "stream_ordering_rules"):
+        return
+
+    row = conn.execute("SELECT stream_ordering_rules FROM settings WHERE id = 1").fetchone()
+    if not row or not row["stream_ordering_rules"]:
+        return
+
+    try:
+        rules = json.loads(row["stream_ordering_rules"])
+    except (TypeError, ValueError):
+        return
+    if not isinstance(rules, list) or not rules:
+        return
+
+    # Already migrated (or a fresh install seeded in the new shape) — no-op.
+    if all(isinstance(r, dict) and "points" in r and "priority" not in r for r in rules):
+        return
+
+    legacy = [
+        r for r in rules
+        if isinstance(r, dict) and r.get("type") and r.get("type") != "catch_all"
+    ]
+    legacy.sort(key=lambda r: r.get("priority", 99))
+
+    n = len(legacy)
+    converted = [
+        {
+            "type": r["type"],
+            "value": r.get("value", ""),
+            "points": (n - i) * 10,
+        }
+        for i, r in enumerate(legacy)
+    ]
+
+    conn.execute(
+        "UPDATE settings SET stream_ordering_rules = ? WHERE id = 1",
+        (json.dumps(converted),),
+    )
+    logger.info(
+        "[MIGRATE] v77: converted %d stream ordering rule(s) from priority to points; "
+        "review point values, they're a best-effort approximation",
+        len(converted),
+    )
 
 
 def _table_exists(conn: sqlite3.Connection, table: str) -> bool:

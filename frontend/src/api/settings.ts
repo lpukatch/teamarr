@@ -138,9 +138,9 @@ export interface ChannelNumberingSettingsUpdate {
 }
 
 export interface StreamOrderingRule {
-  type: "m3u" | "group" | "regex" | "stream_type" | "team_feed" | "not_team_feed" | "epg_match" | "dispatcharr_group" | "stats_metric" | "catch_all"
+  type: "m3u" | "group" | "regex" | "stream_type" | "team_feed" | "not_team_feed" | "epg_match" | "dispatcharr_group" | "stats_metric"
   value: string
-  priority: number  // 1-99, lower = higher priority
+  points: number  // Signed; added to a stream's score when this rule matches
 }
 
 export interface StreamOrderingSettings {

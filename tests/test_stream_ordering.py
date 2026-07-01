@@ -1,8 +1,9 @@
 """Tests for StreamOrderingService.
 
-Covers the rule-matching engine, with focus on the regex-heavy additions from
-PR #216 (team_feed / not_team_feed feed detection, the stream_type team filter,
-and the catch_all fallback rule), plus the team-term builder and key parsing.
+Covers the additive scoring engine (a stream's score is the sum of the points
+of every rule it matches — not first-match-wins), plus the regex-heavy rule
+types from PR #216 (team_feed / not_team_feed feed detection, the stream_type
+team filter), and the team-term builder and key parsing.
 """
 
 import pytest
@@ -10,10 +11,7 @@ import pytest
 from teamarr.database.channels.types import ManagedChannelStream
 from teamarr.database.connection import get_connection, get_db, init_db
 from teamarr.database.settings.types import StreamOrderingRule
-from teamarr.services.stream_ordering import (
-    NO_MATCH_PRIORITY,
-    StreamOrderingService,
-)
+from teamarr.services.stream_ordering import StreamOrderingService
 
 
 def _stream(name: str | None = None, match_type: str = "event") -> ManagedChannelStream:
@@ -59,24 +57,75 @@ def seeded_db(tmp_path, monkeypatch):
 
 class TestBasicRules:
     def test_regex_match(self):
-        svc = StreamOrderingService([StreamOrderingRule("regex", r"(?i)1080p", 1)])
-        assert svc.compute_priority(_stream("ESPN 1080p")) == 1
-        assert svc.compute_priority(_stream("ESPN 720p")) == NO_MATCH_PRIORITY
+        svc = StreamOrderingService([StreamOrderingRule("regex", r"(?i)1080p", 10)])
+        assert svc.compute_score(_stream("ESPN 1080p")) == 10
+        assert svc.compute_score(_stream("ESPN 720p")) == 0
 
     def test_m3u_match_case_insensitive(self):
-        svc = StreamOrderingService([StreamOrderingRule("m3u", "Premium IPTV", 1)])
+        svc = StreamOrderingService([StreamOrderingRule("m3u", "Premium IPTV", 10)])
         s = _stream("anything")
         s.m3u_account_name = "premium iptv"
-        assert svc.compute_priority(s) == 1
+        assert svc.compute_score(s) == 10
 
-    def test_first_match_wins_by_priority(self):
+    def test_matching_rules_add_up(self):
         rules = [
-            StreamOrderingRule("regex", r"(?i)1080p", 5),
-            StreamOrderingRule("regex", r"(?i)espn", 2),
+            StreamOrderingRule("regex", r"(?i)1080p", 20),
+            StreamOrderingRule("regex", r"(?i)espn", 10),
         ]
         svc = StreamOrderingService(rules)
-        # ESPN rule has lower number → evaluated first → wins
-        assert svc.compute_priority(_stream("ESPN 1080p")) == 2
+        # Both rules match "ESPN 1080p" — their points sum.
+        assert svc.compute_score(_stream("ESPN 1080p")) == 30
+        # Only the ESPN rule matches this one.
+        assert svc.compute_score(_stream("ESPN 720p")) == 10
+        # Neither matches.
+        assert svc.compute_score(_stream("Fox 720p")) == 0
+
+    def test_negative_points_deprioritize(self):
+        rules = [
+            StreamOrderingRule("m3u", "Provider A", 10),
+            StreamOrderingRule("regex", r"(?i)backup", -50),
+        ]
+        svc = StreamOrderingService(rules)
+        s = _stream("Backup Feed")
+        s.m3u_account_name = "Provider A"
+        assert svc.compute_score(s) == -40
+
+
+# ---------------------------------------------------------------------------
+# The worked example from the Stream Priority docs: quality can outrank a
+# provider preference without any rule reordering, because points add up.
+# ---------------------------------------------------------------------------
+
+
+class TestQualityOverridesProviderExample:
+    def _svc(self):
+        return StreamOrderingService([
+            StreamOrderingRule("m3u", "Provider A", 10),
+            StreamOrderingRule("stats_metric", "resolution_height|>=|1080", 20),
+        ])
+
+    def _stream(self, account: str, resolution: str) -> ManagedChannelStream:
+        s = ManagedChannelStream(
+            id=1, managed_channel_id=1, dispatcharr_stream_id=1,
+            stream_stats={"resolution": resolution},
+        )
+        s.m3u_account_name = account
+        return s
+
+    def test_scores_match_worked_example(self):
+        svc = self._svc()
+        a_1080 = self._stream("Provider A", "1920x1080")
+        b_1080 = self._stream("Provider B", "1920x1080")
+        a_720 = self._stream("Provider A", "1280x720")
+        b_720 = self._stream("Provider B", "1280x720")
+
+        assert svc.compute_score(a_1080) == 30
+        assert svc.compute_score(b_1080) == 20
+        assert svc.compute_score(a_720) == 10
+        assert svc.compute_score(b_720) == 0
+
+        ordered = svc.sort_streams([b_720, a_720, b_1080, a_1080])
+        assert ordered == [a_1080, b_1080, a_720, b_720]
 
 
 # ---------------------------------------------------------------------------
@@ -92,22 +141,13 @@ class TestEPGMatch:
         )
 
     def test_epg_match_matches_epg_method(self):
-        svc = StreamOrderingService([StreamOrderingRule("epg_match", "", 1)])
-        assert svc.compute_priority(self._epg_stream("epg")) == 1
+        svc = StreamOrderingService([StreamOrderingRule("epg_match", "", 10)])
+        assert svc.compute_score(self._epg_stream("epg")) == 10
 
     def test_epg_match_ignores_other_methods(self):
-        svc = StreamOrderingService([StreamOrderingRule("epg_match", "", 1)])
-        assert svc.compute_priority(self._epg_stream("fuzzy")) == NO_MATCH_PRIORITY
-        assert svc.compute_priority(self._epg_stream(None)) == NO_MATCH_PRIORITY
-
-    def test_epg_match_with_catch_all_fallback(self):
-        rules = [
-            StreamOrderingRule("epg_match", "", 1),
-            StreamOrderingRule("catch_all", "", 50),
-        ]
-        svc = StreamOrderingService(rules)
-        assert svc.compute_priority(self._epg_stream("epg")) == 1
-        assert svc.compute_priority(self._epg_stream("fuzzy")) == 50
+        svc = StreamOrderingService([StreamOrderingRule("epg_match", "", 10)])
+        assert svc.compute_score(self._epg_stream("fuzzy")) == 0
+        assert svc.compute_score(self._epg_stream(None)) == 0
 
 
 class TestDispatcharrGroup:
@@ -118,51 +158,17 @@ class TestDispatcharrGroup:
         )
 
     def test_matches_dispatcharr_group_case_insensitive(self):
-        svc = StreamOrderingService([StreamOrderingRule("dispatcharr_group", "US Sports", 1)])
-        assert svc.compute_priority(self._stream("us sports")) == 1
+        svc = StreamOrderingService([StreamOrderingRule("dispatcharr_group", "US Sports", 10)])
+        assert svc.compute_score(self._stream("us sports")) == 10
 
     def test_ignores_other_group(self):
-        svc = StreamOrderingService([StreamOrderingRule("dispatcharr_group", "US Sports", 1)])
-        assert svc.compute_priority(self._stream("UK Sports")) == NO_MATCH_PRIORITY
+        svc = StreamOrderingService([StreamOrderingRule("dispatcharr_group", "US Sports", 10)])
+        assert svc.compute_score(self._stream("UK Sports")) == 0
 
     def test_non_channel_source_stream_never_matches(self):
         # Streams without a DP channel group (normal M3U-matched streams) never match.
-        svc = StreamOrderingService([StreamOrderingRule("dispatcharr_group", "US Sports", 1)])
-        assert svc.compute_priority(self._stream(None)) == NO_MATCH_PRIORITY
-
-
-# ---------------------------------------------------------------------------
-# catch_all fallback
-# ---------------------------------------------------------------------------
-
-
-class TestCatchAll:
-    def test_catch_all_sets_fallback_priority(self):
-        rules = [
-            StreamOrderingRule("regex", r"(?i)1080p", 1),
-            StreamOrderingRule("catch_all", "", 50),
-        ]
-        svc = StreamOrderingService(rules)
-        assert svc.compute_priority(_stream("ESPN 1080p")) == 1  # matched rule wins
-        assert svc.compute_priority(_stream("ESPN 720p")) == 50  # falls to catch_all
-
-    def test_catch_all_does_not_act_as_matcher(self):
-        # A catch_all earlier in priority order must not short-circuit real rules.
-        rules = [
-            StreamOrderingRule("catch_all", "", 2),
-            StreamOrderingRule("regex", r"(?i)espn", 5),
-        ]
-        svc = StreamOrderingService(rules)
-        # ESPN stream matches the regex (prio 5), not the catch_all (prio 2)
-        result = svc.compute_priority_with_details(_stream("ESPN HD"))
-        assert result.matched_rule_type == "regex"
-        assert result.computed_priority == 5
-
-    def test_no_catch_all_uses_no_match_priority(self):
-        svc = StreamOrderingService([StreamOrderingRule("regex", r"(?i)zzz", 1)])
-        result = svc.compute_priority_with_details(_stream("ESPN HD"))
-        assert result.computed_priority == NO_MATCH_PRIORITY
-        assert result.matched_rule_type is None
+        svc = StreamOrderingService([StreamOrderingRule("dispatcharr_group", "US Sports", 10)])
+        assert svc.compute_score(self._stream(None)) == 0
 
 
 # ---------------------------------------------------------------------------
@@ -226,37 +232,37 @@ class TestTeamFeed:
         ],
     )
     def test_team_feed_matching(self, seeded_db, name, expected):
-        svc = StreamOrderingService([StreamOrderingRule("team_feed", self.KEY, 1)], seeded_db)
-        assert svc.compute_priority(_stream(name)) == (1 if expected else NO_MATCH_PRIORITY)
+        svc = StreamOrderingService([StreamOrderingRule("team_feed", self.KEY, 10)], seeded_db)
+        assert svc.compute_score(_stream(name)) == (10 if expected else 0)
 
     def test_not_team_feed_inverts_only_feed_marked_streams(self, seeded_db):
-        svc = StreamOrderingService([StreamOrderingRule("not_team_feed", self.KEY, 1)], seeded_db)
+        svc = StreamOrderingService([StreamOrderingRule("not_team_feed", self.KEY, 10)], seeded_db)
         # Feed-marked, NOT pirates → matches
-        assert svc.compute_priority(_stream("Cubs vs Reds (Home)")) == 1
+        assert svc.compute_score(_stream("Cubs vs Reds (Home)")) == 10
         # Pirates' own feed → does NOT match
-        assert svc.compute_priority(_stream("Pirates vs Cubs (Away)")) == NO_MATCH_PRIORITY
+        assert svc.compute_score(_stream("Pirates vs Cubs (Away)")) == 0
         # No feed marker at all → gated out, does NOT match
-        assert svc.compute_priority(_stream("Generic National stream")) == NO_MATCH_PRIORITY
+        assert svc.compute_score(_stream("Generic National stream")) == 0
 
     def test_empty_value_is_noop(self, seeded_db):
-        svc = StreamOrderingService([StreamOrderingRule("team_feed", "", 1)], seeded_db)
-        assert svc.compute_priority(_stream("Pirates vs Cubs (Away)")) == NO_MATCH_PRIORITY
+        svc = StreamOrderingService([StreamOrderingRule("team_feed", "", 10)], seeded_db)
+        assert svc.compute_score(_stream("Pirates vs Cubs (Away)")) == 0
 
     def test_legacy_integer_id_path(self, seeded_db):
         # The teams table is seeded with demo teams; id=4 is the Detroit Tigers.
         # The legacy team_feed path resolves integer IDs against the teams table.
-        svc = StreamOrderingService([StreamOrderingRule("team_feed", "4", 1)], seeded_db)
-        assert svc.compute_priority(_stream("Cubs vs Tigers (Home)")) == 1
-        assert svc.compute_priority(_stream("Cubs vs Pirates (Home)")) == NO_MATCH_PRIORITY
+        svc = StreamOrderingService([StreamOrderingRule("team_feed", "4", 10)], seeded_db)
+        assert svc.compute_score(_stream("Cubs vs Tigers (Home)")) == 10
+        assert svc.compute_score(_stream("Cubs vs Pirates (Home)")) == 0
 
     def test_pattern_is_cached(self, seeded_db):
-        svc = StreamOrderingService([StreamOrderingRule("team_feed", self.KEY, 1)], seeded_db)
-        svc.compute_priority(_stream("Cubs vs Pirates (Home)"))
+        svc = StreamOrderingService([StreamOrderingRule("team_feed", self.KEY, 10)], seeded_db)
+        svc.compute_score(_stream("Cubs vs Pirates (Home)"))
         assert self.KEY in svc._team_feed_patterns
 
     def test_no_connection_degrades_gracefully(self):
-        svc = StreamOrderingService([StreamOrderingRule("team_feed", "espn:mlb:23", 1)], conn=None)
-        assert svc.compute_priority(_stream("Cubs vs Pirates (Home)")) == NO_MATCH_PRIORITY
+        svc = StreamOrderingService([StreamOrderingRule("team_feed", "espn:mlb:23", 10)], conn=None)
+        assert svc.compute_score(_stream("Cubs vs Pirates (Home)")) == 0
 
 
 # ---------------------------------------------------------------------------
@@ -266,28 +272,28 @@ class TestTeamFeed:
 
 class TestStreamTypeFilter:
     def test_plain_stream_type_no_filter(self, seeded_db):
-        svc = StreamOrderingService([StreamOrderingRule("stream_type", "team", 1)], seeded_db)
-        assert svc.compute_priority(_stream("anything", match_type="team")) == 1
-        assert svc.compute_priority(_stream("anything", match_type="event")) == NO_MATCH_PRIORITY
+        svc = StreamOrderingService([StreamOrderingRule("stream_type", "team", 10)], seeded_db)
+        assert svc.compute_score(_stream("anything", match_type="team")) == 10
+        assert svc.compute_score(_stream("anything", match_type="event")) == 0
 
     def test_team_filter_narrows_to_selected_team(self, seeded_db):
-        rule = StreamOrderingRule("stream_type", "team|espn:mlb:23", 1)
+        rule = StreamOrderingRule("stream_type", "team|espn:mlb:23", 10)
         svc = StreamOrderingService([rule], seeded_db)
         # team-type stream naming the Pirates → matches
-        assert svc.compute_priority(_stream("Pirates Network", match_type="team")) == 1
+        assert svc.compute_score(_stream("Pirates Network", match_type="team")) == 10
         # team-type stream naming a different team → no match
-        assert svc.compute_priority(_stream("Cubs Network", match_type="team")) == NO_MATCH_PRIORITY
+        assert svc.compute_score(_stream("Cubs Network", match_type="team")) == 0
 
     def test_team_filter_requires_correct_stream_type(self, seeded_db):
-        rule = StreamOrderingRule("stream_type", "team|espn:mlb:23", 1)
+        rule = StreamOrderingRule("stream_type", "team|espn:mlb:23", 10)
         svc = StreamOrderingService([rule], seeded_db)
         # right team name but event-type → stream_type mismatch
         s = _stream("Pirates Network", match_type="event")
-        assert svc.compute_priority(s) == NO_MATCH_PRIORITY
+        assert svc.compute_score(s) == 0
 
     def test_empty_team_filter_matches_all_team_streams(self, seeded_db):
-        svc = StreamOrderingService([StreamOrderingRule("stream_type", "team|", 1)], seeded_db)
-        assert svc.compute_priority(_stream("Cubs Network", match_type="team")) == 1
+        svc = StreamOrderingService([StreamOrderingRule("stream_type", "team|", 10)], seeded_db)
+        assert svc.compute_score(_stream("Cubs Network", match_type="team")) == 10
 
 
 # ---------------------------------------------------------------------------
@@ -324,7 +330,7 @@ class TestStatsMetric:
         )
 
     def _svc(self, value: str) -> StreamOrderingService:
-        return StreamOrderingService([StreamOrderingRule("stats_metric", value, 1)])
+        return StreamOrderingService([StreamOrderingRule("stats_metric", value, 10)])
 
     @pytest.mark.parametrize(
         "operator,threshold,bitrate,expected",
@@ -344,109 +350,103 @@ class TestStatsMetric:
     def test_operators(self, operator, threshold, bitrate, expected):
         svc = self._svc(f"ffmpeg_output_bitrate|{operator}|{threshold}")
         stream = self._stream({"ffmpeg_output_bitrate": bitrate})
-        matched = svc.compute_priority(stream) == 1
+        matched = svc.compute_score(stream) == 10
         assert matched is expected
 
     def test_virtual_resolution_width_and_height(self):
         stream = self._stream({"resolution": "1920x1080"})
-        assert self._svc("resolution_width|>=|1920").compute_priority(stream) == 1
-        assert self._svc("resolution_height|>=|1080").compute_priority(stream) == 1
-        assert self._svc("resolution_width|>|1920").compute_priority(stream) == NO_MATCH_PRIORITY
+        assert self._svc("resolution_width|>=|1920").compute_score(stream) == 10
+        assert self._svc("resolution_height|>=|1080").compute_score(stream) == 10
+        assert self._svc("resolution_width|>|1920").compute_score(stream) == 0
 
     def test_malformed_resolution_does_not_match(self):
         stream = self._stream({"resolution": "1080"})  # no "x"
-        assert self._svc("resolution_width|>=|720").compute_priority(stream) == NO_MATCH_PRIORITY
+        assert self._svc("resolution_width|>=|720").compute_score(stream) == 0
 
     def test_multi_condition_and(self):
         rule = "source_fps|>=|50;ffmpeg_output_bitrate|>=|4000"
         both = self._stream({"source_fps": 60, "ffmpeg_output_bitrate": 5000})
         one = self._stream({"source_fps": 30, "ffmpeg_output_bitrate": 5000})
-        assert self._svc(rule).compute_priority(both) == 1
-        assert self._svc(rule).compute_priority(one) == NO_MATCH_PRIORITY
+        assert self._svc(rule).compute_score(both) == 10
+        assert self._svc(rule).compute_score(one) == 0
 
     def test_is_unknown_matches_when_absent(self):
         # No stats at all, or the specific metric missing → is_unknown matches.
-        assert self._svc("source_fps|is_unknown").compute_priority(self._stream(None)) == 1
+        assert self._svc("source_fps|is_unknown").compute_score(self._stream(None)) == 10
         assert (
-            self._svc("source_fps|is_unknown").compute_priority(
+            self._svc("source_fps|is_unknown").compute_score(
                 self._stream({"resolution": "1920x1080"})
             )
-            == 1
+            == 10
         )
         # Metric present → is_unknown does not match.
         assert (
-            self._svc("source_fps|is_unknown").compute_priority(self._stream({"source_fps": 60}))
-            == NO_MATCH_PRIORITY
+            self._svc("source_fps|is_unknown").compute_score(self._stream({"source_fps": 60}))
+            == 0
         )
 
     def test_numeric_op_with_no_stats_does_not_match(self):
         svc = self._svc("source_fps|>=|50")
-        assert svc.compute_priority(self._stream(None)) == NO_MATCH_PRIORITY
+        assert svc.compute_score(self._stream(None)) == 0
 
     def test_malformed_rule_value_does_not_raise(self):
         stream = self._stream({"source_fps": 60})
-        assert self._svc("").compute_priority(stream) == NO_MATCH_PRIORITY
+        assert self._svc("").compute_score(stream) == 0
         # no operator
-        assert self._svc("source_fps").compute_priority(stream) == NO_MATCH_PRIORITY
-        assert self._svc("source_fps|>=|notanumber").compute_priority(stream) == NO_MATCH_PRIORITY
+        assert self._svc("source_fps").compute_score(stream) == 0
+        assert self._svc("source_fps|>=|notanumber").compute_score(stream) == 0
 
 
 class TestEvaluateRules:
-    """evaluate_rules reports every matching rule plus the 'everything else'
-    baseline, flagging the one that won."""
+    """evaluate_rules reports every matching rule with its point contribution."""
 
-    def test_multiple_matches_only_lowest_priority_wins(self):
+    def test_returns_every_matching_rule(self):
         rules = [
-            StreamOrderingRule("regex", r"(?i)1080p", 5),
-            StreamOrderingRule("regex", r"(?i)espn", 2),
+            StreamOrderingRule("regex", r"(?i)1080p", 20),
+            StreamOrderingRule("regex", r"(?i)espn", 10),
         ]
         svc = StreamOrderingService(rules)
         evals = svc.evaluate_rules(_stream("ESPN 1080p"))
 
-        # Two regex matches + the implicit baseline (no catch_all configured).
-        assert [e.type for e in evals] == ["regex", "regex", "catch_all"]
-        winners = [e for e in evals if e.is_winner]
-        assert len(winners) == 1
-        # The priority-2 ESPN rule wins (lower number, evaluated first).
-        assert winners[0].priority == 2
-        assert winners[0].type == "regex"
+        assert [(e.type, e.points) for e in evals] == [("regex", 20), ("regex", 10)]
 
-    def test_baseline_shown_with_default_priority_when_no_catch_all(self):
-        svc = StreamOrderingService([StreamOrderingRule("regex", r"(?i)espn", 2)])
-        baseline = svc.evaluate_rules(_stream("ESPN 1080p"))[-1]
-        assert baseline.type == "catch_all"
-        assert baseline.priority == NO_MATCH_PRIORITY
-        assert baseline.is_winner is False  # a specific rule won
+    def test_non_matching_rules_are_omitted(self):
+        svc = StreamOrderingService([StreamOrderingRule("regex", r"(?i)espn", 10)])
+        assert svc.evaluate_rules(_stream("Fox 1080p")) == []
 
-    def test_catch_all_wins_when_nothing_else_matches(self):
-        rules = [
-            StreamOrderingRule("regex", r"(?i)1080p", 5),
-            StreamOrderingRule("catch_all", "", 50),
-        ]
-        svc = StreamOrderingService(rules)
-        evals = svc.evaluate_rules(_stream("ESPN 720p"))
+    def test_no_rules_returns_empty(self):
+        assert StreamOrderingService([]).evaluate_rules(_stream("anything")) == []
 
-        assert len(evals) == 1
-        assert evals[0].type == "catch_all"
-        assert evals[0].priority == 50
-        assert evals[0].is_winner is True
 
-    def test_catch_all_shown_as_baseline_when_a_rule_matches(self):
-        rules = [
-            StreamOrderingRule("regex", r"(?i)1080p", 5),
-            StreamOrderingRule("catch_all", "", 50),
-        ]
-        svc = StreamOrderingService(rules)
-        evals = svc.evaluate_rules(_stream("ESPN 1080p"))
+class TestSortStreams:
+    """sort_streams ranks by total score descending, added_at as a tiebreak."""
 
-        assert [e.type for e in evals] == ["regex", "catch_all"]
-        assert evals[0].is_winner is True  # the regex rule won
-        assert evals[1].is_winner is False  # baseline shown but did not win
-        assert evals[1].priority == 50
+    def _stream(self, stream_id: int, name: str, added_at: int) -> ManagedChannelStream:
+        return ManagedChannelStream(
+            id=stream_id, managed_channel_id=1, dispatcharr_stream_id=stream_id,
+            stream_name=name, added_at=added_at,
+        )
 
-    def test_no_rules_returns_just_the_baseline(self):
-        evals = StreamOrderingService([]).evaluate_rules(_stream("anything"))
-        assert len(evals) == 1
-        assert evals[0].type == "catch_all"
-        assert evals[0].priority == NO_MATCH_PRIORITY
-        assert evals[0].is_winner is True
+    def test_sorts_by_descending_score(self):
+        svc = StreamOrderingService([
+            StreamOrderingRule("regex", r"(?i)1080p", 20),
+            StreamOrderingRule("regex", r"(?i)espn", 10),
+        ])
+        low = self._stream(1, "Fox 720p", 1)
+        mid = self._stream(2, "Fox 1080p", 2)
+        high = self._stream(3, "ESPN 1080p", 3)
+        assert svc.sort_streams([low, high, mid]) == [high, mid, low]
+
+    def test_ties_broken_by_added_at(self):
+        svc = StreamOrderingService([StreamOrderingRule("regex", r"(?i)espn", 10)])
+        earlier = self._stream(1, "ESPN A", 1)
+        later = self._stream(2, "ESPN B", 2)
+        assert svc.sort_streams([later, earlier]) == [earlier, later]
+
+    def test_no_rules_falls_back_to_stored_priority(self):
+        svc = StreamOrderingService([])
+        a = self._stream(1, "A", 5)
+        a.priority = 2
+        b = self._stream(2, "B", 1)
+        b.priority = 1
+        assert svc.sort_streams([a, b]) == [b, a]

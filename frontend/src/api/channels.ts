@@ -166,8 +166,7 @@ export async function executeResetChannels(): Promise<ResetExecuteResponse> {
 export interface StreamRuleMatch {
   type: string
   value: string
-  priority: number
-  is_winner: boolean
+  points: number
 }
 
 export interface ChannelStreamEntry {
@@ -179,6 +178,8 @@ export interface ChannelStreamEntry {
   match_type: string | null
   exception_keyword: string | null
   priority: number
+  total_score: number
+  rank: number
   stream_stats: Record<string, unknown> | null
   stream_stats_updated_at: string | null
   matched_rules: StreamRuleMatch[]

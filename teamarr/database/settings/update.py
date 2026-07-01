@@ -539,7 +539,7 @@ def update_stream_ordering_rules(
     Args:
         conn: Database connection
         rules: List of rules (dicts or StreamOrderingRule dataclasses).
-            Each rule: {"type": "m3u"|"group"|"regex", "value": str, "priority": int}
+            Each rule: {"type": "m3u"|"group"|"regex"|..., "value": str, "points": int}
 
     Returns:
         True if updated
@@ -554,11 +554,11 @@ def update_stream_ordering_rules(
         if isinstance(rule, RuleType):
             rule_type = rule.type
             rule_value = rule.value
-            rule_priority = rule.priority
+            rule_points = rule.points
         else:
             rule_type = rule.get("type")
             rule_value = rule.get("value")
-            rule_priority = rule.get("priority")
+            rule_points = rule.get("points")
 
         if rule_type not in VALID_RULE_TYPES:
             logger.warning(
@@ -574,18 +574,18 @@ def update_stream_ordering_rules(
             logger.warning("[STREAM_ORDER] Rule missing value, skipping")
             continue
 
-        if not isinstance(rule_priority, int) or rule_priority < 1 or rule_priority > 99:
+        if not isinstance(rule_points, int) or rule_points < -1000 or rule_points > 1000:
             logger.warning(
-                "[STREAM_ORDER] Invalid priority %s, must be 1-99, defaulting to 99",
-                rule_priority,
+                "[STREAM_ORDER] Invalid points %s, must be -1000..1000, defaulting to 0",
+                rule_points,
             )
-            rule_priority = 99
+            rule_points = 0
 
         validated_rules.append(
             {
                 "type": rule_type,
                 "value": rule_value,
-                "priority": rule_priority,
+                "points": rule_points,
             }
         )
 

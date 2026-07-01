@@ -317,14 +317,20 @@ class StreamOrderingRuleModel(BaseModel):
 
     type: str = Field(..., description="Rule type: 'm3u', 'group', or 'regex'")
     value: str = Field(..., description="M3U account name, group name, or regex pattern")
-    priority: int = Field(..., ge=1, le=99, description="Priority (1-99, lower = higher)")
+    points: int = Field(
+        ...,
+        ge=-1000,
+        le=1000,
+        description="Points added to a stream's score when this rule matches",
+    )
 
 
 class StreamOrderingSettingsModel(BaseModel):
     """Stream ordering rules for prioritizing streams within channels."""
 
     rules: list[StreamOrderingRuleModel] = Field(
-        default_factory=list, description="List of ordering rules, evaluated by priority"
+        default_factory=list,
+        description="Scoring rules; a stream's score is the sum of every matching rule's points",
     )
 
 

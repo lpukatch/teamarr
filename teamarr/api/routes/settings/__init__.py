@@ -153,7 +153,7 @@ def get_settings():
                 StreamOrderingRuleModel(
                     type=rule.type,
                     value=rule.value,
-                    priority=rule.priority,
+                    points=rule.points,
                 )
                 for rule in settings.stream_ordering.rules
             ]

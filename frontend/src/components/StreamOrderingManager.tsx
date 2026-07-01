@@ -293,22 +293,22 @@ function parseStreamTypeValue(value: string) {
   }
 }
 
-const NO_VALUE_TYPES = new Set(["team_feed", "not_team_feed", "epg_match", "catch_all"])
+const NO_VALUE_TYPES = new Set(["team_feed", "not_team_feed", "epg_match"])
 
 // Mirrors backend VALID_RULE_TYPES (database/settings/types.py) — used to validate imports.
 const VALID_RULE_TYPES = new Set([
   "m3u", "group", "regex", "stream_type",
-  "team_feed", "not_team_feed", "epg_match", "dispatcharr_group", "stats_metric", "catch_all",
+  "team_feed", "not_team_feed", "epg_match", "dispatcharr_group", "stats_metric",
 ])
 
 interface RuleFormData {
   // Stable client-side id so rows keep their identity across re-sorts.
   // Without this, keying by array index causes focus to follow DOM position
-  // instead of the rule, breaking double-digit priority entry (#198).
+  // instead of the rule, breaking double-digit points entry (#198).
   _id: number
-  type: "m3u" | "group" | "regex" | "stream_type" | "team_feed" | "not_team_feed" | "epg_match" | "dispatcharr_group" | "stats_metric" | "catch_all"
+  type: "m3u" | "group" | "regex" | "stream_type" | "team_feed" | "not_team_feed" | "epg_match" | "dispatcharr_group" | "stats_metric"
   value: string
-  priority: number
+  points: number
 }
 
 const TEAM_FEED_FAMILY = new Set<RuleFormData["type"]>(["team_feed", "not_team_feed"])
@@ -317,14 +317,14 @@ const TEAM_FEED_FAMILY = new Set<RuleFormData["type"]>(["team_feed", "not_team_f
 // dropdown collapses both to "stream_type".
 const STREAM_TYPE_FAMILY = new Set<RuleFormData["type"]>(["stream_type", "epg_match"])
 
-function PriorityInput({
+function PointsInput({
   value,
   onCommit,
 }: {
   value: number
   onCommit: (next: number) => void
 }) {
-  // Local string state so the input doesn't re-sort the row mid-keystroke.
+  // Local string state so the input doesn't reformat mid-keystroke.
   // Commits on blur or Enter; reverts to last valid value if input is invalid.
   const [text, setText] = useState(String(value))
 
@@ -334,7 +334,7 @@ function PriorityInput({
 
   const commit = () => {
     const parsed = parseInt(text, 10)
-    if (!isNaN(parsed) && parsed >= 1 && parsed <= 99) {
+    if (!isNaN(parsed) && parsed >= -1000 && parsed <= 1000) {
       if (parsed !== value) onCommit(parsed)
       else setText(String(value))
     } else {
@@ -345,8 +345,8 @@ function PriorityInput({
   return (
     <Input
       type="number"
-      min={1}
-      max={99}
+      min={-1000}
+      max={1000}
       value={text}
       onChange={(e) => setText(e.target.value)}
       onBlur={commit}
@@ -378,8 +378,6 @@ function RuleRow({
   groupNames: string[]
   dpGroupNames: string[]
 }) {
-  const isCatchAll = rule.type === "catch_all"
-
   const handleTypeChange = (newType: RuleFormData["type"]) => {
     if (newType === rule.type) return
     // Preserve team selection when staying within the team_feed family
@@ -387,28 +385,6 @@ function RuleRow({
       ? rule.value
       : ""
     onUpdate(index, { ...rule, type: newType, value })
-  }
-
-  if (isCatchAll) {
-    return (
-      <div className="flex items-center gap-2 p-2 rounded-md border bg-muted/30">
-        <div className="flex-1 grid grid-cols-1 md:grid-cols-12 gap-2 md:items-center">
-          <div className="col-span-12 md:col-span-2">
-            <span className="text-sm font-medium px-3">Everything Else</span>
-          </div>
-          <div className="col-span-12 md:col-span-7">
-            <span className="text-sm text-muted-foreground italic px-1">All unmatched streams (Not captured by other rules on this page)</span>
-          </div>
-          <div className="col-span-10 md:col-span-2">
-            <PriorityInput
-              value={rule.priority}
-              onCommit={(priority) => onUpdate(index, { ...rule, priority })}
-            />
-          </div>
-          <div className="col-span-2 md:col-span-1" />
-        </div>
-      </div>
-    )
   }
 
   return (
@@ -555,9 +531,9 @@ function RuleRow({
         </div>
 
         <div className="col-span-10 md:col-span-2">
-          <PriorityInput
-            value={rule.priority}
-            onCommit={(priority) => onUpdate(index, { ...rule, priority })}
+          <PointsInput
+            value={rule.points}
+            onCommit={(points) => onUpdate(index, { ...rule, points })}
           />
         </div>
 
@@ -754,34 +730,24 @@ export function StreamOrderingManager() {
     return dpChannelGroups.filter(g => selected.has(g.id)).map(g => g.name).sort()
   }, [appSettings, dpChannelGroups])
 
-  // Initialize rules from settings; auto-inject catch_all if absent
+  // Initialize rules from settings
   useEffect(() => {
     if (settings?.rules) {
       const loaded: RuleFormData[] = settings.rules.map(r => ({
         _id: allocateId(),
         type: r.type,
         value: r.value,
-        priority: r.priority,
+        points: r.points,
       }))
-      if (!loaded.some(r => r.type === "catch_all")) {
-        loaded.push({ _id: allocateId(), type: "catch_all", value: "", priority: 99 })
-      }
       setRules(loaded)
       setHasChanges(false)
     }
   }, [settings])
 
   const handleAddRule = () => {
-    // Find next available priority (skip 99 if catch_all is using it)
-    const usedPriorities = new Set(rules.map(r => r.priority))
-    let nextPriority = 1
-    while (usedPriorities.has(nextPriority) && nextPriority < 99) {
-      nextPriority++
-    }
-
     setRules([
       ...rules,
-      { _id: allocateId(), type: "m3u", value: "", priority: nextPriority },
+      { _id: allocateId(), type: "m3u", value: "", points: 10 },
     ])
     setHasChanges(true)
   }
@@ -794,13 +760,12 @@ export function StreamOrderingManager() {
   }
 
   const handleDeleteRule = (index: number) => {
-    if (rules[index].type === "catch_all") return
     setRules(rules.filter((_, i) => i !== index))
     setHasChanges(true)
   }
 
   const handleSave = async () => {
-    // Validate rules — no-value types (team_feed, not_team_feed, catch_all) don't require a value
+    // Validate rules — no-value types (team_feed, not_team_feed, epg_match) don't require a value
     const invalidRules = rules.filter(r => !NO_VALUE_TYPES.has(r.type) && !r.value.trim())
 
     if (invalidRules.length > 0) {
@@ -813,7 +778,7 @@ export function StreamOrderingManager() {
         rules: rules.map((r: RuleFormData) => ({
           type: r.type,
           value: r.value.trim(),
-          priority: r.priority,
+          points: r.points,
         })),
       })
       toast.success("Stream ordering rules saved")
@@ -829,7 +794,7 @@ export function StreamOrderingManager() {
       rules: (settings?.rules ?? []).map((r) => ({
         type: r.type,
         value: r.value,
-        priority: r.priority,
+        points: r.points,
       })),
     }
     const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" })
@@ -871,15 +836,34 @@ export function StreamOrderingManager() {
         throw new Error("Invalid format: expected a rules array")
       }
 
-      // Validate against the same constraints the backend PUT enforces.
-      const clean: { type: RuleFormData["type"]; value: string; priority: number }[] = []
-      for (const r of importedRules) {
-        if (!r || typeof r.type !== "string" || !VALID_RULE_TYPES.has(r.type)) continue
-        const priority = Number(r.priority)
-        if (!Number.isInteger(priority) || priority < 1 || priority > 99) continue
+      // Validate against the same constraints the backend PUT enforces. Drop any
+      // catch_all rows from old exports — additive scoring has no catch-all concept.
+      const usable = importedRules.filter(
+        (r) => r && typeof r.type === "string" && VALID_RULE_TYPES.has(r.type) && r.type !== "catch_all"
+      )
+
+      // Old exports (pre-points) used a 1-99 "priority" cascade rank instead of
+      // "points". If nothing in the file has a valid "points" field, convert
+      // legacy priority ranks to points the same way the backend migration
+      // does: descending in steps of 10, following ascending priority order.
+      const hasPoints = usable.some((r) => Number.isInteger(r.points))
+      const hasLegacyPriority = usable.some((r) => Number.isInteger(r.priority))
+      let source = usable
+      if (!hasPoints && hasLegacyPriority) {
+        const sorted = [...usable].sort(
+          (a, b) => (Number(a.priority) || 99) - (Number(b.priority) || 99)
+        )
+        const n = sorted.length
+        source = sorted.map((r, i) => ({ ...r, points: (n - i) * 10 }))
+      }
+
+      const clean: { type: RuleFormData["type"]; value: string; points: number }[] = []
+      for (const r of source) {
+        const points = Number(r.points)
+        if (!Number.isInteger(points) || points < -1000 || points > 1000) continue
         const value = typeof r.value === "string" ? r.value.trim() : ""
         if (!NO_VALUE_TYPES.has(r.type) && !value) continue
-        clean.push({ type: r.type as RuleFormData["type"], value, priority })
+        clean.push({ type: r.type as RuleFormData["type"], value, points })
       }
 
       if (clean.length === 0) {
@@ -888,10 +872,6 @@ export function StreamOrderingManager() {
 
       const accepted = clean.length
       const skipped = importedRules.length - accepted
-      // Always keep a catch_all so unmatched streams have a defined priority.
-      if (!clean.some((r) => r.type === "catch_all")) {
-        clean.push({ type: "catch_all", value: "", priority: 99 })
-      }
 
       await updateSettings.mutateAsync({ rules: clean })
       const message = skipped > 0
@@ -936,10 +916,33 @@ export function StreamOrderingManager() {
       <CardHeader>
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div className="space-y-1.5">
-            <CardTitle>Stream Priority</CardTitle>
+            <div className="flex items-center gap-1.5">
+              <CardTitle>Stream Priority</CardTitle>
+              <RichTooltip
+                side="bottom"
+                content={
+                  <div className="space-y-1.5 text-xs">
+                    <p className="font-medium">Example: make quality outrank a provider preference</p>
+                    <p>M3U "Provider A" = 10 points. Stream Stats "resolution_height ≥ 1080" = 20 points. Provider B has no rule (0 points).</p>
+                    <table className="w-full text-left">
+                      <tbody>
+                        <tr><td>Provider A, 1080p</td><td className="text-right pl-3">10 + 20 = 30</td></tr>
+                        <tr><td>Provider B, 1080p</td><td className="text-right pl-3">0 + 20 = 20</td></tr>
+                        <tr><td>Provider A, 720p</td><td className="text-right pl-3">10</td></tr>
+                        <tr><td>Provider B, 720p</td><td className="text-right pl-3">0</td></tr>
+                      </tbody>
+                    </table>
+                    <p>Provider B's 1080p stream now ranks above Provider A's 720p stream — no rule reordering needed.</p>
+                  </div>
+                }
+              >
+                <Info className="h-3.5 w-3.5 text-muted-foreground/60 cursor-help shrink-0" />
+              </RichTooltip>
+            </div>
             <CardDescription>
-              Prioritize streams within channels based on M3U account, event group, or custom patterns.
-              Lower priority numbers appear first. Streams not matching any rule are sorted to the end.
+              Give each rule a point value. When a stream matches multiple rules, the points add up —
+              the stream with the highest total score is ranked first within its channel. A stream
+              that matches nothing scores 0.
             </CardDescription>
           </div>
           <div className="flex flex-wrap items-center gap-2 shrink-0">
@@ -972,14 +975,15 @@ export function StreamOrderingManager() {
             <div className="hidden md:grid grid-cols-12 gap-2 px-2 text-xs font-medium text-muted-foreground">
               <div className="col-span-2">Type</div>
               <div className="col-span-7">Value</div>
-              <div className="col-span-2 text-center">Priority</div>
+              <div className="col-span-2 text-center">Points</div>
               <div className="col-span-1"></div>
             </div>
 
-            {/* Rules */}
+            {/* Rules — sorted by points descending for readability; order has no
+                effect on scoring, every matching rule's points are always added. */}
             {rules
               .slice()
-              .sort((a, b) => a.priority - b.priority)
+              .sort((a, b) => b.points - a.points)
               .map((rule) => (
                 <RuleRow
                   key={rule._id}

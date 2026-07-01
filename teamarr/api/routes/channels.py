@@ -143,12 +143,11 @@ class DeleteResponse(BaseModel):
 
 
 class StreamRuleMatch(BaseModel):
-    """One ordering rule that matched a stream (priority explainer)."""
+    """One ordering rule that matched a stream (score-breakdown explainer)."""
 
     type: str
     value: str
-    priority: int
-    is_winner: bool
+    points: int
 
 
 class StreamNameMatch(BaseModel):
@@ -169,6 +168,8 @@ class ChannelStreamEntry(BaseModel):
     match_type: str | None = None
     exception_keyword: str | None = None
     priority: int = 0
+    total_score: int = 0
+    rank: int = 0
     stream_stats: dict | None = None
     stream_stats_updated_at: str | None = None
     matched_rules: list[StreamRuleMatch] = []
@@ -341,18 +342,27 @@ def get_managed_channel_streams(channel_id: int):
                 streams = get_channel_streams(conn, channel_id)
                 stats_refreshed = True
 
-        # Explain each stream's priority: which ordering rules currently match it.
+        # Explain each stream's score: which ordering rules currently match it,
+        # its total score, and its rank among the channel's other streams.
         ordering_service = get_stream_ordering_service(conn)
         matched_by_stream: dict[int, list[StreamRuleMatch]] = {
             s.dispatcharr_stream_id: [
-                StreamRuleMatch(
-                    type=e.type, value=e.value, priority=e.priority, is_winner=e.is_winner
-                )
+                StreamRuleMatch(type=e.type, value=e.value, points=e.points)
                 for e in ordering_service.evaluate_rules(
                     s, group_names.get(s.source_group_id) if s.source_group_id else None
                 )
             ]
             for s in streams
+        }
+        score_by_stream: dict[int, int] = {
+            s.dispatcharr_stream_id: sum(
+                e.points for e in matched_by_stream[s.dispatcharr_stream_id]
+            )
+            for s in streams
+        }
+        rank_by_stream: dict[int, int] = {
+            s.dispatcharr_stream_id: rank
+            for rank, s in enumerate(ordering_service.sort_streams(streams, group_names), start=1)
         }
 
         # Explain how each stream matched its event (cache-derived; absent for
@@ -384,6 +394,8 @@ def get_managed_channel_streams(channel_id: int):
                 match_type=s.match_type,
                 exception_keyword=s.exception_keyword,
                 priority=s.priority,
+                total_score=score_by_stream.get(s.dispatcharr_stream_id, 0),
+                rank=rank_by_stream.get(s.dispatcharr_stream_id, 0),
                 stream_stats=s.stream_stats,
                 stream_stats_updated_at=_safe_isoformat(s.stream_stats_updated_at),
                 matched_rules=matched_by_stream.get(s.dispatcharr_stream_id, []),

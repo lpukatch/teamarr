@@ -144,7 +144,6 @@ const RULE_TYPE_LABELS: Record<string, string> = {
   epg_match: "EPG Match",
   dispatcharr_group: "Dispatcharr Group",
   stats_metric: "Stats Metric",
-  catch_all: "Everything else",
 }
 
 // Close a popover on outside-click / Escape. Shared by the click-popovers below
@@ -169,33 +168,29 @@ function useOutsideDismiss(
   }, [ref, open, setOpen])
 }
 
-// Clickable priority number → compact popover explaining which ordering rules
-// matched the stream, with the winning rule (the one that set the priority)
-// highlighted.
+// Clickable priority number → compact popover showing the stream's score
+// breakdown: every rule that matched, the points it contributed, the total
+// score, and the stream's rank among its channel siblings.
 function PriorityCell(
-  { priority, rules, generating }: { priority: number; rules: StreamRuleMatch[]; generating: boolean },
+  { priority, totalScore, rank, totalStreams, rules, generating }: {
+    priority: number
+    totalScore: number
+    rank: number
+    totalStreams: number
+    rules: StreamRuleMatch[]
+    generating: boolean
+  },
 ) {
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
   useOutsideDismiss(ref, open, setOpen)
-
-  // Nothing to explain and not generating → just the number.
-  if (rules.length === 0 && !generating) {
-    return <span className="text-muted-foreground">{priority}</span>
-  }
-
-  // Winners first, then by ascending rule priority.
-  const ordered = [...rules].sort(
-    (a, b) => Number(b.is_winner) - Number(a.is_winner) || a.priority - b.priority
-  )
 
   // The popover evaluates the CURRENT rules; the stored number is from the last
   // generation run. If they disagree, the rules changed since this stream was
   // ordered and the stored order is stale until the next run. While a generation
   // is running the number is mid-update, so we show a spinner instead of flagging
   // it stale.
-  const winner = ordered.find((r) => r.is_winner)
-  const stale = !generating && winner != null && winner.priority !== priority
+  const stale = !generating && rank !== priority
 
   return (
     <div className="relative inline-block" ref={ref}>
@@ -211,38 +206,30 @@ function PriorityCell(
             ? "Generation in progress — priority is updating"
             : stale
               ? "Rules changed since last sync — click for details"
-              : "Show matched rules"
+              : "Show score breakdown"
         }
       >
         {generating ? <Loader2 className="h-3 w-3 animate-spin" /> : <>{priority}{stale && "*"}</>}
       </button>
       {open && (
         <div className="absolute left-0 top-full z-50 mt-1 w-64 rounded-md border bg-popover p-1.5 shadow-lg">
-          {rules.length > 0 && (
           <div className="px-1 pb-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60">
-            Matched rules
+            Score breakdown
           </div>
-          )}
           <div className="space-y-0.5">
-            {ordered.map((r, i) => (
-              <div
-                key={i}
-                className={`flex items-start gap-1.5 rounded px-1 py-0.5 ${
-                  r.is_winner ? "bg-primary/10" : ""
-                } ${r.type === "catch_all" && !r.is_winner ? "opacity-50" : ""}`}
-              >
+            {rules.length === 0 && (
+              <div className="px-1 py-0.5 text-[11px] italic text-muted-foreground">
+                No rules matched — score 0
+              </div>
+            )}
+            {rules.map((r, i) => (
+              <div key={i} className="flex items-start gap-1.5 rounded px-1 py-0.5">
                 <span className="shrink-0 font-mono text-[11px] leading-5 tabular-nums text-muted-foreground">
-                  {r.priority}
+                  {r.points >= 0 ? `+${r.points}` : r.points}
                 </span>
                 <span className="min-w-0 flex-1">
-                  {/* Name shares a line with the number (and badge); subtitle drops below. */}
-                  <span className="flex items-center gap-1.5">
-                    <span className="text-[11px] font-medium leading-5 truncate">
-                      {RULE_TYPE_LABELS[r.type] ?? r.type}
-                    </span>
-                    {r.is_winner && (
-                      <Badge variant="info" className="shrink-0 text-[9px] px-1 py-0">applied</Badge>
-                    )}
+                  <span className="block truncate text-[11px] font-medium leading-5">
+                    {RULE_TYPE_LABELS[r.type] ?? r.type}
                   </span>
                   {r.value && (
                     <span className="block truncate font-mono text-[10px] text-muted-foreground" title={r.value}>
@@ -253,8 +240,12 @@ function PriorityCell(
               </div>
             ))}
           </div>
+          <div className="mt-1 flex items-center justify-between border-t pt-1 text-[10px] leading-snug text-muted-foreground">
+            <span>Total score: <span className="font-mono text-foreground">{totalScore}</span></span>
+            <span>Rank #{rank} of {totalStreams}</span>
+          </div>
           {generating ? (
-            <div className={`text-[10px] leading-snug text-muted-foreground ${rules.length > 0 ? "mt-1 border-t pt-1" : ""}`}>
+            <div className="mt-1 border-t pt-1 text-[10px] leading-snug text-muted-foreground">
               Generation in progress — the order is updating.
             </div>
           ) : stale ? (
@@ -1043,7 +1034,16 @@ export function ManagedChannelsTable() {
                                   <td className="py-1 pr-4 text-muted-foreground">{stream.source_group ?? "—"}</td>
                                   <td className="py-1 pr-4 text-muted-foreground">{stream.m3u_account_name ?? "—"}</td>
                                   <td className="py-1 pr-4"><MethodCell stream={stream} /></td>
-                                  <td className="py-1 pr-4"><PriorityCell priority={stream.priority} rules={stream.matched_rules} generating={isGenerating} /></td>
+                                  <td className="py-1 pr-4">
+                                    <PriorityCell
+                                      priority={stream.priority}
+                                      totalScore={stream.total_score}
+                                      rank={stream.rank}
+                                      totalStreams={(channelStreams.get(channel.id) ?? []).length}
+                                      rules={stream.matched_rules}
+                                      generating={isGenerating}
+                                    />
+                                  </td>
                                   <td className="py-1"><StreamStatsBadges stats={stream.stream_stats} /></td>
                                 </tr>
                               ))}

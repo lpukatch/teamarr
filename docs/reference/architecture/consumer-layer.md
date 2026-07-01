@@ -203,15 +203,19 @@ For EPG-matched linear streams (epic `teamarrv2-183.5`), membership in a channel
 
 ## Stream Ordering
 
-`services/stream_ordering.py` assigns priority to channels based on configurable rules.
+`services/stream_ordering.py` scores streams within a consolidated channel based on configurable rules (additive, not first-match-wins — see [Stream Priority](../../guide/channels/stream-priority)).
 
 | Rule Type | Matches On |
 |-----------|-----------|
 | `m3u` | M3U account name |
 | `group` | Source group name |
 | `regex` | Stream name pattern (case-insensitive) |
+| `stream_type` / `epg_match` | How the stream was recognized (event/team/EPG), optionally team-scoped |
+| `team_feed` / `not_team_feed` | Home/away feed detection for selected teams |
+| `dispatcharr_group` | Dispatcharr channel group (channel-source streams) |
+| `stats_metric` | Numeric stream-stat thresholds (resolution, fps, bitrate, ...) |
 
-No match defaults to priority 999 (sorted to end). Channels are sorted by priority, then by `added_at` for stable ordering.
+A stream's score is the sum of the points of every rule it matches; a stream matching nothing scores 0. Streams within a channel are sorted by score descending, then by `added_at` for stable ordering.
 
 ## File Locations
 

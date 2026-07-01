@@ -1,7 +1,8 @@
 """Stream ordering service.
 
-Computes stream priorities based on user-defined rules.
-Rules are evaluated in priority order (lowest first); first match wins.
+Computes stream scores based on user-defined rules. A stream's score is the
+sum of the points of every rule it matches; streams within a channel are
+ranked by total score, highest first.
 """
 
 import logging
@@ -14,9 +15,6 @@ from teamarr.database.settings.types import StreamOrderingRule
 
 logger = logging.getLogger(__name__)
 
-# Default priority for streams that don't match any rule
-NO_MATCH_PRIORITY = 999
-
 # Generic words that never disambiguate a team. Dropping them from the
 # team-feed/presence term set avoids over-broad matches (e.g. a club literally
 # named "The Strongest" must not turn into a rule that matches any stream
@@ -26,30 +24,20 @@ _TEAM_TERM_STOPWORDS = frozenset({"the", "and", "for", "with"})
 
 
 @dataclass
-class StreamWithPriority:
-    """A stream with its computed priority."""
-
-    stream: ManagedChannelStream
-    computed_priority: int
-    matched_rule_type: str | None = None  # Which rule type matched
-
-
-@dataclass
 class RuleEvaluation:
-    """One ordering rule that matched a stream, for the priority explainer popup."""
+    """One ordering rule that matched a stream, for the score-breakdown popup."""
 
     type: str
     value: str
-    priority: int
-    is_winner: bool  # True for the rule that actually set the priority
+    points: int
 
 
 class StreamOrderingService:
-    """Service for computing stream ordering based on rules.
+    """Service for computing stream scores based on rules.
 
-    Rules are evaluated in priority order (lowest number first).
-    First matching rule determines the stream's position.
-    Non-matching streams get priority 999 (sorted to end).
+    Every rule that matches a stream contributes its points to that stream's
+    score. Streams within a channel are ranked by total score, highest first;
+    a stream matching nothing scores 0.
     """
 
     def __init__(
@@ -63,7 +51,7 @@ class StreamOrderingService:
             rules: List of ordering rules
             conn: Database connection (optional, needed for group name lookups)
         """
-        self.rules = sorted(rules, key=lambda r: r.priority)
+        self.rules = rules
         self.conn = conn
         self._compiled_regex: dict[str, re.Pattern] = {}
         self._group_name_cache: dict[int, str] = {}
@@ -72,67 +60,24 @@ class StreamOrderingService:
         # Keyed by sorted comma-joined keys for simple team-presence patterns
         self._team_presence_patterns: dict[str, re.Pattern | None] = {}
 
-    def _find_matching_rule(
-        self,
-        stream: ManagedChannelStream,
-        source_group_name: str | None,
-    ) -> tuple[StreamOrderingRule | None, int]:
-        """Return (matched_rule_or_None, catch_all_priority).
-
-        Iterates rules in priority order, skipping catch_all (which sets the
-        fallback rather than acting as a matcher).
-        """
-        catch_all_priority = NO_MATCH_PRIORITY
-        for rule in self.rules:
-            if rule.type == "catch_all":
-                catch_all_priority = rule.priority
-                continue
-            if self._matches(stream, rule, source_group_name):
-                return rule, catch_all_priority
-        return None, catch_all_priority
-
-    def compute_priority(
+    def compute_score(
         self,
         stream: ManagedChannelStream,
         source_group_name: str | None = None,
     ) -> int:
-        """Compute the priority for a single stream.
+        """Compute the total score for a single stream.
 
         Args:
-            stream: The stream to compute priority for
+            stream: The stream to score
             source_group_name: Optional pre-fetched group name (optimization)
 
         Returns:
-            Priority number (lower = higher priority)
+            Sum of the points of every rule that matches this stream (0 if none match)
         """
-        matched_rule, catch_all_priority = self._find_matching_rule(stream, source_group_name)
-        return matched_rule.priority if matched_rule else catch_all_priority
-
-    def compute_priority_with_details(
-        self,
-        stream: ManagedChannelStream,
-        source_group_name: str | None = None,
-    ) -> StreamWithPriority:
-        """Compute priority with details about which rule matched.
-
-        Args:
-            stream: The stream to compute priority for
-            source_group_name: Optional pre-fetched group name
-
-        Returns:
-            StreamWithPriority with computed priority and match info
-        """
-        matched_rule, catch_all_priority = self._find_matching_rule(stream, source_group_name)
-        if matched_rule:
-            return StreamWithPriority(
-                stream=stream,
-                computed_priority=matched_rule.priority,
-                matched_rule_type=matched_rule.type,
-            )
-        return StreamWithPriority(
-            stream=stream,
-            computed_priority=catch_all_priority,
-            matched_rule_type="catch_all" if catch_all_priority != NO_MATCH_PRIORITY else None,
+        return sum(
+            rule.points
+            for rule in self.rules
+            if self._matches(stream, rule, source_group_name)
         )
 
     def evaluate_rules(
@@ -140,60 +85,37 @@ class StreamOrderingService:
         stream: ManagedChannelStream,
         source_group_name: str | None = None,
     ) -> list[RuleEvaluation]:
-        """Return the rules that matched a stream, marking which one won.
+        """Return every rule that matched a stream, with its point contribution.
 
-        Mirrors compute_priority's first-match-wins / catch_all-fallback logic,
-        but reports every matching rule (not just the winner) so the UI can
-        explain why a stream got its priority. Rules are already priority-sorted.
+        Used by the priority-explainer popup to show a stream's full score
+        breakdown (which rules matched, how many points each contributed).
 
         Args:
             stream: The stream to evaluate
             source_group_name: Optional pre-fetched group name (for 'group' rules)
 
         Returns:
-            Matched rules in priority order, always followed by the "everything
-            else" baseline (the configured catch_all rule, or the implicit
-            no-match default). The rule that set the priority — first match, or
-            the baseline when nothing matched — has is_winner=True.
+            The subset of rules that matched, in configured order.
         """
-        matched: list[RuleEvaluation] = []
-        catch_all: StreamOrderingRule | None = None
-        winner_found = False
-
-        for rule in self.rules:
-            if rule.type == "catch_all":
-                catch_all = rule
-                continue
-            if self._matches(stream, rule, source_group_name):
-                is_winner = not winner_found
-                winner_found = winner_found or is_winner
-                matched.append(
-                    RuleEvaluation(rule.type, rule.value, rule.priority, is_winner)
-                )
-
-        # Always surface the baseline so the popup shows what "everything else"
-        # falls back to, even when a specific rule won.
-        baseline_priority = catch_all.priority if catch_all else NO_MATCH_PRIORITY
-        baseline_value = catch_all.value if catch_all else ""
-        matched.append(
-            RuleEvaluation("catch_all", baseline_value, baseline_priority, not winner_found)
-        )
-
-        return matched
+        return [
+            RuleEvaluation(rule.type, rule.value, rule.points)
+            for rule in self.rules
+            if self._matches(stream, rule, source_group_name)
+        ]
 
     def sort_streams(
         self,
         streams: list[ManagedChannelStream],
         source_group_names: dict[int, str] | None = None,
     ) -> list[ManagedChannelStream]:
-        """Sort streams by computed priority.
+        """Sort streams by computed score, highest first.
 
         Args:
             streams: List of streams to sort
             source_group_names: Optional mapping of source_group_id -> group name
 
         Returns:
-            Sorted list of streams (lowest priority first)
+            Sorted list of streams (highest score first)
         """
         if not self.rules:
             # No rules - preserve existing order by added_at
@@ -203,9 +125,9 @@ class StreamOrderingService:
             group_name = None
             if source_group_names and stream.source_group_id:
                 group_name = source_group_names.get(stream.source_group_id)
-            priority = self.compute_priority(stream, group_name)
-            # Secondary sort by added_at for stable ordering within same priority
-            return (priority, stream.added_at or 0)
+            score = self.compute_score(stream, group_name)
+            # Secondary sort by added_at for stable ordering within same score
+            return (-score, stream.added_at or 0)
 
         return sorted(streams, key=sort_key)
 

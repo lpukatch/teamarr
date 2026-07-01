@@ -170,22 +170,22 @@ class TeamFilterSettings:
 class StreamOrderingRule:
     """A single stream ordering rule.
 
-    Rules are evaluated in priority order (lowest number first).
-    First matching rule determines the stream's sort position within a channel.
+    A stream's score is the sum of the points of every rule it matches.
+    Streams within a channel are then ranked by total score, highest first.
     """
 
-    type: str  # "m3u", "group", "regex", "stream_type", "team_feed", "not_team_feed", "catch_all"
+    type: str  # "m3u", "group", "regex", "stream_type", "team_feed", "not_team_feed", ...
     value: str  # Account name, group name, regex pattern, or team key(s)
-    priority: int  # 1-99, lower = higher priority
+    points: int  # Signed; added to a stream's score when this rule matches
 
 
 VALID_RULE_TYPES: frozenset[str] = frozenset({
     "m3u", "group", "regex", "stream_type",
     "team_feed", "not_team_feed", "epg_match", "dispatcharr_group",
-    "stats_metric", "catch_all",
+    "stats_metric",
 })
 NO_VALUE_RULE_TYPES: frozenset[str] = frozenset(
-    {"team_feed", "not_team_feed", "epg_match", "catch_all"}
+    {"team_feed", "not_team_feed", "epg_match"}
 )
 
 
@@ -193,9 +193,9 @@ NO_VALUE_RULE_TYPES: frozenset[str] = frozenset(
 class StreamOrderingSettings:
     """Stream ordering rules for prioritizing streams within channels.
 
-    Rules are evaluated in order by priority number (lowest first).
-    First matching rule determines stream's position.
-    Non-matching streams get priority 999 (sorted to end).
+    Every rule that matches a stream contributes its points to that stream's
+    score. Streams within a channel are ranked by total score, highest first;
+    a stream matching nothing scores 0.
     """
 
     rules: list[StreamOrderingRule] = field(default_factory=list)

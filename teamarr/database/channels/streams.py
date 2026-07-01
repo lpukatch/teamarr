@@ -176,39 +176,25 @@ def compute_stream_priority_from_rules(
     m3u_account_name: str | None = None,
     source_group_id: int | None = None,
 ) -> int:
-    """Compute priority for a stream based on ordering rules.
+    """Compute priority for a newly-discovered stream being inserted into a channel.
 
-    If rules are defined, computes priority based on first matching rule.
-    If no rules or no match, returns 999 (sort to end).
+    Always returns None (sequential fallback via get_next_stream_priority): scoring
+    this single stream in isolation can't be meaningfully compared against sibling
+    streams' already rank-normalized priority values (score-space vs. rank-space),
+    and a freshly-added stream typically has no stream_stats yet anyway (Dispatcharr
+    hasn't probed it). The next full stream-ordering pass in generation.py re-scores
+    the whole channel, including this stream, and assigns it a correct rank then.
 
     Args:
         conn: Database connection
-        stream_name: Stream display name (for regex matching)
-        m3u_account_name: M3U account name (for m3u type matching)
-        source_group_id: Source group ID (for group type matching)
+        stream_name: Stream display name (unused; kept for call-site compatibility)
+        m3u_account_name: M3U account name (unused; kept for call-site compatibility)
+        source_group_id: Source group ID (unused; kept for call-site compatibility)
 
     Returns:
-        Computed priority (lower = higher priority)
+        None, always — caller falls back to sequential ordering
     """
-    from teamarr.database.channels.types import ManagedChannelStream
-    from teamarr.services.stream_ordering import get_stream_ordering_service
-
-    ordering_service = get_stream_ordering_service(conn)
-    if not ordering_service.rules:
-        # No rules - use sequential ordering (will be assigned by get_next_stream_priority)
-        return None  # type: ignore
-
-    # Create a temporary stream object for matching
-    temp_stream = ManagedChannelStream(
-        id=0,
-        managed_channel_id=0,
-        dispatcharr_stream_id=0,
-        stream_name=stream_name,
-        m3u_account_name=m3u_account_name,
-        source_group_id=source_group_id,
-    )
-
-    return ordering_service.compute_priority(temp_stream)
+    return None
 
 
 def get_next_stream_priority(conn: Connection, managed_channel_id: int) -> int:
@@ -363,10 +349,10 @@ def reorder_channel_streams(
         # No rules defined - skip reordering
         return 0
 
-    # Compute priorities and update
+    # Score, rank, and update
     updated_count = 0
-    for stream in streams:
-        new_priority = ordering_service.compute_priority(stream)
+    sorted_streams = ordering_service.sort_streams(streams)
+    for new_priority, stream in enumerate(sorted_streams, start=1):
         if stream.priority != new_priority:
             update_stream_priority(conn, stream.id, new_priority)
             updated_count += 1
